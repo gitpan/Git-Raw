@@ -3,7 +3,53 @@ Changes from 2011-08-06 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.01 at 2012-08-05 11:43:00 +0000
+version 0.02 at 2012-08-05 20:18:43 +0000
+-----------------------------------------
+
+  Change: 0a4a9cba751bc2bb1c07d22fcb88d25e007618d8
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 22:17:09 +0000
+
+    lib: update documentation 
+
+  Change: 7e7ee876b3563968860af733eb2b111817148e04
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 22:08:26 +0000
+
+    Tag.xs: more stuff 
+
+  Change: 66e5e5bee8af990af61ff4829c8877ed012180b0
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 21:54:56 +0000
+
+    Repository.xs: implement 'head' method 
+
+  Change: 2fb1a9b217db37dd3621cf1061d5c36952d5e934
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 21:48:07 +0000
+
+    Tag.xs: initial tag implementation 
+
+  Change: 7533b8b9a29c0fb925c600a101cddfe79187c99a
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 21:03:06 +0000
+
+    Repository.xs: implement a generic 'lookup' method 
+
+  Change: 2676c958d016eb33456d47061e5717bc424f78dc
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 21:00:39 +0000
+
+    Commit.xs: implement 'id' method 
+
+  Change: 367165bc8393064cb721099aa8653f40fbb2b718
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 20:24:02 +0000
+
+    Raw.xs: more useful exceptions 
+
+-----------------------------------------
+version 0.01 at 2012-08-05 11:42:41 +0000
 -----------------------------------------
 
   Change: 00cadff66b126ad37c23ff6d99f191787f52a22f

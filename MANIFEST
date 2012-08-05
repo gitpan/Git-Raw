@@ -16,10 +16,12 @@ lib/Git/Raw/Config.pm
 lib/Git/Raw/Index.pm
 lib/Git/Raw/Repository.pm
 lib/Git/Raw/Signature.pm
+lib/Git/Raw/Tag.pm
 lib/Git/Raw/Tree.pm
 t/00-compile.t
 t/01-repo.t
 t/02-commit.t
+t/03-tag.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -29,4 +31,5 @@ xs/Config.xs
 xs/Index.xs
 xs/Repository.xs
 xs/Signature.xs
+xs/Tag.xs
 xs/Tree.xs

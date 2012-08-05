@@ -1,6 +1,6 @@
 package Git::Raw;
 {
-  $Git::Raw::VERSION = '0.01';
+  $Git::Raw::VERSION = '0.02';
 }
 
 use strict;
@@ -15,7 +15,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.01
+version 0.02
 
 =head1 SYNOPSIS
 
@@ -31,7 +31,7 @@ version 0.01
 
     # create a new tree out of the repository index
     my $tree_id = $index -> write_tree;
-    my $tree    = $repo -> lookup_tree($tree_id);
+    my $tree    = $repo -> lookup($tree_id);
 
     # retrieve user's name and email from the Git configuration
     my $config = $repo -> config;

@@ -63,43 +63,44 @@ index(self)
 
 	OUTPUT: RETVAL
 
-Commit
-lookup_commit(self, commit)
+SV *
+head(self)
 	Repository self
-	SV *commit
 
 	CODE:
-		Commit c;
-		STRLEN len;
-		git_oid oid;
+		git_object *o;
+		git_reference *r;
+		const git_oid *oid;
 
-		int rc = git_oid_fromstrn(&oid, SvPVbyte(commit, len), len);
+		int rc = git_repository_head(&r, self);
 		git_check_error(rc);
 
-		rc = git_commit_lookup_prefix(&c, self, &oid, len);
+		oid = git_reference_oid(r);
+
+		rc = git_object_lookup(&o, self, oid, GIT_OBJ_ANY);
 		git_check_error(rc);
 
-		RETVAL = c;
+		RETVAL = git_obj_to_sv(o);
 
 	OUTPUT: RETVAL
 
-Tree
-lookup_tree(self, tree)
+SV *
+lookup(self, id)
 	Repository self
-	SV *tree
+	SV *id
 
 	CODE:
-		Tree t;
 		STRLEN len;
 		git_oid oid;
+		git_object *o;
 
-		int rc = git_oid_fromstrn(&oid, SvPVbyte(tree, len), len);
+		int rc = git_oid_fromstrn(&oid, SvPVbyte(id, len), len);
 		git_check_error(rc);
 
-		rc = git_tree_lookup_prefix(&t, self, &oid, len);
+		rc = git_object_lookup_prefix(&o, self, &oid, len, GIT_OBJ_ANY);
 		git_check_error(rc);
 
-		RETVAL = t;
+		RETVAL = git_obj_to_sv(o);
 
 	OUTPUT: RETVAL
 
@@ -127,8 +128,40 @@ commit(self, msg, author, cmtter, parents, tree)
 
 		rc = git_commit_lookup(&c, self, &oid);
 		git_check_error(rc);
-		
+
 		RETVAL = c;
+
+	OUTPUT: RETVAL
+
+Tag
+tag(self, name, msg, tagger, target)
+	Repository self
+	SV *name
+	SV *msg
+	Signature tagger
+	SV *target
+
+	CODE:
+		Tag t;
+		git_oid oid;
+		git_object *o;
+		STRLEN len1, len2;
+
+		o = git_sv_to_obj(target);
+
+		if (o == NULL)
+			Perl_croak(aTHX_ "target is not of a valid type");
+
+		int rc = git_tag_create(
+			&oid, self, SvPVbyte(name, len1),
+			o, tagger, SvPVbyte(msg, len2), 0
+		);
+		git_check_error(rc);
+
+		rc = git_tag_lookup(&t, self, &oid);
+		git_check_error(rc);
+
+		RETVAL = t;
 
 	OUTPUT: RETVAL
 

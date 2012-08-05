@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.01';
+  $Git::Raw::Commit::VERSION = '0.02';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Commit - libgit2 commit class
 
 =head1 VERSION
 
-version 0.01
+version 0.02
 
 =head1 DESCRIPTION
 
@@ -27,6 +27,10 @@ Retrieve the C<Git::Raw::Signature> representing the commit's author.
 =head2 committer( )
 
 Retrieve the C<Git::Raw::Signature> representing the commit's committer.
+
+=head2 id( )
+
+Retrieve the id of the commit, as string.
 
 =head2 message( )
 

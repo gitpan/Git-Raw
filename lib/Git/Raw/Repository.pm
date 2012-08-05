@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.01';
+  $Git::Raw::Repository::VERSION = '0.02';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - libgit2 repository class
 
 =head1 VERSION
 
-version 0.01
+version 0.02
 
 =head1 DESCRIPTION
 
@@ -36,19 +36,28 @@ Retrieve the default L<Git::Raw::Config> of the repository.
 
 Retrieve the default L<Git::Raw::Index> of the repository.
 
-=head2 lookup_commit( $id )
+=head2 head( )
 
-Retrieve the L<Git::Raw::Commit> corresponding to the given ID..
+Retrieve the HEAD of the repository. This function may return a L<Git::Raw::Blob>,
+a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
 
-=head2 lookup_tree( $id )
+=head2 lookup( $id )
 
-Retrieve the L<Git::Raw::Tree> corresponding to the given ID..
+Retrieve the object corresponding to the given id. This function may return a
+L<Git::Raw::Blob>, a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a
+L<Git::Raw::Tree>.
 
 =head2 commit( $msg, $author, $committer, @parents, $tree )
 
-Create a new commit given a message, an author and committer
+Create a new L<Git::Raw::Commit> given a message, an author and committer
 (L<Git::Raw::Signature>), a list of parents (L<Git::Raw::Commit>) and a tree
 (L<Git::Raw::Tree>).
+
+=head2 tag( $name, $msg, $tagger, $target )
+
+Create a new L<Git::Raw::Tag> given a name, a message, a $tagger
+(L<Git::Raw::Signature>) and a $target. The target may be a L<Git::Raw::Blob>,
+a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
 
 =head2 path( )
 
