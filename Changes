@@ -1,0 +1,23 @@
+==================================================
+Changes from 2011-08-06 00:00:00 +0000 to present.
+==================================================
+
+-----------------------------------------
+version 0.01 at 2012-08-05 11:43:00 +0000
+-----------------------------------------
+
+  Change: 00cadff66b126ad37c23ff6d99f191787f52a22f
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 13:42:41 +0000
+
+    Index.xs: fix uniq 
+
+  Change: 3f27a556ee2a58157eaa7de148fe60f343105e46
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-05 13:35:18 +0000
+
+    initial commit 
+
+================
+End of releases.
+================
