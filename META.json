@@ -49,7 +49,7 @@
          "web" : "https://github.com/AlexBio/p5-Git-Raw"
       }
    },
-   "version" : "0.02",
+   "version" : "0.03",
    "x_Dist_Zilla" : {
       "plugins" : [
          {

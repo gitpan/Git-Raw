@@ -1,6 +1,6 @@
 package Git::Raw::Config;
 {
-  $Git::Raw::Config::VERSION = '0.02';
+  $Git::Raw::Config::VERSION = '0.03';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Config - libgit2 config class
 
 =head1 VERSION
 
-version 0.02
+version 0.03
 
 =head1 DESCRIPTION
 
@@ -20,13 +20,23 @@ A C<Git::Raw::Config> represents a Git configuration file.
 
 =head1 METHODS
 
-=head2 get_str( $name )
+=head2 bool( $name [, $value ] )
 
-Retrieve the value of the C<$name> configuration field of type string.
+Retrieve the value of the C<$name> configuration field of type boolean. If
+C<$value> is passed, the value of the configration will be updated, and
+returned.
 
-=head2 set_str( $name, $value )
+=head2 int( $name [, $value ] )
 
-Set the value of the C<$name> configuration field of type string.
+Retrieve the value of the C<$name> configuration field of type integer. If
+C<$value> is passed, the value of the configration will be updated, and
+returned.
+
+=head2 string( $name [, $value ] )
+
+Retrieve the value of the C<$name> configuration field of type string. If
+C<$value> is passed, the value of the configration will be updated, and
+returned.
 
 =head1 AUTHOR
 

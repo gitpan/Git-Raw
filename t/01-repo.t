@@ -17,10 +17,16 @@ my $config = $repo -> config;
 my $name  = 'Git::Raw author';
 my $email = 'git-xs@example.com';
 
-is($config -> set_str('user.name', $name), $name);
-is($config -> set_str('user.email', $email), $email);
+ok($config -> bool('some.bool', 1));
+ok($config -> bool('some.bool'));
 
-is($config -> get_str('user.name'), $name);
-is($config -> get_str('user.email'), $email);
+is($config -> int('some.int', 42), 42);
+is($config -> int('some.int'), 42);
+
+is($config -> string('user.name', $name), $name);
+is($config -> string('user.email', $email), $email);
+
+is($config -> string('user.name'), $name);
+is($config -> string('user.email'), $email);
 
 done_testing;

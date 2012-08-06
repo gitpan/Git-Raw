@@ -1,9 +1,49 @@
 ==================================================
-Changes from 2011-08-06 00:00:00 +0000 to present.
+Changes from 2011-08-07 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.02 at 2012-08-05 20:18:43 +0000
+version 0.03 at 2012-08-06 16:45:40 +0000
+-----------------------------------------
+
+  Change: 85c27f1cc7410af8ee793dcbc0242bb850899a33
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-06 18:44:49 +0000
+
+    Config.xs: implement 'bool' and 'int' methods 
+
+  Change: 4d8442272c9c04d97992f46bd661e1af313650c0
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-06 18:35:06 +0000
+
+    Config.xs: use single 'string' method for both get and set 
+
+  Change: b75a700dede5ec1b8723b7431978511d5b02715c
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-06 18:24:11 +0000
+
+    Repository.xs: implement 'status' method 
+
+  Change: 70a9758da03d3a36b0844ac4f8f1c620004e4402
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-06 18:23:39 +0000
+
+    Repository.xs: implement support for revwalking 
+
+  Change: 89d28283e00ec3f3664c1694a71be7589d3033d5
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-06 18:23:39 +0000
+
+    Commit.xs: add proper support for commit parents 
+
+  Change: 68c7ee69ce5960e1c9461ed708c5a1c2ef4414f6
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-06 18:23:35 +0000
+
+    TODO: -- 
+
+-----------------------------------------
+version 0.02 at 2012-08-05 20:17:09 +0000
 -----------------------------------------
 
   Change: 0a4a9cba751bc2bb1c07d22fcb88d25e007618d8

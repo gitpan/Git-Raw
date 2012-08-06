@@ -114,15 +114,29 @@ commit(self, msg, author, cmtter, parents, tree)
 	Tree tree
 
 	CODE:
-		Commit c;
+		SV *iter;
+		int i = 0;
 		STRLEN len;
 		git_oid oid;
+		Commit c, *paren;
+
+		int count = av_len(parents) + 1;
+
+		if (count > 0) {
+			Newx(paren, count, git_commit *);
+
+			for (i = 0; i < count; i++) {
+				iter = av_shift(parents);
+
+				if (sv_isobject(iter) && sv_derived_from(iter, "Git::Raw::Commit"))
+					paren[i] = INT2PTR(git_commit *, SvIV((SV *) SvRV(iter)));
+				else Perl_croak(aTHX_ "parent is not of type Git::Raw::Commit");
+			}
+		}
 
 		int rc = git_commit_create(
-			&oid, self, "HEAD",
-			author, cmtter, NULL,
-			SvPVbyte(msg, len), tree,
-			0, NULL
+			&oid, self, "HEAD", author, cmtter, NULL,
+			SvPVbyte(msg, len), tree, count, paren
 		);
 		git_check_error(rc);
 
@@ -130,6 +144,45 @@ commit(self, msg, author, cmtter, parents, tree)
 		git_check_error(rc);
 
 		RETVAL = c;
+
+	OUTPUT: RETVAL
+
+AV *
+status(self, path)
+	Repository self
+	SV *path
+
+	CODE:
+		STRLEN len;
+		unsigned iflags;
+		AV *flags = newAV();
+		const char *file = SvPVbyte(path, len);
+
+		int rc = git_status_file(&iflags, self, file);
+		git_check_error(rc);
+
+		if (iflags & GIT_STATUS_INDEX_NEW)
+			av_push(flags, newSVpv(":index_new", 0));
+
+		if (iflags & GIT_STATUS_INDEX_MODIFIED)
+			av_push(flags, newSVpv(":index_modified", 0));
+
+		if (iflags & GIT_STATUS_INDEX_DELETED)
+			av_push(flags, newSVpv(":index_deleted", 0));
+
+		if (iflags & GIT_STATUS_WT_NEW)
+			av_push(flags, newSVpv(":worktree_new", 0));
+
+		if (iflags & GIT_STATUS_WT_MODIFIED)
+			av_push(flags, newSVpv(":worktree_modified", 0));
+
+		if (iflags & GIT_STATUS_WT_DELETED)
+			av_push(flags, newSVpv(":worktree_deleted", 0));
+
+		if (iflags & GIT_STATUS_IGNORED)
+			av_push(flags, newSVpv(":ignored", 0));
+
+		RETVAL = flags;
 
 	OUTPUT: RETVAL
 
@@ -162,6 +215,20 @@ tag(self, name, msg, tagger, target)
 		git_check_error(rc);
 
 		RETVAL = t;
+
+	OUTPUT: RETVAL
+
+Walker
+walker(self)
+	Repository self
+
+	CODE:
+		Walker w;
+
+		int rc = git_revwalk_new(&w, self);
+		git_check_error(rc);
+
+		RETVAL = w;
 
 	OUTPUT: RETVAL
 

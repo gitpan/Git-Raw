@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.02';
+  $Git::Raw::Repository::VERSION = '0.03';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - libgit2 repository class
 
 =head1 VERSION
 
-version 0.02
+version 0.03
 
 =head1 DESCRIPTION
 
@@ -47,17 +47,44 @@ Retrieve the object corresponding to the given id. This function may return a
 L<Git::Raw::Blob>, a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a
 L<Git::Raw::Tree>.
 
-=head2 commit( $msg, $author, $committer, @parents, $tree )
+=head2 commit( $msg, $author, $committer, [@parents], $tree )
 
 Create a new L<Git::Raw::Commit> given a message, an author and committer
 (L<Git::Raw::Signature>), a list of parents (L<Git::Raw::Commit>) and a tree
 (L<Git::Raw::Tree>).
+
+=head2 status( $file )
+
+Retrieve the status of the given file in the working directory. This functions
+returns a list of status flags. Valid status flags are:
+
+=over 4
+
+=item C<":index_new">
+
+=item C<":index_modified">
+
+=item C<":index_deleted">
+
+=item C<":worktree_new">
+
+=item C<":worktree_modified">
+
+=item C<":worktree_deleted">
+
+=item C<":ignored">
+
+=back
 
 =head2 tag( $name, $msg, $tagger, $target )
 
 Create a new L<Git::Raw::Tag> given a name, a message, a $tagger
 (L<Git::Raw::Signature>) and a $target. The target may be a L<Git::Raw::Blob>,
 a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+
+=head2 walker( )
+
+Create a new L<Git::Raw::Walker> to iterate over repository's revisions.
 
 =head2 path( )
 
