@@ -6,6 +6,7 @@
 
 #include <git2.h>
 
+typedef git_blob * Blob;
 typedef git_commit * Commit;
 typedef git_config * Config;
 typedef git_index * Index;
@@ -13,6 +14,7 @@ typedef git_repository * Repository;
 typedef git_signature * Signature;
 typedef git_tag * Tag;
 typedef git_tree * Tree;
+typedef git_tree_entry * TreeEntry;
 typedef git_revwalk * Walker;
 
 void git_check_error(int err) {
@@ -54,6 +56,7 @@ git_object *git_sv_to_obj(SV *sv) {
 
 MODULE = Git::Raw			PACKAGE = Git::Raw
 
+INCLUDE: xs/Blob.xs
 INCLUDE: xs/Commit.xs
 INCLUDE: xs/Config.xs
 INCLUDE: xs/Index.xs
@@ -61,4 +64,5 @@ INCLUDE: xs/Repository.xs
 INCLUDE: xs/Signature.xs
 INCLUDE: xs/Tag.xs
 INCLUDE: xs/Tree.xs
+INCLUDE: xs/TreeEntry.xs
 INCLUDE: xs/Walker.xs

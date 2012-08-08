@@ -1,3 +1,4 @@
+Blob					T_GIT_REF
 Commit					T_GIT_REF
 Config					T_GIT_REF
 Index					T_GIT_REF
@@ -5,6 +6,7 @@ Repository				T_GIT_REF
 Signature				T_GIT_REF
 Tag					T_GIT_REF
 Tree					T_GIT_REF
+TreeEntry				T_GIT_REF
 Walker					T_GIT_REF
 
 OUTPUT

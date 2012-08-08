@@ -1,6 +1,6 @@
 package Git::Raw;
 {
-  $Git::Raw::VERSION = '0.03';
+  $Git::Raw::VERSION = '0.04';
 }
 
 use strict;
@@ -15,7 +15,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.03
+version 0.04
 
 =head1 SYNOPSIS
 
@@ -35,8 +35,8 @@ version 0.03
 
     # retrieve user's name and email from the Git configuration
     my $config = $repo -> config;
-    my $name   = $config -> get_str('user.name');
-    my $email  = $config -> get_str('user.email');
+    my $name   = $config -> str('user.name');
+    my $email  = $config -> str('user.email');
 
     # create a new Git signature
     my $me = Git::Raw::Signature -> now($name, $email);

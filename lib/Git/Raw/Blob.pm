@@ -1,6 +1,6 @@
-package Git::Raw::Tree;
+package Git::Raw::Blob;
 {
-  $Git::Raw::Tree::VERSION = '0.04';
+  $Git::Raw::Blob::VERSION = '0.04';
 }
 
 use strict;
@@ -8,7 +8,7 @@ use warnings;
 
 =head1 NAME
 
-Git::Raw::Tree - libgit2 tree class
+Git::Raw::Blob - libgit2 blob class
 
 =head1 VERSION
 
@@ -16,17 +16,13 @@ version 0.04
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Tree> represents a Git tree.
+Some description here...
 
 =head1 METHODS
 
-=head2 id( )
+=head2 content( )
 
-Retrieve the id of the tree, as string.
-
-=head2 entries( )
-
-Retrieve a list of L<Git::Raw::TreeEntry> objects.
+Retrieve the raw content of a blob.
 
 =head1 AUTHOR
 
@@ -44,4 +40,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::Tree
+1; # End of Git::Raw::Blob

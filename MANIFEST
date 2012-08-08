@@ -11,6 +11,7 @@ TODO
 dist.ini
 inc/MakeMaker.pm
 lib/Git/Raw.pm
+lib/Git/Raw/Blob.pm
 lib/Git/Raw/Commit.pm
 lib/Git/Raw/Config.pm
 lib/Git/Raw/Index.pm
@@ -18,16 +19,19 @@ lib/Git/Raw/Repository.pm
 lib/Git/Raw/Signature.pm
 lib/Git/Raw/Tag.pm
 lib/Git/Raw/Tree.pm
+lib/Git/Raw/TreeEntry.pm
 lib/Git/Raw/Walker.pm
 t/00-compile.t
 t/01-repo.t
 t/02-commit.t
 t/03-tag.t
 t/04-walker.t
+t/05-tree.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
 typemap
+xs/Blob.xs
 xs/Commit.xs
 xs/Config.xs
 xs/Index.xs
@@ -35,4 +39,5 @@ xs/Repository.xs
 xs/Signature.xs
 xs/Tag.xs
 xs/Tree.xs
+xs/TreeEntry.xs
 xs/Walker.xs

@@ -1,6 +1,6 @@
 package Git::Raw::Config;
 {
-  $Git::Raw::Config::VERSION = '0.03';
+  $Git::Raw::Config::VERSION = '0.04';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Config - libgit2 config class
 
 =head1 VERSION
 
-version 0.03
+version 0.04
 
 =head1 DESCRIPTION
 
@@ -32,7 +32,7 @@ Retrieve the value of the C<$name> configuration field of type integer. If
 C<$value> is passed, the value of the configration will be updated, and
 returned.
 
-=head2 string( $name [, $value ] )
+=head2 str( $name [, $value ] )
 
 Retrieve the value of the C<$name> configuration field of type string. If
 C<$value> is passed, the value of the configration will be updated, and

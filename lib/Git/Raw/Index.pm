@@ -1,6 +1,6 @@
 package Git::Raw::Index;
 {
-  $Git::Raw::Index::VERSION = '0.03';
+  $Git::Raw::Index::VERSION = '0.04';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Index - libgit2 index class
 
 =head1 VERSION
 
-version 0.03
+version 0.04
 
 =head1 DESCRIPTION
 

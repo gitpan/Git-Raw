@@ -1,6 +1,6 @@
-package Git::Raw::Tag;
+package Git::Raw::TreeEntry;
 {
-  $Git::Raw::Tag::VERSION = '0.04';
+  $Git::Raw::TreeEntry::VERSION = '0.04';
 }
 
 use strict;
@@ -8,7 +8,7 @@ use warnings;
 
 =head1 NAME
 
-Git::Raw::Tag - libgit2 tag class
+Git::Raw::TreeEntry - libgit2 tree entry class
 
 =head1 VERSION
 
@@ -16,29 +16,22 @@ version 0.04
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Tag> represents a Git tag.
+A C<Git::Raw::TreeEntry> represents an entry in a L<Git::Raw::Tree>.
 
 =head1 METHODS
 
 =head2 id( )
 
-Retrieve the id of the tag, as string.
+Retrieve the id of the tree entry, as string.
 
 =head2 name( )
 
-Retrieve the tag's name.
+Retrieve the filename of the tree entry.
 
-=head2 message( )
+=head2 object( $repo )
 
-Retrieve the tag's message.
-
-=head2 tagger( )
-
-Retrieve the C<Git::Raw::Signature> representing the tag's tagger.
-
-=head2 target( )
-
-Retrieve the target of the tag.  This function may return a L<Git::Raw::Blob>,
+Retrieve the object pointed by the tree entry given a L<Git::Raw::Repository>
+where to lookup the pointed object. This function may return a L<Git::Raw::Blob>,
 a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
 
 =head1 AUTHOR
@@ -57,4 +50,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::Tag
+1; # End of Git::Raw::TreeEntry

@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.03';
+  $Git::Raw::Commit::VERSION = '0.04';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Commit - libgit2 commit class
 
 =head1 VERSION
 
-version 0.03
+version 0.04
 
 =head1 DESCRIPTION
 
@@ -43,6 +43,10 @@ Retrieve the committer time of a commit.
 =head2 offset( )
 
 Retrieve the committer time offset (in minutes) of a commit.
+
+=head2 tree( )
+
+Retrieve the L<Git::Raw::Tree> a commit points to.
 
 =head2 parents( )
 
