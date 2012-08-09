@@ -5,13 +5,8 @@ id(self)
 	Tag self
 
 	CODE:
-		char out[41];
 		const git_oid *oid = git_tag_id(self);
-
-		git_oid_fmt(out, oid);
-		out[40] = '\0';
-
-		RETVAL = newSVpv(out, 0);
+		RETVAL = git_oid_to_sv((git_oid *) oid);
 
 	OUTPUT: RETVAL
 
@@ -40,7 +35,7 @@ tagger(self)
 	Tag self
 
 	CODE:
-		Signature c = git_tag_tagger(self);
+		Signature c = (Signature) git_tag_tagger(self);
 		RETVAL = git_signature_dup(c);
 
 	OUTPUT: RETVAL

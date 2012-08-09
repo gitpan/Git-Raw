@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.04';
+  $Git::Raw::Tag::VERSION = '0.05';
 }
 
 use strict;
@@ -8,11 +8,11 @@ use warnings;
 
 =head1 NAME
 
-Git::Raw::Tag - libgit2 tag class
+Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.04
+version 0.05
 
 =head1 DESCRIPTION
 
@@ -26,11 +26,11 @@ Retrieve the id of the tag, as string.
 
 =head2 name( )
 
-Retrieve the tag's name.
+Retrieve the name of the tag.
 
 =head2 message( )
 
-Retrieve the tag's message.
+Retrieve the message of the tag.
 
 =head2 tagger( )
 
@@ -38,7 +38,7 @@ Retrieve the C<Git::Raw::Signature> representing the tag's tagger.
 
 =head2 target( )
 
-Retrieve the target of the tag.  This function may return a L<Git::Raw::Blob>,
+Retrieve the target of the tag. This function may return a L<Git::Raw::Blob>,
 a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
 
 =head1 AUTHOR

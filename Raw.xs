@@ -10,6 +10,7 @@ typedef git_blob * Blob;
 typedef git_commit * Commit;
 typedef git_config * Config;
 typedef git_index * Index;
+typedef git_reference * Reference;
 typedef git_repository * Repository;
 typedef git_signature * Signature;
 typedef git_tag * Tag;
@@ -54,12 +55,22 @@ git_object *git_sv_to_obj(SV *sv) {
 	return NULL;
 }
 
+SV *git_oid_to_sv(git_oid *oid) {
+	char out[41];
+
+	git_oid_fmt(out, oid);
+	out[40] = '\0';
+
+	return newSVpv(out, 0);
+}
+
 MODULE = Git::Raw			PACKAGE = Git::Raw
 
 INCLUDE: xs/Blob.xs
 INCLUDE: xs/Commit.xs
 INCLUDE: xs/Config.xs
 INCLUDE: xs/Index.xs
+INCLUDE: xs/Reference.xs
 INCLUDE: xs/Repository.xs
 INCLUDE: xs/Signature.xs
 INCLUDE: xs/Tag.xs

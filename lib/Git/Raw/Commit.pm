@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.04';
+  $Git::Raw::Commit::VERSION = '0.05';
 }
 
 use strict;
@@ -8,17 +8,21 @@ use warnings;
 
 =head1 NAME
 
-Git::Raw::Commit - libgit2 commit class
+Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.04
+version 0.05
 
 =head1 DESCRIPTION
 
 A C<Git::Raw::Commit> represents a Git commit.
 
 =head1 METHODS
+
+=head2 id( )
+
+Retrieve the id of the commit, as string.
 
 =head2 author( )
 
@@ -27,10 +31,6 @@ Retrieve the C<Git::Raw::Signature> representing the commit's author.
 =head2 committer( )
 
 Retrieve the C<Git::Raw::Signature> representing the commit's committer.
-
-=head2 id( )
-
-Retrieve the id of the commit, as string.
 
 =head2 message( )
 
@@ -50,7 +50,7 @@ Retrieve the L<Git::Raw::Tree> a commit points to.
 
 =head2 parents( )
 
-Retrieve the list of a commit's parents. The parents are C<Git::Raw::Commit>
+Retrieve the list of parents of the commit. The parents are C<Git::Raw::Commit>
 too,
 
 =head1 AUTHOR
