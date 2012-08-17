@@ -1,6 +1,6 @@
 package Git::Raw::Signature;
 {
-  $Git::Raw::Signature::VERSION = '0.05';
+  $Git::Raw::Signature::VERSION = '0.06';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Signature - Git signature class
 
 =head1 VERSION
 
-version 0.05
+version 0.06
 
 =head1 DESCRIPTION
 

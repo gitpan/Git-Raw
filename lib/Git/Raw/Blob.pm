@@ -1,6 +1,6 @@
 package Git::Raw::Blob;
 {
-  $Git::Raw::Blob::VERSION = '0.05';
+  $Git::Raw::Blob::VERSION = '0.06';
 }
 
 use strict;
@@ -12,11 +12,11 @@ Git::Raw::Blob - Git blob class
 
 =head1 VERSION
 
-version 0.05
+version 0.06
 
 =head1 DESCRIPTION
 
-Some description here...
+A C<Git::Raw::Blob> represents a Git blob.
 
 =head1 METHODS
 

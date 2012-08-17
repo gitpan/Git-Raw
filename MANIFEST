@@ -16,6 +16,7 @@ lib/Git/Raw/Commit.pm
 lib/Git/Raw/Config.pm
 lib/Git/Raw/Index.pm
 lib/Git/Raw/Reference.pm
+lib/Git/Raw/Remote.pm
 lib/Git/Raw/Repository.pm
 lib/Git/Raw/Signature.pm
 lib/Git/Raw/Tag.pm
@@ -29,6 +30,7 @@ t/03-tag.t
 t/04-walker.t
 t/05-tree.t
 t/06-reference.t
+t/07-remote.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -38,6 +40,7 @@ xs/Commit.xs
 xs/Config.xs
 xs/Index.xs
 xs/Reference.xs
+xs/Remote.xs
 xs/Repository.xs
 xs/Signature.xs
 xs/Tag.xs

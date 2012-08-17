@@ -5,11 +5,10 @@ bool(self, name, ...)
 	Config self
 	SV *name
 
+	PROTOTYPE: $$;$
 	CODE:
-		int rc;
-		STRLEN len;
-		int value;
-		const char *var = SvPVbyte(name, len);
+		int rc, value;
+		const char *var = SvPVbyte_nolen(name);
 
 		switch (items) {
 			case 2: {
@@ -27,8 +26,6 @@ bool(self, name, ...)
 
 				break;
 			}
-
-			default: Perl_croak(aTHX_ "Too much arguments");
 		}
 
 		RETVAL = value;
@@ -40,10 +37,10 @@ int(self, name, ...)
 	Config self
 	SV *name
 
+	PROTOTYPE: $$;$
 	CODE:
-		STRLEN len;
 		int rc, value;
-		const char *var = SvPVbyte(name, len);
+		const char *var = SvPVbyte_nolen(name);
 
 		switch (items) {
 			case 2: {
@@ -61,8 +58,6 @@ int(self, name, ...)
 
 				break;
 			}
-
-			default: Perl_croak(aTHX_ "Too much arguments");
 		}
 
 		RETVAL = value;
@@ -74,11 +69,10 @@ str(self, name, ...)
 	Config self
 	SV *name
 
+	PROTOTYPE: $$;$
 	CODE:
 		int rc;
-		STRLEN len;
-		const char *value;
-		const char *var = SvPVbyte(name, len);
+		const char *value, *var = SvPVbyte_nolen(name);
 
 		switch (items) {
 			case 2: {
@@ -89,16 +83,13 @@ str(self, name, ...)
 			}
 
 			case 3: {
-				STRLEN len2;
-				value = SvPVbyte(ST(2), len2);
+				value = SvPVbyte_nolen(ST(2));
 
 				rc = git_config_set_string(self, var, value);
 				git_check_error(rc);
 
 				break;
 			}
-
-			default: Perl_croak(aTHX_ "Too much arguments");
 		}
 
 		RETVAL = newSVpv(value, 0);

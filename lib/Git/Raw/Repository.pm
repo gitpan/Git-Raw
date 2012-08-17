@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.05';
+  $Git::Raw::Repository::VERSION = '0.06';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.05
+version 0.06
 
 =head1 DESCRIPTION
 
@@ -81,6 +81,14 @@ returns a list of status flags. Valid status flags are:
 Create a new L<Git::Raw::Tag> given a name, a message, a $tagger
 (L<Git::Raw::Signature>) and a $target. The target may be a L<Git::Raw::Blob>,
 a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+
+=head2 tags( )
+
+Retrieve a list of L<Git::Raw::Tag> objects.
+
+=head2 remotes( )
+
+Retrieve a list of L<Git::Raw::Remote> objects.
 
 =head2 walker( )
 

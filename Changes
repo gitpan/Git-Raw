@@ -1,9 +1,49 @@
 ==================================================
-Changes from 2011-08-10 00:00:00 +0000 to present.
+Changes from 2011-08-18 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.05 at 2012-08-09 15:56:04 +0000
+version 0.06 at 2012-08-17 14:12:43 +0000
+-----------------------------------------
+
+  Change: 5867982fe2ecd6de1644e2be4274bb0a8f67870c
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-17 16:10:17 +0000
+
+    Raw.pm: tweak long descritpion 
+
+  Change: fddfd5f8131563a080e960dacaf28bcd5dad754d
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-17 16:01:08 +0000
+
+    Config.xs: add prototypes 
+
+  Change: 89d9192c592049da75e97740aa75d179cea34816
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-17 15:48:35 +0000
+
+    Repository.xs: add tags() method 
+
+  Change: cd17a080e7fd6191343cc3c6ff21ff1655f89cff
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-17 15:35:03 +0000
+
+    Remote.xs: support for Git remotes 
+
+  Change: 47cf876d7c87c2b0ee286f969db8f2c41f5aadd3
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-17 13:32:13 +0000
+
+    {Blob,Reference}.pm: fix DESCRIPTION 
+
+  Change: 9dab89eb0139e6ad6af51be4776c835ce69eb9dd
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-13 20:37:39 +0000
+
+    xs: replace SvPVbyte with *_nolen where appropriate 
+
+-----------------------------------------
+version 0.05 at 2012-08-09 15:55:53 +0000
 -----------------------------------------
 
   Change: 9af95c2ab3e7df131ee0efa938cd3c08d2c050fe
