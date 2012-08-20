@@ -1,6 +1,6 @@
 package Git::Raw::Walker;
 {
-  $Git::Raw::Walker::VERSION = '0.06';
+  $Git::Raw::Walker::VERSION = '0.07';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.06
+version 0.07
 
 =head1 DESCRIPTION
 

@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.06';
+  $Git::Raw::Reference::VERSION = '0.07';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.06
+version 0.07
 
 =head1 DESCRIPTION
 
@@ -30,8 +30,8 @@ Retrieve the full name of the reference.
 
 =head2 type( )
 
-Retrieve the type of the reference. It can be either C<":direct"> or
-C<":symbolic">.
+Retrieve the type of the reference. It can be either C<"direct"> or
+C<"symbolic">.
 
 =head2 target( )
 

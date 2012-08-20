@@ -1,6 +1,6 @@
 package Git::Raw::Remote;
 {
-  $Git::Raw::Remote::VERSION = '0.06';
+  $Git::Raw::Remote::VERSION = '0.07';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.06
+version 0.07
 
 =head1 DESCRIPTION
 
@@ -35,7 +35,7 @@ Retrieve the URL of the remote.
 
 =head2 connect( $direction )
 
-Connect to the remote. The direction can be either C<":fetch"> or C<":push">.
+Connect to the remote. The direction can be either C<"fetch"> or C<"push">.
 
 =head2 disconnect( )
 

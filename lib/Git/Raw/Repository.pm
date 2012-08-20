@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.06';
+  $Git::Raw::Repository::VERSION = '0.07';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.06
+version 0.07
 
 =head1 DESCRIPTION
 
@@ -27,6 +27,10 @@ Initialize a new repository at C<$path>.
 =head2 open( $path )
 
 Open the repository at C<$path>.
+
+=head2 discover( $path )
+
+Discover the path to the repository directory given a subdirectory.
 
 =head2 config( )
 
@@ -60,19 +64,19 @@ returns a list of status flags. Valid status flags are:
 
 =over 4
 
-=item C<":index_new">
+=item C<"index_new">
 
-=item C<":index_modified">
+=item C<"index_modified">
 
-=item C<":index_deleted">
+=item C<"index_deleted">
 
-=item C<":worktree_new">
+=item C<"worktree_new">
 
-=item C<":worktree_modified">
+=item C<"worktree_modified">
 
-=item C<":worktree_deleted">
+=item C<"worktree_deleted">
 
-=item C<":ignored">
+=item C<"ignored">
 
 =back
 

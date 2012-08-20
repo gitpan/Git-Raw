@@ -1,9 +1,31 @@
 ==================================================
-Changes from 2011-08-18 00:00:00 +0000 to present.
+Changes from 2011-08-21 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.06 at 2012-08-17 14:12:43 +0000
+version 0.07 at 2012-08-20 19:02:28 +0000
+-----------------------------------------
+
+  Change: e5fe1d5ae0b6a33a7ca4f05d62d39e21d37e536a
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-20 20:59:32 +0000
+
+    Repository.xs: add discover() method 
+
+  Change: a1a04ad99d682aaa68485c0b4c79de5a69108968
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-20 20:59:32 +0000
+
+    07-remote.t: fix remote repository URL 
+
+  Change: 370cc8c796c1e296d11c5a9222d04f3a424643a7
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-20 20:59:32 +0000
+
+    don't use Ruby-style "atomic" values 
+
+-----------------------------------------
+version 0.06 at 2012-08-17 14:10:17 +0000
 -----------------------------------------
 
   Change: 5867982fe2ecd6de1644e2be4274bb0a8f67870c

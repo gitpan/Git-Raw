@@ -33,6 +33,28 @@ open(class, path)
 
 	OUTPUT: RETVAL
 
+Repository
+discover(class, path)
+	SV *class
+	SV *path
+
+	CODE:
+		Repository r;
+		char path_str[GIT_PATH_MAX];
+		const char *start = SvPVbyte_nolen(path);
+
+		int rc = git_repository_discover(
+			path_str, GIT_PATH_MAX, start, 1, NULL
+		);
+		git_check_error(rc);
+
+		rc = git_repository_open(&r, path_str);
+		git_check_error(rc);
+
+		RETVAL = r;
+
+	OUTPUT: RETVAL
+
 Config
 config(self)
 	Repository self
@@ -159,25 +181,25 @@ status(self, path)
 		git_check_error(rc);
 
 		if (iflags & GIT_STATUS_INDEX_NEW)
-			av_push(flags, newSVpv(":index_new", 0));
+			av_push(flags, newSVpv("index_new", 0));
 
 		if (iflags & GIT_STATUS_INDEX_MODIFIED)
-			av_push(flags, newSVpv(":index_modified", 0));
+			av_push(flags, newSVpv("index_modified", 0));
 
 		if (iflags & GIT_STATUS_INDEX_DELETED)
-			av_push(flags, newSVpv(":index_deleted", 0));
+			av_push(flags, newSVpv("index_deleted", 0));
 
 		if (iflags & GIT_STATUS_WT_NEW)
-			av_push(flags, newSVpv(":worktree_new", 0));
+			av_push(flags, newSVpv("worktree_new", 0));
 
 		if (iflags & GIT_STATUS_WT_MODIFIED)
-			av_push(flags, newSVpv(":worktree_modified", 0));
+			av_push(flags, newSVpv("worktree_modified", 0));
 
 		if (iflags & GIT_STATUS_WT_DELETED)
-			av_push(flags, newSVpv(":worktree_deleted", 0));
+			av_push(flags, newSVpv("worktree_deleted", 0));
 
 		if (iflags & GIT_STATUS_IGNORED)
-			av_push(flags, newSVpv(":ignored", 0));
+			av_push(flags, newSVpv("ignored", 0));
 
 		RETVAL = flags;
 
