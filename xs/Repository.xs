@@ -167,6 +167,27 @@ commit(self, msg, author, cmtter, parents, tree)
 
 	OUTPUT: RETVAL
 
+void
+reset(self, target, type)
+	Repository self
+	SV *target
+	SV *type
+
+	CODE:
+		int rc;
+		STRLEN len;
+		git_reset_type t;
+		const char *type_str = SvPVbyte(type, len);
+
+		if (strcmp(type_str, ":soft"))
+			t = GIT_RESET_SOFT;
+
+		if (strcmp(type_str, ":mixed"))
+			t = GIT_RESET_MIXED;
+
+		rc = git_reset(self, git_sv_to_obj(target), t);
+		git_check_error(rc);
+
 AV *
 status(self, path)
 	Repository self
@@ -202,6 +223,25 @@ status(self, path)
 			av_push(flags, newSVpv("ignored", 0));
 
 		RETVAL = flags;
+
+	OUTPUT: RETVAL
+
+Reference
+branch(self, name, target)
+	Repository self
+	SV *name
+	SV *target
+
+	CODE:
+		Reference out;
+		const char *name_str = SvPVbyte_nolen(name);
+
+		git_object *obj = git_sv_to_obj(target);
+
+		int rc = git_branch_create(&out, self, name_str, obj, 0);
+		git_check_error(rc);
+
+		RETVAL = out;
 
 	OUTPUT: RETVAL
 

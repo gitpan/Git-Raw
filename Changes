@@ -1,9 +1,115 @@
 ==================================================
-Changes from 2011-08-21 00:00:00 +0000 to present.
+Changes from 2011-08-22 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.07 at 2012-08-20 19:02:28 +0000
+version 0.08 at 2012-08-21 15:13:44 +0000
+-----------------------------------------
+
+  Change: 0923d3a73f842ce2e2af3bee816513c16c7e150e
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 17:13:30 +0000
+
+    travis.yml: do not test on 5.16 (doesn't work for some reason) 
+
+  Change: cdb1ec71ab9555762ad523a23d676863e23787ba
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 17:13:25 +0000
+
+    travis.yml: do not run git-submodule (done by travis automatically) 
+
+  Change: 96746d69ffb11117c5b0ad367e944ac2d31ddb2a
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 16:58:02 +0000
+
+    MakeMaker.pm: use embed libgit2 makefile instead of cmake 
+
+  Change: 9c879d501ecf2ba9812bbd583f4feea09cd90919
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 16:42:50 +0000
+
+    MANIFEST.SKIP: add libgit2/cmake related files 
+
+  Change: f706cf2c5f0d5029fe93b1bf03e7f4817a237d23
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 16:26:52 +0000
+
+    MakeMaker.pm: link to openssl 
+
+  Change: f233feb85de656c4208a0c082059644bbb0b156e
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:59:09 +0000
+
+    travis.yml: apt needs sudo 
+
+  Change: 630352c279a0876a2e9d25bd2d478d6aa1ac254f
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:57:57 +0000
+
+    travis.yml: install openssl dev 
+
+  Change: c89abf106ae25b0f11a97527a8da11cce66f73bc
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:50:20 +0000
+
+    travis.yml: add travis ci config 
+
+  Change: 410e16320acd8cb09551b755cd272ac266554336
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:46:46 +0000
+
+    MakeMaker.pm: check for cmake presence 
+
+  Change: f618b32a3bc1b71b4ebf63f37fd84488fb56c640
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:36:32 +0000
+
+    dist.ini: remove Devel::CheckLib dependency 
+
+  Change: 73edc6163d0a0fda050adf428fa7405c1018c43b
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:33:38 +0000
+
+    Repository.xs: initial branch() implementation 
+
+  Change: 2e585ca5738ce4f09c84bc4cf9fe8c06aba14114
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 15:29:27 +0000
+
+    03-tag.t: update to new libgits (closes #1) 
+
+  Change: 27ad913c158dafeebaa4104819039f1cd7a0ab5e
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 14:24:55 +0000
+
+    02-commit.t: update to new libgit2 (closes #1) 
+
+  Change: 7ce78dd19da28a4856bc42f2b69da735e47e7ca2
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 14:19:11 +0000
+
+    Remote.xs: update git_remote_update_tips to new libgit2 
+
+  Change: 9fc0fbffcfd99817afd8a027a5f1fd3a40ef36f8
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 14:18:01 +0000
+
+    Tree.xs: duplicate the tree entry 
+
+  Change: bbd66bc97503f340a1e8898be418ab312a35cc2a
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 14:18:00 +0000
+
+    Repository.xs: implement 'reset' method 
+
+  Change: a99e3db6691a25140edfe4669454ff51e38f61dd
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-21 14:17:42 +0000
+
+    xs: embed libgit2 
+
+-----------------------------------------
+version 0.07 at 2012-08-20 18:59:32 +0000
 -----------------------------------------
 
   Change: e5fe1d5ae0b6a33a7ca4f05d62d39e21d37e536a

@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.07';
+  $Git::Raw::Repository::VERSION = '0.08';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.07
+version 0.08
 
 =head1 DESCRIPTION
 
@@ -57,6 +57,22 @@ Create a new L<Git::Raw::Commit> given a message, an author and committer
 (L<Git::Raw::Signature>), a list of parents (L<Git::Raw::Commit>) and a tree
 (L<Git::Raw::Tree>).
 
+=head2 reset( $target, $type )
+
+Reset the current HEAD to the given commit. Valid reset types are:
+
+=over 4
+
+=item C<":soft">
+
+the head will be moved to the commit
+
+=item C<":mixed">
+
+trigger a Soft reset and replace the index with the content of the commit tree
+
+=back
+
 =head2 status( $file )
 
 Retrieve the status of the given file in the working directory. This functions
@@ -79,6 +95,11 @@ returns a list of status flags. Valid status flags are:
 =item C<"ignored">
 
 =back
+
+=head2 branch( $name, $target )
+
+Create a new branch (aka a L<Git::Raw::Reference>) given a name and a target
+object (either a L<Git::Raw::Commit> or a L<Git::Raw::Tag>).
 
 =head2 tag( $name, $msg, $tagger, $target )
 
