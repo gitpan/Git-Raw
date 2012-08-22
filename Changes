@@ -1,9 +1,31 @@
 ==================================================
-Changes from 2011-08-22 00:00:00 +0000 to present.
+Changes from 2011-08-23 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.08 at 2012-08-21 15:13:44 +0000
+version 0.09 at 2012-08-22 17:55:27 +0000
+-----------------------------------------
+
+  Change: d7fcb727b41577555e8d1d3a3cbc105949803e82
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 19:39:57 +0000
+
+    Diff.xs: support for diff 
+
+  Change: 66b8f426968057b9b6586231be4263754c1af9af
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 17:06:51 +0000
+
+    xs: add lookup() method to *EVERYONE* 
+
+  Change: 2705a85fa25eeeaa2aca58c412cada88cbe53929
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 16:44:58 +0000
+
+    Commit.{xs,pm}: re-order methods 
+
+-----------------------------------------
+version 0.08 at 2012-08-21 15:13:30 +0000
 -----------------------------------------
 
   Change: 0923d3a73f842ce2e2af3bee816513c16c7e150e

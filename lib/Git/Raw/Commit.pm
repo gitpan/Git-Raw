@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.08';
+  $Git::Raw::Commit::VERSION = '0.09';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.08
+version 0.09
 
 =head1 DESCRIPTION
 
@@ -20,9 +20,18 @@ A C<Git::Raw::Commit> represents a Git commit.
 
 =head1 METHODS
 
+=head2 lookup( $repo, $id )
+
+Retrieve the commit corresponding to the given id. This function is pretty much
+the same as C<$repo -> lookup($id)> except that it only returns commits.
+
 =head2 id( )
 
 Retrieve the id of the commit, as string.
+
+=head2 message( )
+
+Retrieve the commit's message.
 
 =head2 author( )
 
@@ -31,10 +40,6 @@ Retrieve the C<Git::Raw::Signature> representing the commit's author.
 =head2 committer( )
 
 Retrieve the C<Git::Raw::Signature> representing the commit's committer.
-
-=head2 message( )
-
-Retrieve the commit's message.
 
 =head2 time( )
 

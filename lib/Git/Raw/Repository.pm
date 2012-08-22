@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.08';
+  $Git::Raw::Repository::VERSION = '0.09';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.08
+version 0.09
 
 =head1 DESCRIPTION
 
@@ -95,6 +95,11 @@ returns a list of status flags. Valid status flags are:
 =item C<"ignored">
 
 =back
+
+=head2 diff( $repo [, $tree] )
+
+Compute the L<Git::Raw::Diff> between the repository index and a tree. If no
+C<$tree> is passed, the diff will be computed against the working directory.
 
 =head2 branch( $name, $target )
 

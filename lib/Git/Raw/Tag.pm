@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.08';
+  $Git::Raw::Tag::VERSION = '0.09';
 }
 
 use strict;
@@ -12,13 +12,18 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.08
+version 0.09
 
 =head1 DESCRIPTION
 
 A C<Git::Raw::Tag> represents a Git tag.
 
 =head1 METHODS
+
+=head2 lookup( $repo, $id )
+
+Retrieve the tag corresponding to the given id. This function is pretty much
+the same as C<$repo -> lookup($id)> except that it only returns tags.
 
 =head2 id( )
 
