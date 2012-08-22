@@ -3,7 +3,59 @@ Changes from 2011-08-23 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.09 at 2012-08-22 17:55:27 +0000
+version 0.10 at 2012-08-22 18:51:07 +0000
+-----------------------------------------
+
+  Change: 39695260381139eb710e73f3cb1cf7de63d02b11
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:46:10 +0000
+
+    Repository.pm: add links to create objects' docs 
+
+  Change: 17945e2312aea2343d3da1cef360a061d717040a
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:42:43 +0000
+
+    Repository.xs: move walker() to Walker.xs and rename -> create() 
+
+  Change: 85e3fb757e698e514ddb7d3a5c6d8dd5ba28c7be
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:41:01 +0000
+
+    Repository.xs: move tag() to Tag.xs and rename -> create() 
+
+  Change: 028ba74fc14f3e34deb61b6a782eec6f1269bc46
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:35:28 +0000
+
+    Repository.xs: move branch() to Branch.xs and rename -> create() 
+
+  Change: 0c7ad604b0781710dd073ce3d083be3bf7e816fd
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:30:52 +0000
+
+    Reference.pm: add docs for name() and type() 
+
+  Change: 858167a20ecb18b6f095586a1dc950b7a07a2b08
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:30:34 +0000
+
+    Repository.xs: move commit() to Commit.xs and rename -> create() 
+
+  Change: e07734d21c7d7ff5bc53c08794bd44d75c07de79
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 20:12:52 +0000
+
+    xs: add delete() methods 
+
+  Change: af8b627209930f473720b1a173db3a5835b752fa
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-22 19:57:44 +0000
+
+    Raw.pm: remove note about libgit2 version 
+
+-----------------------------------------
+version 0.09 at 2012-08-22 17:39:57 +0000
 -----------------------------------------
 
   Change: d7fcb727b41577555e8d1d3a3cbc105949803e82

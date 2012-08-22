@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.09';
+  $Git::Raw::Repository::VERSION = '0.10';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 DESCRIPTION
 
@@ -50,12 +50,6 @@ a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
 Retrieve the object corresponding to the given id. This function may return a
 L<Git::Raw::Blob>, a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a
 L<Git::Raw::Tree>.
-
-=head2 commit( $msg, $author, $committer, [@parents], $tree )
-
-Create a new L<Git::Raw::Commit> given a message, an author and committer
-(L<Git::Raw::Signature>), a list of parents (L<Git::Raw::Commit>) and a tree
-(L<Git::Raw::Tree>).
 
 =head2 reset( $target, $type )
 
@@ -103,14 +97,27 @@ C<$tree> is passed, the diff will be computed against the working directory.
 
 =head2 branch( $name, $target )
 
-Create a new branch (aka a L<Git::Raw::Reference>) given a name and a target
-object (either a L<Git::Raw::Commit> or a L<Git::Raw::Tag>).
+Create a new L<Git::Raw::Branch>. Shortcut for C<Git::Raw::Branch -> create()>.
+
+=cut
+
+sub branch { return Git::Raw::Branch -> create(@_) }
+
+=head2 commit( $msg, $author, $committer, [@parents], $tree )
+
+Create a new L<Git::Raw::Commit>. Shortcut for C<Git::Raw::Commit -> create()>.
+
+=cut
+
+sub commit { return Git::Raw::Commit -> create(@_) }
 
 =head2 tag( $name, $msg, $tagger, $target )
 
-Create a new L<Git::Raw::Tag> given a name, a message, a $tagger
-(L<Git::Raw::Signature>) and a $target. The target may be a L<Git::Raw::Blob>,
-a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+Create a new L<Git::Raw::Tag>. Shortcut for C<Git::Raw::Tag -> create()>.
+
+=cut
+
+sub tag { return Git::Raw::Tag -> create(@_) }
 
 =head2 tags( )
 
@@ -122,7 +129,11 @@ Retrieve a list of L<Git::Raw::Remote> objects.
 
 =head2 walker( )
 
-Create a new L<Git::Raw::Walker> to iterate over repository's revisions.
+Create a new L<Git::Raw::Walker>. Shortcut for C<Git::Raw::Walker -> create()>.
+
+=cut
+
+sub walker { return Git::Raw::Walker -> create(@_) }
 
 =head2 path( )
 

@@ -1,6 +1,6 @@
 package Git::Raw::Remote;
 {
-  $Git::Raw::Remote::VERSION = '0.09';
+  $Git::Raw::Remote::VERSION = '0.10';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 DESCRIPTION
 

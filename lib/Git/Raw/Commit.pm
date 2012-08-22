@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.09';
+  $Git::Raw::Commit::VERSION = '0.10';
 }
 
 use strict;
@@ -12,13 +12,19 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 DESCRIPTION
 
 A C<Git::Raw::Commit> represents a Git commit.
 
 =head1 METHODS
+
+=head2 create( $repo, $msg, $author, $committer, [@parents], $tree )
+
+Create a new commit given a message, a L<Git::Raw::Signature> representing the
+commit author and one representing the committer, a list of parent commits and
+a L<Git::Raw::Tree>.
 
 =head2 lookup( $repo, $id )
 

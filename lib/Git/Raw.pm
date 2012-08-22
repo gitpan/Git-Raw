@@ -1,6 +1,6 @@
 package Git::Raw;
 {
-  $Git::Raw::VERSION = '0.09';
+  $Git::Raw::VERSION = '0.10';
 }
 
 use strict;
@@ -9,13 +9,15 @@ use warnings;
 require XSLoader;
 XSLoader::load('Git::Raw', $Git::Raw::VERSION);
 
+use Git::Raw::Repository;
+
 =head1 NAME
 
 Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 SYNOPSIS
 
@@ -49,8 +51,6 @@ version 0.09
 L<libgit2|http://libgit2.github.com> is a pure C implementation of the Git core methods provided as a
 re-entrant linkable library designed to be fast and portable with a solid API.
 This module provides Perl bindings to the libgit2 API.
-
-B<Note>: libgit2 v0.17.0 is required to build this distribution.
 
 =head1 AUTHOR
 

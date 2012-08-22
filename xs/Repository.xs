@@ -124,49 +124,6 @@ lookup(self, id)
 
 	OUTPUT: RETVAL
 
-Commit
-commit(self, msg, author, cmtter, parents, tree)
-	Repository self
-	SV *msg
-	Signature author
-	Signature cmtter
-	AV *parents
-	Tree tree
-
-	CODE:
-		SV *iter;
-		int i = 0;
-		git_oid oid;
-		Commit c, *paren;
-
-		int count = av_len(parents) + 1;
-
-		if (count > 0) {
-			Newx(paren, count, git_commit *);
-
-			for (i = 0; i < count; i++) {
-				iter = av_shift(parents);
-
-				if (sv_isobject(iter) && sv_derived_from(iter, "Git::Raw::Commit"))
-					paren[i] = INT2PTR(git_commit *, SvIV((SV *) SvRV(iter)));
-				else Perl_croak(aTHX_ "parent is not of type Git::Raw::Commit");
-			}
-		}
-
-		int rc = git_commit_create(
-			&oid, self, "HEAD", author, cmtter, NULL,
-			SvPVbyte_nolen(msg), tree, count,
-			(const git_commit **) paren
-		);
-		git_check_error(rc);
-
-		rc = git_commit_lookup(&c, self, &oid);
-		git_check_error(rc);
-
-		RETVAL = c;
-
-	OUTPUT: RETVAL
-
 void
 reset(self, target, type)
 	Repository self
@@ -271,56 +228,6 @@ diff(self, ...)
 
 	OUTPUT: RETVAL
 
-Reference
-branch(self, name, target)
-	Repository self
-	SV *name
-	SV *target
-
-	CODE:
-		Reference out;
-		const char *name_str = SvPVbyte_nolen(name);
-
-		git_object *obj = git_sv_to_obj(target);
-
-		int rc = git_branch_create(&out, self, name_str, obj, 0);
-		git_check_error(rc);
-
-		RETVAL = out;
-
-	OUTPUT: RETVAL
-
-Tag
-tag(self, name, msg, tagger, target)
-	Repository self
-	SV *name
-	SV *msg
-	Signature tagger
-	SV *target
-
-	CODE:
-		Tag t;
-		git_oid oid;
-		git_object *o;
-
-		o = git_sv_to_obj(target);
-
-		if (o == NULL)
-			Perl_croak(aTHX_ "target is not of a valid type");
-
-		int rc = git_tag_create(
-			&oid, self, SvPVbyte_nolen(name),
-			o, tagger, SvPVbyte_nolen(msg), 0
-		);
-		git_check_error(rc);
-
-		rc = git_tag_lookup(&t, self, &oid);
-		git_check_error(rc);
-
-		RETVAL = t;
-
-	OUTPUT: RETVAL
-
 AV *
 tags(self)
 	Repository self
@@ -389,20 +296,6 @@ remotes(self)
 		git_strarray_free(&remotes);
 
 		RETVAL = output;
-
-	OUTPUT: RETVAL
-
-Walker
-walker(self)
-	Repository self
-
-	CODE:
-		Walker w;
-
-		int rc = git_revwalk_new(&w, self);
-		git_check_error(rc);
-
-		RETVAL = w;
 
 	OUTPUT: RETVAL
 

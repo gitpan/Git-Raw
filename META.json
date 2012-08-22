@@ -49,7 +49,7 @@
          "web" : "https://github.com/ghedo/p5-Git-Raw"
       }
    },
-   "version" : "0.09",
+   "version" : "0.10",
    "x_Dist_Zilla" : {
       "plugins" : [
          {

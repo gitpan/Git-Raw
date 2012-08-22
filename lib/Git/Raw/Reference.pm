@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.09';
+  $Git::Raw::Reference::VERSION = '0.10';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.09
+version 0.10
 
 =head1 DESCRIPTION
 
@@ -24,14 +24,17 @@ A C<Git::Raw::Reference> represents a Git reference.
 
 Retrieve the reference with name C<$name>.
 
+=head2 delete( )
+
+Delete the given refere
+
 =head2 name( )
 
-Retrieve the full name of the reference.
+Retrieve the name of the reference.
 
 =head2 type( )
 
-Retrieve the type of the reference. It can be either C<"direct"> or
-C<"symbolic">.
+Retrieve the type of the reference. Can be either C<"direct"> or C<"symbolic">.
 
 =head2 target( )
 
