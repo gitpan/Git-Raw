@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.10';
+  $Git::Raw::Repository::VERSION = '0.11';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.10
+version 0.11
 
 =head1 DESCRIPTION
 
@@ -42,53 +42,24 @@ Retrieve the default L<Git::Raw::Index> of the repository.
 
 =head2 head( )
 
-Retrieve the HEAD of the repository. This function may return a L<Git::Raw::Blob>,
-a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+Retrieve the object pointed by the HEAD of the repository.
 
 =head2 lookup( $id )
 
-Retrieve the object corresponding to the given id. This function may return a
-L<Git::Raw::Blob>, a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a
-L<Git::Raw::Tree>.
+Retrieve the object corresponding to the given id.
 
 =head2 reset( $target, $type )
 
-Reset the current HEAD to the given commit. Valid reset types are:
-
-=over 4
-
-=item C<":soft">
-
-the head will be moved to the commit
-
-=item C<":mixed">
-
-trigger a Soft reset and replace the index with the content of the commit tree
-
-=back
+Reset the current HEAD to the given commit. Valid reset types are: C<"soft">
+(the head will be moved to the commit), C<"mixed"> (trigger a soft reset and
+replace the index with the content of the commit tree).
 
 =head2 status( $file )
 
 Retrieve the status of the given file in the working directory. This functions
-returns a list of status flags. Valid status flags are:
-
-=over 4
-
-=item C<"index_new">
-
-=item C<"index_modified">
-
-=item C<"index_deleted">
-
-=item C<"worktree_new">
-
-=item C<"worktree_modified">
-
-=item C<"worktree_deleted">
-
-=item C<"ignored">
-
-=back
+returns a list of status flags. Valid status flags are: C<"index_new">,
+C<"index_modified">, C<"index_deleted">, C<"worktree_new">,
+C<"worktree_modified">, C<"worktree_deleted"> and C<"ignored">.
 
 =head2 diff( $repo [, $tree] )
 
@@ -97,7 +68,7 @@ C<$tree> is passed, the diff will be computed against the working directory.
 
 =head2 branch( $name, $target )
 
-Create a new L<Git::Raw::Branch>. Shortcut for C<Git::Raw::Branch -> create()>.
+Create a new L<Git::Raw::Branch>. Shortcut for C<Git::Raw::Branch-E<gt>create()>.
 
 =cut
 
@@ -105,7 +76,7 @@ sub branch { return Git::Raw::Branch -> create(@_) }
 
 =head2 commit( $msg, $author, $committer, [@parents], $tree )
 
-Create a new L<Git::Raw::Commit>. Shortcut for C<Git::Raw::Commit -> create()>.
+Create a new L<Git::Raw::Commit>. Shortcut for C<Git::Raw::Commit-E<gt>create()>.
 
 =cut
 
@@ -113,7 +84,7 @@ sub commit { return Git::Raw::Commit -> create(@_) }
 
 =head2 tag( $name, $msg, $tagger, $target )
 
-Create a new L<Git::Raw::Tag>. Shortcut for C<Git::Raw::Tag -> create()>.
+Create a new L<Git::Raw::Tag>. Shortcut for C<Git::Raw::Tag-E<gt>create()>.
 
 =cut
 
@@ -129,7 +100,7 @@ Retrieve a list of L<Git::Raw::Remote> objects.
 
 =head2 walker( )
 
-Create a new L<Git::Raw::Walker>. Shortcut for C<Git::Raw::Walker -> create()>.
+Create a new L<Git::Raw::Walker>. Shortcut for C<Git::Raw::Walker-E<gt>create()>.
 
 =cut
 

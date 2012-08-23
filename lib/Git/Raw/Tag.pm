@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.10';
+  $Git::Raw::Tag::VERSION = '0.11';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.10
+version 0.11
 
 =head1 DESCRIPTION
 
@@ -23,13 +23,12 @@ A C<Git::Raw::Tag> represents a Git tag.
 =head2 create( $repo, $name, $msg, $tagger, $target )
 
 Create a new L<Git::Raw::Tag> given a name, a message, a L<Git::Raw::Signature>
-representing the tagger and a target. The target may be a L<Git::Raw::Blob>,
-a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+representing the tagger and a target object.
 
 =head2 lookup( $repo, $id )
 
 Retrieve the tag corresponding to the given id. This function is pretty much
-the same as C<$repo -> lookup($id)> except that it only returns tags.
+the same as C<$repo-E<gt>lookup($id)> except that it only returns tags.
 
 =head2 delete( $repo, $name )
 
@@ -53,8 +52,7 @@ Retrieve the C<Git::Raw::Signature> representing the tag's tagger.
 
 =head2 target( )
 
-Retrieve the target of the tag. This function may return a L<Git::Raw::Blob>,
-a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+Retrieve the target object of the tag.
 
 =head1 AUTHOR
 

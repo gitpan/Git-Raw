@@ -1,6 +1,6 @@
 package Git::Raw::Blob;
 {
-  $Git::Raw::Blob::VERSION = '0.10';
+  $Git::Raw::Blob::VERSION = '0.11';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Blob - Git blob class
 
 =head1 VERSION
 
-version 0.10
+version 0.11
 
 =head1 DESCRIPTION
 
@@ -23,7 +23,7 @@ A C<Git::Raw::Blob> represents a Git blob.
 =head2 lookup( $repo, $id )
 
 Retrieve the blob corresponding to the given id. This function is pretty much
-the same as C<$repo -> lookup($id)> except that it only returns blobs.
+the same as C<$repo-E<gt>lookup($id)> except that it only returns blobs.
 
 =head2 content( )
 

@@ -1,6 +1,6 @@
 package Git::Raw::TreeEntry;
 {
-  $Git::Raw::TreeEntry::VERSION = '0.10';
+  $Git::Raw::TreeEntry::VERSION = '0.11';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::TreeEntry - Git tree entry class
 
 =head1 VERSION
 
-version 0.10
+version 0.11
 
 =head1 DESCRIPTION
 
@@ -30,9 +30,7 @@ Retrieve the filename of the tree entry.
 
 =head2 object( $repo )
 
-Retrieve the object pointed by the tree entry given a L<Git::Raw::Repository>
-where to lookup the pointed object. This function may return a L<Git::Raw::Blob>,
-a L<Git::Raw::Commit>, a L<Git::Raw::Tag> or a L<Git::Raw::Tree>.
+Retrieve the object pointed by the tree entry.
 
 =head1 AUTHOR
 

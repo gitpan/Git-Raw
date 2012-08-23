@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.10';
+  $Git::Raw::Commit::VERSION = '0.11';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.10
+version 0.11
 
 =head1 DESCRIPTION
 
@@ -29,7 +29,7 @@ a L<Git::Raw::Tree>.
 =head2 lookup( $repo, $id )
 
 Retrieve the commit corresponding to the given id. This function is pretty much
-the same as C<$repo -> lookup($id)> except that it only returns commits.
+the same as C<$repo-E<gt>lookup($id)> except that it only returns commits.
 
 =head2 id( )
 

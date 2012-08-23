@@ -1,9 +1,55 @@
 ==================================================
-Changes from 2011-08-23 00:00:00 +0000 to present.
+Changes from 2011-08-24 00:00:00 +0000 to present.
 ==================================================
 
 -----------------------------------------
-version 0.10 at 2012-08-22 18:51:07 +0000
+version 0.11 at 2012-08-23 09:39:35 +0000
+-----------------------------------------
+
+  Change: a4eb5a5858659f78f0d33b129dbee7189cf5a1fa
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 11:38:37 +0000
+
+    lib: more doc fixes 
+
+  Change: 58e2498578669bda677afd6c410efdde0c138f7d
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 11:30:18 +0000
+
+    Diff.pm: do not link to itself in DESCRIPTION 
+
+  Change: d8596d4198f2b2e7e8b6bea969a0e8a9374365cf
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 11:29:25 +0000
+
+    Walker.pm: fix create signature 
+
+  Change: 5895423eecf0b9d029d1f56eb776c2b67ebe56cf
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 11:29:25 +0000
+
+    Repository.pm: minor doc fixes 
+
+  Change: 9f6b7ac43ce8f5da8fe3a9f7131b39a1ae4edd83
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 11:29:25 +0000
+
+    Repository.xs: do not use Ruby-style :values in reset too 
+
+  Change: a548fa0df582854eb6b753c17c1b87837137d8de
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 11:29:25 +0000
+
+    lib: escape '>' 
+
+  Change: eaf59c263f48cfbc11996db36b762fbfb7b4281a
+  Author: Alessandro Ghedini <al3xbio@gmail.com>
+  Date : 2012-08-23 10:33:42 +0000
+
+    Branch.pm: fix missing DESCRIPTION header 
+
+-----------------------------------------
+version 0.10 at 2012-08-22 18:46:10 +0000
 -----------------------------------------
 
   Change: 39695260381139eb710e73f3cb1cf7de63d02b11
