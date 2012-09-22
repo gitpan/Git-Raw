@@ -147,6 +147,20 @@ char *git_path_basename(const char *path)
 	return basename;
 }
 
+size_t git_path_basename_offset(git_buf *buffer)
+{
+	ssize_t slash;
+
+	if (!buffer || buffer->size <= 0)
+		return 0;
+
+	slash = git_buf_rfind_next(buffer, '/');
+
+	if (slash >= 0 && buffer->ptr[slash] == '/')
+		return (size_t)(slash + 1);
+
+	return 0;
+}
 
 const char *git_path_topdir(const char *path)
 {
@@ -191,6 +205,31 @@ int git_path_root(const char *path)
 		return offset;
 
 	return -1;	/* Not a real error - signals that path is not rooted */
+}
+
+int git_path_join_unrooted(
+	git_buf *path_out, const char *path, const char *base, ssize_t *root_at)
+{
+	int error, root;
+
+	assert(path && path_out);
+
+	root = git_path_root(path);
+
+	if (base != NULL && root < 0) {
+		error = git_buf_joinpath(path_out, base, path);
+
+		if (root_at)
+			*root_at = (ssize_t)strlen(base);
+	}
+	else {
+		error = git_buf_sets(path_out, path);
+
+		if (root_at)
+			*root_at = (root < 0) ? 0 : (ssize_t)root;
+	}
+
+	return error;
 }
 
 int git_path_prettify(git_buf *path_out, const char *path, const char *base)
@@ -393,14 +432,14 @@ bool git_path_is_empty_dir(const char *path)
 {
 	git_buf pathbuf = GIT_BUF_INIT;
 	HANDLE hFind = INVALID_HANDLE_VALUE;
-	wchar_t *wbuf;
+	wchar_t wbuf[GIT_WIN_PATH];
 	WIN32_FIND_DATAW ffd;
 	bool retval = true;
 
 	if (!git_path_isdir(path)) return false;
 
 	git_buf_printf(&pathbuf, "%s\\*", path);
-	wbuf = gitwin_to_utf16(git_buf_cstr(&pathbuf));
+	git__utf8_to_16(wbuf, GIT_WIN_PATH, git_buf_cstr(&pathbuf));
 
 	hFind = FindFirstFileW(wbuf, &ffd);
 	if (INVALID_HANDLE_VALUE == hFind) {
@@ -416,7 +455,6 @@ bool git_path_is_empty_dir(const char *path)
 
 	FindClose(hFind);
 	git_buf_free(&pathbuf);
-	git__free(wbuf);
 	return retval;
 }
 
@@ -502,12 +540,7 @@ bool git_path_contains_file(git_buf *base, const char *file)
 
 int git_path_find_dir(git_buf *dir, const char *path, const char *base)
 {
-	int error;
-
-	if (base != NULL && git_path_root(path) < 0)
-		error = git_buf_joinpath(dir, base, path);
-	else
-		error = git_buf_sets(dir, path);
+	int error = git_path_join_unrooted(dir, path, base, NULL);
 
 	if (!error) {
 		char buf[GIT_PATH_MAX];

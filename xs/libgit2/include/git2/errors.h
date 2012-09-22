@@ -26,9 +26,10 @@ enum {
 	GIT_EAMBIGUOUS = -5,
 	GIT_EBUFS = -6,
 	GIT_EUSER = -7,
+	GIT_EBAREREPO = -8,
 
 	GIT_PASSTHROUGH = -30,
-	GIT_REVWALKOVER = -31,
+	GIT_ITEROVER = -31,
 };
 
 typedef struct {
@@ -54,6 +55,7 @@ typedef enum {
 	GITERR_TREE,
 	GITERR_INDEXER,
 	GITERR_SSL,
+	GITERR_SUBMODULE,
 } git_error_t;
 
 /**

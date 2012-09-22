@@ -683,7 +683,7 @@ static unsigned int filemode_statuses[] = {
 	GIT_STATUS_WT_NEW
 };
 
-static const size_t filemode_count = 8;
+static const int filemode_count = 8;
 
 void test_status_worktree__filemode_changes(void)
 {
@@ -697,7 +697,7 @@ void test_status_worktree__filemode_changes(void)
 	if (cl_is_chmod_supported())
 		cl_git_pass(git_config_set_bool(cfg, "core.filemode", true));
 	else {
-		unsigned int i;
+		int i;
 		cl_git_pass(git_config_set_bool(cfg, "core.filemode", false));
 
 		/* won't trust filesystem mode diffs, so these will appear unchanged */
@@ -796,4 +796,48 @@ void test_status_worktree__interruptable_foreach(void)
 	);
 
 	cl_assert_equal_i(8, count);
+}
+
+void test_status_worktree__new_staged_file_must_handle_crlf(void)
+{
+	git_repository *repo;
+	git_index *index;
+	git_config *config;
+	unsigned int status;
+
+	cl_git_pass(git_repository_init(&repo, "getting_started", 0));
+
+	// Ensure that repo has core.autocrlf=true
+	cl_git_pass(git_repository_config(&config, repo));
+	cl_git_pass(git_config_set_bool(config, "core.autocrlf", true));
+
+	cl_git_mkfile("getting_started/testfile.txt", "content\r\n");	// Content with CRLF
+
+	cl_git_pass(git_repository_index(&index, repo));
+	cl_git_pass(git_index_add(index, "testfile.txt", 0));
+	cl_git_pass(git_index_write(index));
+
+	cl_git_pass(git_status_file(&status, repo, "testfile.txt"));
+	cl_assert_equal_i(GIT_STATUS_INDEX_NEW, status);
+
+	git_config_free(config);
+	git_index_free(index);
+	git_repository_free(repo);
+}
+
+void test_status_worktree__line_endings_dont_count_as_changes_with_autocrlf(void)
+{
+	git_repository *repo = cl_git_sandbox_init("status");
+	git_config *config;
+	unsigned int status;
+
+	cl_git_pass(git_repository_config(&config, repo));
+	cl_git_pass(git_config_set_bool(config, "core.autocrlf", true));
+	git_config_free(config);
+
+	cl_git_rewritefile("status/current_file", "current_file\r\n");
+
+	cl_git_pass(git_status_file(&status, repo, "current_file"));
+
+	cl_assert_equal_i(GIT_STATUS_CURRENT, status);
 }

@@ -11,6 +11,7 @@
 #include "fileops.h"
 #include "config.h"
 #include "attr_file.h"
+#include "filter.h"
 
 static char *diff_prefix_from_pathspec(const git_strarray *pathspec)
 {
@@ -63,8 +64,8 @@ static bool diff_path_matches_pathspec(git_diff_list *diff, const char *path)
 
 	git_vector_foreach(&diff->pathspec, i, match) {
 		int result = strcmp(match->pattern, path) ? FNM_NOMATCH : 0;
-		
-		if (((diff->opts.flags & GIT_DIFF_DISABLE_PATHSPEC_MATCH) == 0) && 
+
+		if (((diff->opts.flags & GIT_DIFF_DISABLE_PATHSPEC_MATCH) == 0) &&
 			result == FNM_NOMATCH)
 			result = p_fnmatch(match->pattern, path, 0);
 
@@ -262,12 +263,14 @@ static int diff_delta__from_two(
 	delta = diff_delta__alloc(diff, status, old_entry->path);
 	GITERR_CHECK_ALLOC(delta);
 
-	delta->old_file.mode = old_mode;
 	git_oid_cpy(&delta->old_file.oid, &old_entry->oid);
+	delta->old_file.size = old_entry->file_size;
+	delta->old_file.mode = old_mode;
 	delta->old_file.flags |= GIT_DIFF_FILE_VALID_OID;
 
-	delta->new_file.mode = new_mode;
 	git_oid_cpy(&delta->new_file.oid, new_oid ? new_oid : &new_entry->oid);
+	delta->new_file.size = new_entry->file_size;
+	delta->new_file.mode = new_mode;
 	if (new_oid || !git_oid_iszero(&new_entry->oid))
 		delta->new_file.flags |= GIT_DIFF_FILE_VALID_OID;
 
@@ -316,6 +319,7 @@ static git_diff_list *git_diff_list_alloc(
 	if (diff == NULL)
 		return NULL;
 
+	GIT_REFCOUNT_INC(diff);
 	diff->repo = repo;
 
 	if (git_vector_init(&diff->deltas, 0, diff_delta__cmp) < 0 ||
@@ -391,14 +395,11 @@ fail:
 	return NULL;
 }
 
-void git_diff_list_free(git_diff_list *diff)
+static void diff_list_free(git_diff_list *diff)
 {
 	git_diff_delta *delta;
 	git_attr_fnmatch *match;
 	unsigned int i;
-
-	if (!diff)
-		return;
 
 	git_vector_foreach(&diff->deltas, i, delta) {
 		git__free(delta);
@@ -414,6 +415,14 @@ void git_diff_list_free(git_diff_list *diff)
 
 	git_pool_clear(&diff->pool);
 	git__free(diff);
+}
+
+void git_diff_list_free(git_diff_list *diff)
+{
+	if (!diff)
+		return;
+
+	GIT_REFCOUNT_DEC(diff, diff_list_free);
 }
 
 static int oid_for_workdir_item(
@@ -434,14 +443,22 @@ static int oid_for_workdir_item(
 		giterr_set(GITERR_OS, "File size overflow for 32-bit systems");
 		result = -1;
 	} else {
-		int fd = git_futils_open_ro(full_path.ptr);
-		if (fd < 0)
-			result = fd;
-		else {
-			result = git_odb__hashfd(
-				oid, fd, (size_t)item->file_size, GIT_OBJ_BLOB);
-			p_close(fd);
+		git_vector filters = GIT_VECTOR_INIT;
+
+		result = git_filters_load(
+			&filters, repo, item->path, GIT_FILTER_TO_ODB);
+		if (result >= 0) {
+			int fd = git_futils_open_ro(full_path.ptr);
+			if (fd < 0)
+				result = fd;
+			else {
+				result = git_odb__hashfd_filtered(
+					oid, fd, (size_t)item->file_size, GIT_OBJ_BLOB, &filters);
+				p_close(fd);
+			}
 		}
+
+		git_filters_free(&filters);
 	}
 
 	git_buf_free(&full_path);
@@ -470,7 +487,8 @@ static int maybe_modified(
 
 	/* on platforms with no symlinks, preserve mode of existing symlinks */
 	if (S_ISLNK(omode) && S_ISREG(nmode) &&
-		!(diff->diffcaps & GIT_DIFFCAPS_HAS_SYMLINKS))
+		!(diff->diffcaps & GIT_DIFFCAPS_HAS_SYMLINKS) &&
+		new_iter->type == GIT_ITERATOR_WORKDIR)
 		nmode = omode;
 
 	/* on platforms with no execmode, just preserve old mode */
@@ -529,7 +547,7 @@ static int maybe_modified(
 				status = GIT_DELTA_UNMODIFIED;
 			else if (git_submodule_lookup(&sub, diff->repo, nitem->path) < 0)
 				return -1;
-			else if (sub->ignore == GIT_SUBMODULE_IGNORE_ALL)
+			else if (git_submodule_ignore(sub) == GIT_SUBMODULE_IGNORE_ALL)
 				status = GIT_DELTA_UNMODIFIED;
 			else {
 				/* TODO: support other GIT_SUBMODULE_IGNORE values */

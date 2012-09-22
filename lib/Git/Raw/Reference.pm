@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.11';
+  $Git::Raw::Reference::VERSION = '0.12';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.11
+version 0.12
 
 =head1 DESCRIPTION
 
@@ -26,7 +26,7 @@ Retrieve the reference with name C<$name>.
 
 =head2 delete( )
 
-Delete the given refere
+Delete the given reference.
 
 =head2 name( )
 

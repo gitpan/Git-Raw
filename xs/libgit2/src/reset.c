@@ -9,6 +9,7 @@
 #include "commit.h"
 #include "tag.h"
 #include "git2/reset.h"
+#include "git2/checkout.h"
 
 #define ERROR_MSG "Cannot perform reset"
 
@@ -20,44 +21,30 @@ static int reset_error_invalid(const char *msg)
 
 int git_reset(
 	git_repository *repo,
-	const git_object *target,
+	git_object *target,
 	git_reset_type reset_type)
 {
-	git_otype target_type = GIT_OBJ_BAD;
 	git_object *commit = NULL;
 	git_index *index = NULL;
 	git_tree *tree = NULL;
 	int error = -1;
+	git_checkout_opts opts;
 
 	assert(repo && target);
-	assert(reset_type == GIT_RESET_SOFT || reset_type == GIT_RESET_MIXED);
+	assert(reset_type == GIT_RESET_SOFT
+		|| reset_type == GIT_RESET_MIXED
+		|| reset_type == GIT_RESET_HARD);
 
 	if (git_object_owner(target) != repo)
 		return reset_error_invalid("The given target does not belong to this repository.");
 
-	if (reset_type == GIT_RESET_MIXED && git_repository_is_bare(repo))
-		return reset_error_invalid("Mixed reset is not allowed in a bare repository.");
+	if (reset_type == GIT_RESET_MIXED
+		&& git_repository__ensure_not_bare(repo, "reset mixed") < 0)
+		return GIT_EBAREREPO;
 
-	target_type = git_object_type(target);
-
-	switch (target_type)
-	{
-	case GIT_OBJ_TAG:
-		if (git_tag_peel(&commit, (git_tag *)target) < 0)
-			goto cleanup;
-
-		if (git_object_type(commit) != GIT_OBJ_COMMIT) {
-			reset_error_invalid("The given target does not resolve to a commit.");
-			goto cleanup;
-		}
-		break;
-
-	case GIT_OBJ_COMMIT:
-		commit = (git_object *)target;
-		break;
-
-	default:
-		return reset_error_invalid("Only git_tag and git_commit objects are valid targets.");
+	if (git_object_peel(&commit, target, GIT_OBJ_COMMIT) < 0) {
+		reset_error_invalid("The given target does not resolve to a commit");
+		goto cleanup;
 	}
 
 	//TODO: Check for unmerged entries
@@ -90,12 +77,26 @@ int git_reset(
 		goto cleanup;
 	}
 
+	if (reset_type == GIT_RESET_MIXED) {
+		error = 0;
+		goto cleanup;
+	}
+
+	memset(&opts, 0, sizeof(opts));
+	opts.checkout_strategy =
+		GIT_CHECKOUT_CREATE_MISSING
+		| GIT_CHECKOUT_OVERWRITE_MODIFIED
+		| GIT_CHECKOUT_REMOVE_UNTRACKED;
+
+	if (git_checkout_index(repo, &opts, NULL) < 0) {
+		giterr_set(GITERR_INDEX, "%s - Failed to checkout the index.", ERROR_MSG);
+		goto cleanup;
+	}
+
 	error = 0;
 
 cleanup:
-	if (target_type == GIT_OBJ_TAG)
-		git_object_free(commit);
-
+	git_object_free(commit);
 	git_index_free(index);
 	git_tree_free(tree);
 

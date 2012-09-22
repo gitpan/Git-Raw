@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.11';
+  $Git::Raw::Repository::VERSION = '0.12';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.11
+version 0.12
 
 =head1 DESCRIPTION
 
@@ -23,6 +23,10 @@ A C<Git::Raw::Repository> represents a Git repository.
 =head2 init( $path, $is_bare )
 
 Initialize a new repository at C<$path>.
+
+=head2 clone( $url, $path, $is_bare )
+
+Clone the repository at C<$url> to C<$path>.
 
 =head2 open( $path )
 

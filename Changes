@@ -1,502 +1,68 @@
-==================================================
-Changes from 2011-08-24 00:00:00 +0000 to present.
-==================================================
+Revision history for Git-Raw
 
------------------------------------------
-version 0.11 at 2012-08-23 09:39:35 +0000
------------------------------------------
+0.12      2012-09-22 19:24:45 Europe/Rome
 
-  Change: a4eb5a5858659f78f0d33b129dbee7189cf5a1fa
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 11:38:37 +0000
+ - Fix typo in Reference.pm
+ - Add a proper Changes file
+ - Update libgit2:
+    + Remove delete() method for G::R::Branch (incompatible change)
+    + Implement clone() method for G::R::Repository
 
-    lib: more doc fixes 
+0.11      2012-08-23 09:41:38 Europe/Rome
 
-  Change: 58e2498578669bda677afd6c410efdde0c138f7d
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 11:30:18 +0000
+ - Various documentation fixes (no functional changes)
 
-    Diff.pm: do not link to itself in DESCRIPTION 
+0.10      2012-08-22 18:53:04 Europe/Rome
 
-  Change: d8596d4198f2b2e7e8b6bea969a0e8a9374365cf
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 11:29:25 +0000
+ - Implement lookup() method for all the objects that support it
+ - Move tag(), branch() and walker() functionality to the respective object
+   constructors
 
-    Walker.pm: fix create signature 
+0.09      2012-08-22 17:56:59 Europe/Rome
 
-  Change: 5895423eecf0b9d029d1f56eb776c2b67ebe56cf
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 11:29:25 +0000
+ - Implement lookup() method for all the objects that support it
+ - Implement G::R::Diff
 
-    Repository.pm: minor doc fixes 
+0.08      2012-08-21 15:15:17 Europe/Rome
 
-  Change: 9f6b7ac43ce8f5da8fe3a9f7131b39a1ae4edd83
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 11:29:25 +0000
+ - Implement reset() method for G::R::Repository
+ - Implement branch support
+ - Embed libgit2 sources to ease building
 
-    Repository.xs: do not use Ruby-style :values in reset too 
+0.07      2012-08-20 19:02:44 Europe/Rome
 
-  Change: a548fa0df582854eb6b753c17c1b87837137d8de
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 11:29:25 +0000
+ - Implement discover() method for G::R::Repository
 
-    lib: escape '>' 
+0.06      2012-08-17 14:13:05 Europe/Rome
 
-  Change: eaf59c263f48cfbc11996db36b762fbfb7b4281a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-23 10:33:42 +0000
+ - Implement G::R::Remote
+ - Implement tags() method for G::R::Repository
 
-    Branch.pm: fix missing DESCRIPTION header 
+0.05      2012-08-09 15:56:21 Europe/Rome
 
------------------------------------------
-version 0.10 at 2012-08-22 18:46:10 +0000
------------------------------------------
+ - Implement G::R::Reference
 
-  Change: 39695260381139eb710e73f3cb1cf7de63d02b11
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:46:10 +0000
+0.04      2012-08-08 21:42:46 Europe/Rome
 
-    Repository.pm: add links to create objects' docs 
+ - Implement G::R::Blob
+ - Implement G::R::TreeEntry and id() method for G::R::Tree
+ - Implement tree() method for G::R::Commit
+ - Rename string() method to str()
 
-  Change: 17945e2312aea2343d3da1cef360a061d717040a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:42:43 +0000
+0.03      2012-08-06 16:45:57 Europe/Rome
 
-    Repository.xs: move walker() to Walker.xs and rename -> create() 
+ - Add proper support for commit parents
+ - Implement revision walking
+ - Implement status() method for G::R::Repository
+ - Implement more G::R::Config methods
 
-  Change: 85e3fb757e698e514ddb7d3a5c6d8dd5ba28c7be
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:41:01 +0000
+0.02      2012-08-05 20:18:56 Europe/Rome
 
-    Repository.xs: move tag() to Tag.xs and rename -> create() 
+ - Improve exception messages
+ - Implement id() method for G::R::Commit
+ - Implement generic lookup() and head() methods for G::R::Repository
+ - Implement G::R::Tag
 
-  Change: 028ba74fc14f3e34deb61b6a782eec6f1269bc46
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:35:28 +0000
+0.01      2012-08-05 11:43:13 Europe/Rome
 
-    Repository.xs: move branch() to Branch.xs and rename -> create() 
-
-  Change: 0c7ad604b0781710dd073ce3d083be3bf7e816fd
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:30:52 +0000
-
-    Reference.pm: add docs for name() and type() 
-
-  Change: 858167a20ecb18b6f095586a1dc950b7a07a2b08
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:30:34 +0000
-
-    Repository.xs: move commit() to Commit.xs and rename -> create() 
-
-  Change: e07734d21c7d7ff5bc53c08794bd44d75c07de79
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 20:12:52 +0000
-
-    xs: add delete() methods 
-
-  Change: af8b627209930f473720b1a173db3a5835b752fa
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 19:57:44 +0000
-
-    Raw.pm: remove note about libgit2 version 
-
------------------------------------------
-version 0.09 at 2012-08-22 17:39:57 +0000
------------------------------------------
-
-  Change: d7fcb727b41577555e8d1d3a3cbc105949803e82
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 19:39:57 +0000
-
-    Diff.xs: support for diff 
-
-  Change: 66b8f426968057b9b6586231be4263754c1af9af
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 17:06:51 +0000
-
-    xs: add lookup() method to *EVERYONE* 
-
-  Change: 2705a85fa25eeeaa2aca58c412cada88cbe53929
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-22 16:44:58 +0000
-
-    Commit.{xs,pm}: re-order methods 
-
------------------------------------------
-version 0.08 at 2012-08-21 15:13:30 +0000
------------------------------------------
-
-  Change: 0923d3a73f842ce2e2af3bee816513c16c7e150e
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 17:13:30 +0000
-
-    travis.yml: do not test on 5.16 (doesn't work for some reason) 
-
-  Change: cdb1ec71ab9555762ad523a23d676863e23787ba
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 17:13:25 +0000
-
-    travis.yml: do not run git-submodule (done by travis automatically) 
-
-  Change: 96746d69ffb11117c5b0ad367e944ac2d31ddb2a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 16:58:02 +0000
-
-    MakeMaker.pm: use embed libgit2 makefile instead of cmake 
-
-  Change: 9c879d501ecf2ba9812bbd583f4feea09cd90919
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 16:42:50 +0000
-
-    MANIFEST.SKIP: add libgit2/cmake related files 
-
-  Change: f706cf2c5f0d5029fe93b1bf03e7f4817a237d23
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 16:26:52 +0000
-
-    MakeMaker.pm: link to openssl 
-
-  Change: f233feb85de656c4208a0c082059644bbb0b156e
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:59:09 +0000
-
-    travis.yml: apt needs sudo 
-
-  Change: 630352c279a0876a2e9d25bd2d478d6aa1ac254f
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:57:57 +0000
-
-    travis.yml: install openssl dev 
-
-  Change: c89abf106ae25b0f11a97527a8da11cce66f73bc
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:50:20 +0000
-
-    travis.yml: add travis ci config 
-
-  Change: 410e16320acd8cb09551b755cd272ac266554336
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:46:46 +0000
-
-    MakeMaker.pm: check for cmake presence 
-
-  Change: f618b32a3bc1b71b4ebf63f37fd84488fb56c640
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:36:32 +0000
-
-    dist.ini: remove Devel::CheckLib dependency 
-
-  Change: 73edc6163d0a0fda050adf428fa7405c1018c43b
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:33:38 +0000
-
-    Repository.xs: initial branch() implementation 
-
-  Change: 2e585ca5738ce4f09c84bc4cf9fe8c06aba14114
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 15:29:27 +0000
-
-    03-tag.t: update to new libgits (closes #1) 
-
-  Change: 27ad913c158dafeebaa4104819039f1cd7a0ab5e
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 14:24:55 +0000
-
-    02-commit.t: update to new libgit2 (closes #1) 
-
-  Change: 7ce78dd19da28a4856bc42f2b69da735e47e7ca2
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 14:19:11 +0000
-
-    Remote.xs: update git_remote_update_tips to new libgit2 
-
-  Change: 9fc0fbffcfd99817afd8a027a5f1fd3a40ef36f8
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 14:18:01 +0000
-
-    Tree.xs: duplicate the tree entry 
-
-  Change: bbd66bc97503f340a1e8898be418ab312a35cc2a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 14:18:00 +0000
-
-    Repository.xs: implement 'reset' method 
-
-  Change: a99e3db6691a25140edfe4669454ff51e38f61dd
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-21 14:17:42 +0000
-
-    xs: embed libgit2 
-
------------------------------------------
-version 0.07 at 2012-08-20 18:59:32 +0000
------------------------------------------
-
-  Change: e5fe1d5ae0b6a33a7ca4f05d62d39e21d37e536a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-20 20:59:32 +0000
-
-    Repository.xs: add discover() method 
-
-  Change: a1a04ad99d682aaa68485c0b4c79de5a69108968
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-20 20:59:32 +0000
-
-    07-remote.t: fix remote repository URL 
-
-  Change: 370cc8c796c1e296d11c5a9222d04f3a424643a7
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-20 20:59:32 +0000
-
-    don't use Ruby-style "atomic" values 
-
------------------------------------------
-version 0.06 at 2012-08-17 14:10:17 +0000
------------------------------------------
-
-  Change: 5867982fe2ecd6de1644e2be4274bb0a8f67870c
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-17 16:10:17 +0000
-
-    Raw.pm: tweak long descritpion 
-
-  Change: fddfd5f8131563a080e960dacaf28bcd5dad754d
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-17 16:01:08 +0000
-
-    Config.xs: add prototypes 
-
-  Change: 89d9192c592049da75e97740aa75d179cea34816
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-17 15:48:35 +0000
-
-    Repository.xs: add tags() method 
-
-  Change: cd17a080e7fd6191343cc3c6ff21ff1655f89cff
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-17 15:35:03 +0000
-
-    Remote.xs: support for Git remotes 
-
-  Change: 47cf876d7c87c2b0ee286f969db8f2c41f5aadd3
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-17 13:32:13 +0000
-
-    {Blob,Reference}.pm: fix DESCRIPTION 
-
-  Change: 9dab89eb0139e6ad6af51be4776c835ce69eb9dd
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-13 20:37:39 +0000
-
-    xs: replace SvPVbyte with *_nolen where appropriate 
-
------------------------------------------
-version 0.05 at 2012-08-09 15:55:53 +0000
------------------------------------------
-
-  Change: 9af95c2ab3e7df131ee0efa938cd3c08d2c050fe
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:55:53 +0000
-
-    Reference.xs: fix + test 
-
-  Change: 217954cf91c9ce2aa2428bd470693d7f7e59494f
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:45:20 +0000
-
-    Reference.xs: target returns the objects/refs instead of the
-    ids/names 
-
-  Change: 48d8fe24ade41ef3c6dda4caf3195cf692e4a6d7
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:37:49 +0000
-
-    lib: minor doc fixes 
-
-  Change: fb3b9eb17a7d82559a9657829a22c3b0c52d4ed9
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:32:15 +0000
-
-    TODO: -- 
-
-  Change: 1c7ea5a81a4efac0d48ebc85701894acf8997b62
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:24:52 +0000
-
-    Reference.xs: implement 'lookup' method 
-
-  Change: 75e12171786884a014d052af434bc78995ee297d
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:10:55 +0000
-
-    xs: silence warnings 
-
-  Change: 54deedfd7625fc40e8fce110d87750417b0c62dc
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 17:03:33 +0000
-
-    Raw.xs: do not duplicate oid to SV code 
-
-  Change: 086e82976c9a229e3022469795dc673c75b18e11
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 16:57:20 +0000
-
-    Reference.xs: implement reference support 
-
-  Change: af94f156cb88262e6248321466306ce1215b1cde
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-09 16:17:15 +0000
-
-    lib: fix modules' short descriptions 
-
------------------------------------------
-version 0.04 at 2012-08-08 21:42:11 +0000
------------------------------------------
-
-  Change: 7b940330c24ab3327b15592d5d992e05e7c3a8e8
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-08 23:42:11 +0000
-
-    TODO: update 
-
-  Change: 58099846478de2a1b5285fcd0fc67eab7d2ae2a2
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-08 23:25:00 +0000
-
-    Blob.xs: initial implementation of blob support 
-
-  Change: 03da8ccc53fc91ab78db45b05b01a21f026ebf4c
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-08 23:15:45 +0000
-
-    TreeEntry.xs: implement git_tree_entry 
-
-  Change: 1fa05bfc61629f9b3d1b0deb66f7eb469cabd885
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-08 23:15:45 +0000
-
-    Tree.xs: implement 'id' method 
-
-  Change: c6ff69949ca00caf7abca2ed9d142b23d55a8306
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-08 23:15:41 +0000
-
-    Commit.xs: implement 'tree' method 
-
-  Change: 80e1389928f8f4568a0b412ea42295fcc1d3c006
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 19:18:00 +0000
-
-    Config.xs: rename 'string' -> 'str' 
-
-  Change: b03a843a5feedb32c21ae14b6836eb425f734d3a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 19:04:03 +0000
-
-    Raw.pm: fix config in SYNOPSIS 
-
------------------------------------------
-version 0.03 at 2012-08-06 16:44:49 +0000
------------------------------------------
-
-  Change: 85c27f1cc7410af8ee793dcbc0242bb850899a33
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 18:44:49 +0000
-
-    Config.xs: implement 'bool' and 'int' methods 
-
-  Change: 4d8442272c9c04d97992f46bd661e1af313650c0
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 18:35:06 +0000
-
-    Config.xs: use single 'string' method for both get and set 
-
-  Change: b75a700dede5ec1b8723b7431978511d5b02715c
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 18:24:11 +0000
-
-    Repository.xs: implement 'status' method 
-
-  Change: 70a9758da03d3a36b0844ac4f8f1c620004e4402
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 18:23:39 +0000
-
-    Repository.xs: implement support for revwalking 
-
-  Change: 89d28283e00ec3f3664c1694a71be7589d3033d5
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 18:23:39 +0000
-
-    Commit.xs: add proper support for commit parents 
-
-  Change: 68c7ee69ce5960e1c9461ed708c5a1c2ef4414f6
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-06 18:23:35 +0000
-
-    TODO: -- 
-
------------------------------------------
-version 0.02 at 2012-08-05 20:17:09 +0000
------------------------------------------
-
-  Change: 0a4a9cba751bc2bb1c07d22fcb88d25e007618d8
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 22:17:09 +0000
-
-    lib: update documentation 
-
-  Change: 7e7ee876b3563968860af733eb2b111817148e04
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 22:08:26 +0000
-
-    Tag.xs: more stuff 
-
-  Change: 66e5e5bee8af990af61ff4829c8877ed012180b0
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 21:54:56 +0000
-
-    Repository.xs: implement 'head' method 
-
-  Change: 2fb1a9b217db37dd3621cf1061d5c36952d5e934
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 21:48:07 +0000
-
-    Tag.xs: initial tag implementation 
-
-  Change: 7533b8b9a29c0fb925c600a101cddfe79187c99a
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 21:03:06 +0000
-
-    Repository.xs: implement a generic 'lookup' method 
-
-  Change: 2676c958d016eb33456d47061e5717bc424f78dc
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 21:00:39 +0000
-
-    Commit.xs: implement 'id' method 
-
-  Change: 367165bc8393064cb721099aa8653f40fbb2b718
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 20:24:02 +0000
-
-    Raw.xs: more useful exceptions 
-
------------------------------------------
-version 0.01 at 2012-08-05 11:42:41 +0000
------------------------------------------
-
-  Change: 00cadff66b126ad37c23ff6d99f191787f52a22f
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 13:42:41 +0000
-
-    Index.xs: fix uniq 
-
-  Change: 3f27a556ee2a58157eaa7de148fe60f343105e46
-  Author: Alessandro Ghedini <al3xbio@gmail.com>
-  Date : 2012-08-05 13:35:18 +0000
-
-    initial commit 
-
-================
-End of releases.
-================
+ - Initial version

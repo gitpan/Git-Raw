@@ -1,6 +1,6 @@
 package Git::Raw::Tree;
 {
-  $Git::Raw::Tree::VERSION = '0.11';
+  $Git::Raw::Tree::VERSION = '0.12';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.11
+version 0.12
 
 =head1 DESCRIPTION
 

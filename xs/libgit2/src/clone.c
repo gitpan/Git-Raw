@@ -7,10 +7,6 @@
 
 #include <assert.h>
 
-#ifndef GIT_WIN32
-#include <dirent.h>
-#endif
-
 #include "git2/clone.h"
 #include "git2/remote.h"
 #include "git2/revparse.h"
@@ -25,8 +21,6 @@
 #include "fileops.h"
 #include "refs.h"
 #include "path.h"
-
-GIT_BEGIN_DECL
 
 struct HeadInfo {
 	git_repository *repo;
@@ -241,14 +235,8 @@ int git_clone(git_repository **out,
 
 	assert(out && origin_url && workdir_path);
 
-	if (!(retcode = clone_internal(out, origin_url, workdir_path, fetch_stats, 0))) {
+	if (!(retcode = clone_internal(out, origin_url, workdir_path, fetch_stats, 0)))
 		retcode = git_checkout_head(*out, checkout_opts, checkout_stats);
-	}
 
 	return retcode;
 }
-
-
-
-
-GIT_END_DECL

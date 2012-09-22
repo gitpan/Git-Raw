@@ -24,6 +24,9 @@ GIT_BEGIN_DECL
  * Specifying a Mixed kind of reset will trigger a Soft reset and the index will
  * be replaced with the content of the commit tree.
  *
+ * Specifying a Hard kind of reset will trigger a Mixed reset and the working
+ * directory will be replaced with the content of the index.
+ *
  * TODO: Implement remaining kinds of resets.
  *
  * @param repo Repository where to perform the reset operation.
@@ -37,7 +40,7 @@ GIT_BEGIN_DECL
  *
  * @return GIT_SUCCESS or an error code
  */
-GIT_EXTERN(int) git_reset(git_repository *repo, const git_object *target, git_reset_type reset_type);
+GIT_EXTERN(int) git_reset(git_repository *repo, git_object *target, git_reset_type reset_type);
 
 /** @} */
 GIT_END_DECL
