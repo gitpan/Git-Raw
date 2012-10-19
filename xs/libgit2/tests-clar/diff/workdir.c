@@ -678,7 +678,7 @@ void test_diff_workdir__larger_hunks(void)
 	const char *b_commit = "7a9e0b02e63179929fed24f0a3e0f19168114d10";
 	git_tree *a, *b;
 	git_diff_options opts = {0};
-	int i, error;
+	size_t i, d, num_d, h, num_h, l, num_l, header_len, line_len;
 
 	g_repo = cl_git_sandbox_init("diff");
 
@@ -690,9 +690,10 @@ void test_diff_workdir__larger_hunks(void)
 
 	for (i = 0; i <= 2; ++i) {
 		git_diff_list *diff = NULL;
-		git_diff_iterator *iter = NULL;
-		git_diff_delta *delta;
-		int num_files = 0;
+		git_diff_patch *patch;
+		const git_diff_range *range;
+		const char *header, *line;
+		char origin;
 
 		/* okay, this is a bit silly, but oh well */
 		switch (i) {
@@ -707,57 +708,113 @@ void test_diff_workdir__larger_hunks(void)
 			break;
 		}
 
-		cl_git_pass(git_diff_iterator_new(&iter, diff));
+		num_d = git_diff_num_deltas(diff);
+		cl_assert_equal_i(2, (int)num_d);
 
-		cl_assert(git_diff_iterator_progress(iter) == 0.0f);
+		for (d = 0; d < num_d; ++d) {
+			cl_git_pass(git_diff_get_patch(&patch, NULL, diff, d));
+			cl_assert(patch);
 
-		while (!(error = git_diff_iterator_next_file(&delta, iter))) {
-			git_diff_range *range;
-			const char *header;
-			size_t header_len;
-			int actual_hunks = 0, num_hunks;
-			float expected_progress;
+			num_h = git_diff_patch_num_hunks(patch);
+			for (h = 0; h < num_h; h++) {
+				cl_git_pass(git_diff_patch_get_hunk(
+					&range, &header, &header_len, &num_l, patch, h));
 
-			num_files++;
-
-			expected_progress = (float)num_files / 2.0f;
-			cl_assert(expected_progress == git_diff_iterator_progress(iter));
-
-			num_hunks = git_diff_iterator_num_hunks_in_file(iter);
-
-			while (!(error = git_diff_iterator_next_hunk(
-						 &range, &header, &header_len, iter)))
-			{
-				int actual_lines = 0;
-				int num_lines = git_diff_iterator_num_lines_in_hunk(iter);
-				char origin;
-				const char *line;
-				size_t line_len;
-
-				while (!(error = git_diff_iterator_next_line(
-							 &origin, &line, &line_len, iter)))
-				{
-					actual_lines++;
+				for (l = 0; l < num_l; ++l) {
+					cl_git_pass(git_diff_patch_get_line_in_hunk(
+						&origin, &line, &line_len, NULL, NULL, patch, h, l));
+					cl_assert(line);
 				}
 
-				cl_assert_equal_i(GIT_ITEROVER, error);
-				cl_assert_equal_i(actual_lines, num_lines);
-
-				actual_hunks++;
+				/* confirm fail after the last item */
+				cl_git_fail(git_diff_patch_get_line_in_hunk(
+					&origin, &line, &line_len, NULL, NULL, patch, h, num_l));
 			}
 
-			cl_assert_equal_i(GIT_ITEROVER, error);
-			cl_assert_equal_i(actual_hunks, num_hunks);
+			/* confirm fail after the last item */
+			cl_git_fail(git_diff_patch_get_hunk(
+				&range, &header, &header_len, &num_l, patch, num_h));
+
+			git_diff_patch_free(patch);
 		}
 
-		cl_assert_equal_i(GIT_ITEROVER, error);
-		cl_assert_equal_i(2, num_files);
-		cl_assert(git_diff_iterator_progress(iter) == 1.0f);
-
-		git_diff_iterator_free(iter);
 		git_diff_list_free(diff);
 	}
 
 	git_tree_free(a);
 	git_tree_free(b);
+}
+
+/* Set up a test that exercises this code. The easiest test using existing
+ * test data is probably to create a sandbox of submod2 and then run a
+ * git_diff_workdir_to_tree against tree
+ * 873585b94bdeabccea991ea5e3ec1a277895b698. As for what you should actually
+ * test, you can start by just checking that the number of lines of diff
+ * content matches the actual output of git diff. That will at least
+ * demonstrate that the submodule content is being used to generate somewhat
+ * comparable outputs. It is a test that would fail without this code and
+ * will succeed with it.
+ */
+
+#include "../submodule/submodule_helpers.h"
+
+void test_diff_workdir__submodules(void)
+{
+	const char *a_commit = "873585b94bdeabccea991ea5e3ec1a277895b698";
+	git_tree *a;
+	git_diff_options opts = {0};
+	git_diff_list *diff = NULL;
+	diff_expects exp;
+
+	g_repo = cl_git_sandbox_init("submod2");
+
+	cl_fixture_sandbox("submod2_target");
+	p_rename("submod2_target/.gitted", "submod2_target/.git");
+
+	rewrite_gitmodules(git_repository_workdir(g_repo));
+	p_rename("submod2/not_submodule/.gitted", "submod2/not_submodule/.git");
+
+	cl_fixture_cleanup("submod2_target");
+
+	a = resolve_commit_oid_to_tree(g_repo, a_commit);
+
+	opts.flags =
+		GIT_DIFF_INCLUDE_UNTRACKED |
+		GIT_DIFF_RECURSE_UNTRACKED_DIRS |
+		GIT_DIFF_INCLUDE_UNTRACKED_CONTENT;
+
+	cl_git_pass(git_diff_workdir_to_tree(g_repo, &opts, a, &diff));
+
+	/* diff_print(stderr, diff); */
+
+	/* essentially doing: git diff 873585b94bdeabccea991ea5e3ec1a277895b698 */
+
+	memset(&exp, 0, sizeof(exp));
+	cl_git_pass(git_diff_foreach(
+		diff, &exp, diff_file_fn, diff_hunk_fn, diff_line_fn));
+
+	/* the following differs from "git diff 873585" by one "untracked" file
+	 * because the diff list includes the "not_submodule/" directory which
+	 * is not displayed in the text diff.
+	 */
+
+	cl_assert_equal_i(10, exp.files);
+
+	cl_assert_equal_i(0, exp.file_adds);
+	cl_assert_equal_i(0, exp.file_dels);
+	cl_assert_equal_i(1, exp.file_mods);
+	cl_assert_equal_i(0, exp.file_ignored);
+	cl_assert_equal_i(9, exp.file_untracked);
+
+	/* the following numbers match "git diff 873585" exactly */
+
+	cl_assert_equal_i(9, exp.hunks);
+
+	cl_assert_equal_i(33, exp.lines);
+	cl_assert_equal_i(2, exp.line_ctxt);
+	cl_assert_equal_i(30, exp.line_adds);
+	cl_assert_equal_i(1, exp.line_dels);
+
+	git_diff_list_free(diff);
+	git_tree_free(a);
 }

@@ -126,6 +126,7 @@ xs/libgit2/include/git2/object.h
 xs/libgit2/include/git2/odb.h
 xs/libgit2/include/git2/odb_backend.h
 xs/libgit2/include/git2/oid.h
+xs/libgit2/include/git2/pack.h
 xs/libgit2/include/git2/reflog.h
 xs/libgit2/include/git2/refs.h
 xs/libgit2/include/git2/refspec.h
@@ -137,6 +138,7 @@ xs/libgit2/include/git2/revwalk.h
 xs/libgit2/include/git2/signature.h
 xs/libgit2/include/git2/status.h
 xs/libgit2/include/git2/stdint.h
+xs/libgit2/include/git2/strarray.h
 xs/libgit2/include/git2/submodule.h
 xs/libgit2/include/git2/tag.h
 xs/libgit2/include/git2/threads.h
@@ -166,8 +168,8 @@ xs/libgit2/src/clone.c
 xs/libgit2/src/commit.c
 xs/libgit2/src/commit.h
 xs/libgit2/src/common.h
-xs/libgit2/src/compat/fnmatch.c
-xs/libgit2/src/compat/fnmatch.h
+xs/libgit2/src/compress.c
+xs/libgit2/src/compress.h
 xs/libgit2/src/config.c
 xs/libgit2/src/config.h
 xs/libgit2/src/config_cache.c
@@ -177,9 +179,12 @@ xs/libgit2/src/crlf.c
 xs/libgit2/src/date.c
 xs/libgit2/src/delta-apply.c
 xs/libgit2/src/delta-apply.h
+xs/libgit2/src/delta.c
+xs/libgit2/src/delta.h
 xs/libgit2/src/diff.c
 xs/libgit2/src/diff.h
 xs/libgit2/src/diff_output.c
+xs/libgit2/src/diff_output.h
 xs/libgit2/src/errors.c
 xs/libgit2/src/fetch.c
 xs/libgit2/src/fetch.h
@@ -189,6 +194,8 @@ xs/libgit2/src/fileops.c
 xs/libgit2/src/fileops.h
 xs/libgit2/src/filter.c
 xs/libgit2/src/filter.h
+xs/libgit2/src/fnmatch.c
+xs/libgit2/src/fnmatch.h
 xs/libgit2/src/global.c
 xs/libgit2/src/global.h
 xs/libgit2/src/hash.c
@@ -218,6 +225,8 @@ xs/libgit2/src/odb_loose.c
 xs/libgit2/src/odb_pack.c
 xs/libgit2/src/oid.c
 xs/libgit2/src/oidmap.h
+xs/libgit2/src/pack-objects.c
+xs/libgit2/src/pack-objects.h
 xs/libgit2/src/pack.c
 xs/libgit2/src/pack.h
 xs/libgit2/src/path.c
@@ -281,6 +290,8 @@ xs/libgit2/src/vector.c
 xs/libgit2/src/vector.h
 xs/libgit2/src/win32/dir.c
 xs/libgit2/src/win32/dir.h
+xs/libgit2/src/win32/findfile.c
+xs/libgit2/src/win32/findfile.h
 xs/libgit2/src/win32/git2.rc
 xs/libgit2/src/win32/map.c
 xs/libgit2/src/win32/mingw-compat.h
@@ -317,10 +328,12 @@ xs/libgit2/tests-clar/attr/repo.c
 xs/libgit2/tests-clar/buf/basic.c
 xs/libgit2/tests-clar/checkout/index.c
 xs/libgit2/tests-clar/checkout/tree.c
+xs/libgit2/tests-clar/checkout/typechange.c
 xs/libgit2/tests-clar/clar
 xs/libgit2/tests-clar/clar_helpers.c
 xs/libgit2/tests-clar/clar_libgit2.h
-xs/libgit2/tests-clar/clone/clone.c
+xs/libgit2/tests-clar/clone/network.c
+xs/libgit2/tests-clar/clone/nonetwork.c
 xs/libgit2/tests-clar/commit/commit.c
 xs/libgit2/tests-clar/commit/parent.c
 xs/libgit2/tests-clar/commit/parse.c
@@ -363,6 +376,8 @@ xs/libgit2/tests-clar/index/read_tree.c
 xs/libgit2/tests-clar/index/rename.c
 xs/libgit2/tests-clar/index/tests.c
 xs/libgit2/tests-clar/network/createremotethenload.c
+xs/libgit2/tests-clar/network/fetch.c
+xs/libgit2/tests-clar/network/refspecs.c
 xs/libgit2/tests-clar/network/remotelocal.c
 xs/libgit2/tests-clar/network/remotes.c
 xs/libgit2/tests-clar/notes/notes.c
@@ -384,6 +399,7 @@ xs/libgit2/tests-clar/object/raw/short.c
 xs/libgit2/tests-clar/object/raw/size.c
 xs/libgit2/tests-clar/object/raw/type2string.c
 xs/libgit2/tests-clar/object/raw/write.c
+xs/libgit2/tests-clar/object/tag/list.c
 xs/libgit2/tests-clar/object/tag/peel.c
 xs/libgit2/tests-clar/object/tag/read.c
 xs/libgit2/tests-clar/object/tag/write.c
@@ -401,9 +417,11 @@ xs/libgit2/tests-clar/odb/pack_data_one.h
 xs/libgit2/tests-clar/odb/packed.c
 xs/libgit2/tests-clar/odb/packed_one.c
 xs/libgit2/tests-clar/odb/sorting.c
+xs/libgit2/tests-clar/pack/packbuilder.c
 xs/libgit2/tests-clar/refs/branches/create.c
 xs/libgit2/tests-clar/refs/branches/delete.c
 xs/libgit2/tests-clar/refs/branches/foreach.c
+xs/libgit2/tests-clar/refs/branches/ishead.c
 xs/libgit2/tests-clar/refs/branches/lookup.c
 xs/libgit2/tests-clar/refs/branches/move.c
 xs/libgit2/tests-clar/refs/branches/tracking.c
@@ -411,6 +429,7 @@ xs/libgit2/tests-clar/refs/crashes.c
 xs/libgit2/tests-clar/refs/create.c
 xs/libgit2/tests-clar/refs/delete.c
 xs/libgit2/tests-clar/refs/foreachglob.c
+xs/libgit2/tests-clar/refs/isvalidname.c
 xs/libgit2/tests-clar/refs/list.c
 xs/libgit2/tests-clar/refs/listall.c
 xs/libgit2/tests-clar/refs/lookup.c
@@ -456,7 +475,8 @@ xs/libgit2/tests-clar/resources/attr/root_test4.txt
 xs/libgit2/tests-clar/resources/attr/sub/abc
 xs/libgit2/tests-clar/resources/attr/sub/dir/file
 xs/libgit2/tests-clar/resources/attr/sub/file
-xs/libgit2/tests-clar/resources/attr/sub/ign
+xs/libgit2/tests-clar/resources/attr/sub/ign/file
+xs/libgit2/tests-clar/resources/attr/sub/ign/sub/file
 xs/libgit2/tests-clar/resources/attr/sub/sub/dir
 xs/libgit2/tests-clar/resources/attr/sub/sub/file
 xs/libgit2/tests-clar/resources/attr/sub/sub/subsub.txt
@@ -609,9 +629,10 @@ xs/libgit2/tests-clar/resources/template/hooks/pre-rebase.sample
 xs/libgit2/tests-clar/resources/template/hooks/prepare-commit-msg.sample
 xs/libgit2/tests-clar/resources/template/hooks/update.sample
 xs/libgit2/tests-clar/resources/template/info/exclude
+xs/libgit2/tests-clar/resources/testrepo.git/FETCH_HEAD
 xs/libgit2/tests-clar/resources/testrepo.git/HEAD
+xs/libgit2/tests-clar/resources/testrepo.git/HEAD_TRACKER
 xs/libgit2/tests-clar/resources/testrepo.git/config
-xs/libgit2/tests-clar/resources/testrepo.git/head-tracker
 xs/libgit2/tests-clar/resources/testrepo.git/index
 xs/libgit2/tests-clar/resources/testrepo.git/logs/HEAD
 xs/libgit2/tests-clar/resources/testrepo.git/logs/refs/heads/br2
@@ -623,6 +644,7 @@ xs/libgit2/tests-clar/resources/testrepo.git/objects/08/b041783f40edfe12bb406c9c
 xs/libgit2/tests-clar/resources/testrepo.git/objects/13/85f264afb75a56a5bec74243be9b367ba4ca08
 xs/libgit2/tests-clar/resources/testrepo.git/objects/18/1037049a54a1eb5fab404658a3a250b44335d7
 xs/libgit2/tests-clar/resources/testrepo.git/objects/18/10dff58d8a660512d4832e740f692884338ccd
+xs/libgit2/tests-clar/resources/testrepo.git/objects/1a/443023183e3f2bfbef8ac923cd81c1018a18fd
 xs/libgit2/tests-clar/resources/testrepo.git/objects/1b/8cbad43e867676df601306689fe7c3def5e689
 xs/libgit2/tests-clar/resources/testrepo.git/objects/1f/67fc4386b2d171e0d21be1c447e12660561f9b
 xs/libgit2/tests-clar/resources/testrepo.git/objects/25/8f0e2a959a364e40ed6603d5d44fbb24765b10
@@ -643,6 +665,7 @@ xs/libgit2/tests-clar/resources/testrepo.git/objects/84/96071c1b46c854b31185ea97
 xs/libgit2/tests-clar/resources/testrepo.git/objects/84/9a5e34a26815e821f865b8479f5815a47af0fe
 xs/libgit2/tests-clar/resources/testrepo.git/objects/94/4c0f6e4dfa41595e6eb3ceecdb14f50fe18162
 xs/libgit2/tests-clar/resources/testrepo.git/objects/9a/03079b8a8ee85a0bee58bf9be3da8b62414ed4
+xs/libgit2/tests-clar/resources/testrepo.git/objects/9f/13f7d0a9402c681f91dc590cf7b5470e6a77d2
 xs/libgit2/tests-clar/resources/testrepo.git/objects/9f/d738e8f7967c078dceed8190330fc8648ee56a
 xs/libgit2/tests-clar/resources/testrepo.git/objects/a4/a7dce85cf63874e984719f4fdd239f5145052f
 xs/libgit2/tests-clar/resources/testrepo.git/objects/a6/5fedf39aefe402d3bb6e24df4d4f5fe4547750
@@ -662,6 +685,7 @@ xs/libgit2/tests-clar/resources/testrepo.git/objects/f1/425cef211cc08caa31e7b545
 xs/libgit2/tests-clar/resources/testrepo.git/objects/f6/0079018b664e4e79329a7ef9559c8d9e0378d1
 xs/libgit2/tests-clar/resources/testrepo.git/objects/fa/49b077972391ad58037050f2a75f74e3671e92
 xs/libgit2/tests-clar/resources/testrepo.git/objects/fd/093bff70906175335656e6ce6ae05783708765
+xs/libgit2/tests-clar/resources/testrepo.git/objects/fd/4959ce7510db09d4d8217fa2d1780413e05a09
 xs/libgit2/tests-clar/resources/testrepo.git/objects/pack/pack-a81e489679b7d3418f9ab594bda8ceb37dd4c695.idx
 xs/libgit2/tests-clar/resources/testrepo.git/objects/pack/pack-a81e489679b7d3418f9ab594bda8ceb37dd4c695.pack
 xs/libgit2/tests-clar/resources/testrepo.git/objects/pack/pack-d7c6adf9f61318f041845b01440d09aa7a91e1b5.idx
@@ -688,6 +712,8 @@ xs/libgit2/tests-clar/resources/testrepo.git/refs/tags/hard_tag
 xs/libgit2/tests-clar/resources/testrepo.git/refs/tags/point_to_blob
 xs/libgit2/tests-clar/resources/testrepo.git/refs/tags/test
 xs/libgit2/tests-clar/resources/testrepo.git/refs/tags/wrapped_tag
+xs/libgit2/tests-clar/resources/typechanges/README.md
+xs/libgit2/tests-clar/resources/typechanges/gitmodules
 xs/libgit2/tests-clar/revwalk/basic.c
 xs/libgit2/tests-clar/revwalk/mergebase.c
 xs/libgit2/tests-clar/revwalk/signatureparsing.c

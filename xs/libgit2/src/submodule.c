@@ -1315,7 +1315,7 @@ static int lookup_head_remote(git_buf *url, git_repository *repo)
 	/* remote should refer to something like refs/remotes/ORIGIN/BRANCH */
 
 	if (git_reference_type(remote) != GIT_REF_SYMBOLIC ||
-		git__prefixcmp(git_reference_target(remote), "refs/remotes/") != 0)
+		git__prefixcmp(git_reference_target(remote), GIT_REFS_REMOTES_DIR) != 0)
 	{
 		giterr_set(GITERR_SUBMODULE,
 			"Cannot resolve relative URL when HEAD is not symbolic");
@@ -1323,7 +1323,7 @@ static int lookup_head_remote(git_buf *url, git_repository *repo)
 		goto cleanup;
 	}
 
-	scan = tgt = git_reference_target(remote) + strlen("refs/remotes/");
+	scan = tgt = git_reference_target(remote) + strlen(GIT_REFS_REMOTES_DIR);
 	while (*scan && (*scan != '/' || (scan > tgt && scan[-1] != '\\')))
 		scan++; /* find non-escaped slash to end ORIGIN name */
 
@@ -1457,7 +1457,7 @@ static int submodule_wd_status(unsigned int *status, git_submodule *sm)
 		error = git_diff_index_to_tree(sm_repo, &opt, sm_head, &diff);
 
 		if (!error) {
-			if (git_diff_entrycount(diff, -1) > 0)
+			if (git_diff_num_deltas(diff) > 0)
 				*status |= GIT_SUBMODULE_STATUS_WD_INDEX_MODIFIED;
 
 			git_diff_list_free(diff);
@@ -1474,12 +1474,13 @@ static int submodule_wd_status(unsigned int *status, git_submodule *sm)
 		error = git_diff_workdir_to_index(sm_repo, &opt, &diff);
 
 		if (!error) {
-			int untracked = git_diff_entrycount(diff, GIT_DELTA_UNTRACKED);
+			size_t untracked =
+				git_diff_num_deltas_of_type(diff, GIT_DELTA_UNTRACKED);
 
 			if (untracked > 0)
 				*status |= GIT_SUBMODULE_STATUS_WD_UNTRACKED;
 
-			if (git_diff_entrycount(diff, -1) - untracked > 0)
+			if ((git_diff_num_deltas(diff) - untracked) > 0)
 				*status |= GIT_SUBMODULE_STATUS_WD_WD_MODIFIED;
 
 			git_diff_list_free(diff);

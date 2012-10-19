@@ -93,6 +93,7 @@ static int send_request(transport_http *t, const char *service, void *data, ssiz
 #ifndef GIT_WINHTTP
 	git_buf request = GIT_BUF_INIT;
 	const char *verb;
+	int error = -1;
 
 	verb = ls ? "GET" : "POST";
 	/* Generate and send the HTTP request */
@@ -102,17 +103,20 @@ static int send_request(transport_http *t, const char *service, void *data, ssiz
 	}
 
 
-	if (gitno_send((git_transport *) t, request.ptr, request.size, 0) < 0) {
-		git_buf_free(&request);
-		return -1;
-	}
+	if (gitno_send((git_transport *) t, request.ptr, request.size, 0) < 0)
+		goto cleanup;
 
 	if (content_length) {
 		if (gitno_send((git_transport *) t, data, content_length, 0) < 0)
-			return -1;
+			goto cleanup;
 	}
 
-	return 0;
+	error = 0;
+
+cleanup:
+	git_buf_free(&request);
+	return error;
+
 #else
 	wchar_t *verb;
 	wchar_t url[GIT_WIN_PATH], ct[GIT_WIN_PATH];
@@ -473,10 +477,7 @@ static int http_connect(git_transport *transport, int direction)
 		giterr_set(GITERR_NET, "Invalid HTTP response");
 		return t->error = -1;
 	} else {
-		/* Remove the comment and flush pkts */
-		git_vector_remove(&transport->refs, 0);
-		git__free(pkt);
-		pkt = git_vector_get(&transport->refs, 0);
+		/* Remove the comment pkt from the list */
 		git_vector_remove(&transport->refs, 0);
 		git__free(pkt);
 	}

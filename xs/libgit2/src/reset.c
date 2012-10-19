@@ -29,6 +29,7 @@ int git_reset(
 	git_tree *tree = NULL;
 	int error = -1;
 	git_checkout_opts opts;
+	git_reference *head = NULL;
 
 	assert(repo && target);
 	assert(reset_type == GIT_RESET_SOFT
@@ -38,9 +39,11 @@ int git_reset(
 	if (git_object_owner(target) != repo)
 		return reset_error_invalid("The given target does not belong to this repository.");
 
-	if (reset_type == GIT_RESET_MIXED
-		&& git_repository__ensure_not_bare(repo, "reset mixed") < 0)
-		return GIT_EBAREREPO;
+	if (reset_type != GIT_RESET_SOFT
+		&& git_repository__ensure_not_bare(
+			repo,
+			reset_type == GIT_RESET_MIXED ? "reset mixed" : "reset hard") < 0)
+				return GIT_EBAREREPO;
 
 	if (git_object_peel(&commit, target, GIT_OBJ_COMMIT) < 0) {
 		reset_error_invalid("The given target does not resolve to a commit");
@@ -49,7 +52,10 @@ int git_reset(
 
 	//TODO: Check for unmerged entries
 
-	if (git_reference__update(repo, git_object_id(commit), GIT_HEAD_FILE) < 0)
+	if (git_repository_head(&head, repo) < 0)
+		goto cleanup;
+
+	if (git_reference_set_oid(head, git_object_id(commit)) < 0)
 		goto cleanup;
 
 	if (reset_type == GIT_RESET_SOFT) {
@@ -96,6 +102,7 @@ int git_reset(
 	error = 0;
 
 cleanup:
+	git_reference_free(head);
 	git_object_free(commit);
 	git_index_free(index);
 	git_tree_free(tree);

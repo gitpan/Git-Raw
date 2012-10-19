@@ -71,7 +71,7 @@ static int remove_file_cb(void *data, git_buf *file)
 		return 0;
 
 	if (git_path_isdir(filename))
-		cl_git_pass(git_futils_rmdir_r(filename, GIT_DIRREMOVAL_FILES_AND_DIRS));
+		cl_git_pass(git_futils_rmdir_r(filename, NULL, GIT_DIRREMOVAL_FILES_AND_DIRS));
 	else
 		cl_git_pass(p_unlink(git_buf_cstr(file)));
 
@@ -110,7 +110,13 @@ void test_status_worktree__swap_subdir_and_file(void)
 {
 	status_entry_counts counts;
 	git_repository *repo = cl_git_sandbox_init("status");
+	git_index *index;
 	git_status_options opts;
+	bool ignore_case;
+
+	cl_git_pass(git_repository_index(&index, repo));
+	ignore_case = index->ignore_case;
+	git_index_free(index);
 
 	/* first alter the contents of the worktree */
 	cl_git_pass(p_rename("status/current_file", "status/swap"));
@@ -124,8 +130,8 @@ void test_status_worktree__swap_subdir_and_file(void)
 	/* now get status */
 	memset(&counts, 0x0, sizeof(status_entry_counts));
 	counts.expected_entry_count = entry_count3;
-	counts.expected_paths = entry_paths3;
-	counts.expected_statuses = entry_statuses3;
+	counts.expected_paths = ignore_case ? entry_paths3_icase : entry_paths3;
+	counts.expected_statuses = ignore_case ? entry_statuses3_icase : entry_statuses3;
 
 	memset(&opts, 0, sizeof(opts));
 	opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED |
@@ -308,7 +314,7 @@ void test_status_worktree__issue_592_3(void)
 	repo = cl_git_sandbox_init("issue_592");
 
 	cl_git_pass(git_buf_joinpath(&path, git_repository_workdir(repo), "c"));
-	cl_git_pass(git_futils_rmdir_r(git_buf_cstr(&path), GIT_DIRREMOVAL_FILES_AND_DIRS));
+	cl_git_pass(git_futils_rmdir_r(git_buf_cstr(&path), NULL, GIT_DIRREMOVAL_FILES_AND_DIRS));
 
 	cl_git_pass(git_status_foreach(repo, cb_status__check_592, "c/a.txt"));
 
@@ -338,7 +344,7 @@ void test_status_worktree__issue_592_5(void)
 	repo = cl_git_sandbox_init("issue_592");
 
 	cl_git_pass(git_buf_joinpath(&path, git_repository_workdir(repo), "t"));
-	cl_git_pass(git_futils_rmdir_r(git_buf_cstr(&path), GIT_DIRREMOVAL_FILES_AND_DIRS));
+	cl_git_pass(git_futils_rmdir_r(git_buf_cstr(&path), NULL, GIT_DIRREMOVAL_FILES_AND_DIRS));
 	cl_git_pass(p_mkdir(git_buf_cstr(&path), 0777));
 
 	cl_git_pass(git_status_foreach(repo, cb_status__check_592, NULL));
