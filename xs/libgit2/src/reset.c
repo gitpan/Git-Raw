@@ -8,8 +8,10 @@
 #include "common.h"
 #include "commit.h"
 #include "tag.h"
+#include "merge.h"
 #include "git2/reset.h"
 #include "git2/checkout.h"
+#include "git2/merge.h"
 
 #define ERROR_MSG "Cannot perform reset"
 
@@ -17,6 +19,45 @@ static int reset_error_invalid(const char *msg)
 {
 	giterr_set(GITERR_INVALID, "%s - %s", ERROR_MSG, msg);
 	return -1;
+}
+
+static int update_head(git_repository *repo, git_object *commit)
+{
+	int error;
+	git_reference *head = NULL, *target = NULL;
+
+	error = git_repository_head(&head, repo);
+
+	if (error < 0 && error != GIT_EORPHANEDHEAD)
+		return error;
+
+	if (error == GIT_EORPHANEDHEAD) {
+		giterr_clear();
+
+		/*
+		 * TODO: This is a bit weak as this doesn't support chained
+		 * symbolic references. yet.
+		 */
+		if ((error = git_reference_lookup(&head, repo, GIT_HEAD_FILE)) < 0)
+			goto cleanup;
+
+		if ((error = git_reference_create_oid(
+			&target,
+			repo,
+			git_reference_target(head),
+			git_object_id(commit), 0)) < 0)
+				goto cleanup;
+	} else {
+		if ((error = git_reference_set_oid(head, git_object_id(commit))) < 0)
+			goto cleanup;
+	}
+
+	error = 0;
+
+cleanup:
+	git_reference_free(head);
+	git_reference_free(target);
+	return error;
 }
 
 int git_reset(
@@ -29,7 +70,6 @@ int git_reset(
 	git_tree *tree = NULL;
 	int error = -1;
 	git_checkout_opts opts;
-	git_reference *head = NULL;
 
 	assert(repo && target);
 	assert(reset_type == GIT_RESET_SOFT
@@ -50,12 +90,15 @@ int git_reset(
 		goto cleanup;
 	}
 
+	if (reset_type == GIT_RESET_SOFT && (git_repository_state(repo) == GIT_REPOSITORY_STATE_MERGE)) {
+		giterr_set(GITERR_OBJECT, "%s (soft) while in the middle of a merge.", ERROR_MSG);
+		error = GIT_EUNMERGED;
+		goto cleanup;
+	}
+
 	//TODO: Check for unmerged entries
 
-	if (git_repository_head(&head, repo) < 0)
-		goto cleanup;
-
-	if (git_reference_set_oid(head, git_object_id(commit)) < 0)
+	if (update_head(repo, commit) < 0)
 		goto cleanup;
 
 	if (reset_type == GIT_RESET_SOFT) {
@@ -73,13 +116,18 @@ int git_reset(
 		goto cleanup;
 	}
 
-	if (git_index_read_tree(index, tree, NULL) < 0) {
+	if (git_index_read_tree(index, tree) < 0) {
 		giterr_set(GITERR_INDEX, "%s - Failed to update the index.", ERROR_MSG);
 		goto cleanup;
 	}
 
 	if (git_index_write(index) < 0) {
 		giterr_set(GITERR_INDEX, "%s - Failed to write the index.", ERROR_MSG);
+		goto cleanup;
+	}
+
+	if ((error = git_merge__cleanup(repo)) < 0) {
+		giterr_set(GITERR_INDEX, "%s - Failed to clean up merge data.", ERROR_MSG);
 		goto cleanup;
 	}
 
@@ -94,7 +142,7 @@ int git_reset(
 		| GIT_CHECKOUT_OVERWRITE_MODIFIED
 		| GIT_CHECKOUT_REMOVE_UNTRACKED;
 
-	if (git_checkout_index(repo, &opts, NULL) < 0) {
+	if (git_checkout_index(repo, &opts) < 0) {
 		giterr_set(GITERR_INDEX, "%s - Failed to checkout the index.", ERROR_MSG);
 		goto cleanup;
 	}
@@ -102,7 +150,6 @@ int git_reset(
 	error = 0;
 
 cleanup:
-	git_reference_free(head);
 	git_object_free(commit);
 	git_index_free(index);
 	git_tree_free(tree);

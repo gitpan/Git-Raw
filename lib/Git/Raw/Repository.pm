@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.14';
+  $Git::Raw::Repository::VERSION = '0.15';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.14
+version 0.15
 
 =head1 DESCRIPTION
 

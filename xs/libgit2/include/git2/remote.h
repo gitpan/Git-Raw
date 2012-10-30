@@ -183,10 +183,16 @@ GIT_EXTERN(int) git_remote_ls(git_remote *remote, git_headlist_cb list_cb, void 
  * filename will be NULL and the function will return success.
  *
  * @param remote the remote to download from
- * @param filename where to store the temporary filename
+ * @param progress_cb function to call with progress information.  Be aware that
+ * this is called inline with network and indexing operations, so performance
+ * may be affected.
+ * @param progress_payload payload for the progress callback
  * @return 0 or an error code
  */
-GIT_EXTERN(int) git_remote_download(git_remote *remote, git_off_t *bytes, git_indexer_stats *stats);
+GIT_EXTERN(int) git_remote_download(
+		git_remote *remote,
+		git_transfer_progress_callback progress_cb,
+		void *progress_payload);
 
 /**
  * Check whether the remote is connected
@@ -313,6 +319,11 @@ struct git_remote_callbacks {
  */
 GIT_EXTERN(void) git_remote_set_callbacks(git_remote *remote, git_remote_callbacks *callbacks);
 
+/**
+ * Get the statistics structure that is filled in by the fetch operation.
+ */
+GIT_EXTERN(const git_transfer_progress *) git_remote_stats(git_remote *remote);
+
 enum {
 	GIT_REMOTE_DOWNLOAD_TAGS_UNSET,
 	GIT_REMOTE_DOWNLOAD_TAGS_NONE,
@@ -336,6 +347,24 @@ GIT_EXTERN(int) git_remote_autotag(git_remote *remote);
  */
 GIT_EXTERN(void) git_remote_set_autotag(git_remote *remote, int value);
 
+/**
+ * Give the remote a new name
+ *
+ * All remote-tracking branches and configuration settings
+ * for the remote are updated.
+ *
+ * @param remote the remote to rename
+ * @param new_name the new name the remote should bear
+ * @param callback Optional callback to notify the consumer of fetch refspecs
+ * that haven't been automatically updated and need potential manual tweaking.
+ * @param payload Additional data to pass to the callback
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_remote_rename(
+	git_remote *remote,
+	const char *new_name,
+	int (*callback)(const char *problematic_refspec, void *payload),
+	void *payload);
 
 /** @} */
 GIT_END_DECL

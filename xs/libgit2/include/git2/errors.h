@@ -27,6 +27,8 @@ enum {
 	GIT_EBUFS = -6,
 	GIT_EUSER = -7,
 	GIT_EBAREREPO = -8,
+	GIT_EORPHANEDHEAD = -9,
+	GIT_EUNMERGED = -10,
 
 	GIT_PASSTHROUGH = -30,
 	GIT_ITEROVER = -31,
@@ -57,6 +59,7 @@ typedef enum {
 	GITERR_SSL,
 	GITERR_SUBMODULE,
 	GITERR_THREAD,
+	GITERR_STASH,
 } git_error_t;
 
 /**
