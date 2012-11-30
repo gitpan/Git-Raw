@@ -1,5 +1,23 @@
 Revision history for Git-Raw
 
+0.16      2012-11-30 12:43:50 Europe/Rome
+
+ - Load Git::Raw from other modules too (thanks, @ruz!)
+ - Make G::R::Branch ISA G::R::Reference (thanks, @ruz!)
+ - Implement G::R::Branch -> foreach() method (thanks, @ruz!)
+    + Implement G::R::Repository -> branches() method
+ - Implement G::R::Repository -> ignore() method
+ - Implement Git stashes support
+ - The name() and url() methods of G::R::Remote now take an optional argument
+   that is used to change the name/url of a remote.
+ - Implement Git refspecs support
+    + Implement G::R::Remote -> {fetch,push}spec methods
+ - Implement G::R::Blob -> size() method
+ - Implement G::R::Blob -> create() method
+    + Implement G::R::Repository -> blob() method
+ - Implement G::R::Reference -> is_{branch,packed,remote} methods (thanks, @ruz!)
+ - Implement G::R::Branch -> move method
+
 0.15      2012-10-30 22:39:50 Europe/Rome
 
  - The $is_bare check in G::R::Repository->clone() was inverted.

@@ -1,10 +1,12 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.15';
+  $Git::Raw::Reference::VERSION = '0.16';
 }
 
 use strict;
 use warnings;
+
+use Git::Raw;
 
 =head1 NAME
 
@@ -12,7 +14,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.15
+version 0.16
 
 =head1 DESCRIPTION
 
@@ -35,6 +37,18 @@ Retrieve the name of the reference.
 =head2 type( )
 
 Retrieve the type of the reference. Can be either C<"direct"> or C<"symbolic">.
+
+=head2 is_branch( )
+
+Returns true if the reference is a branch or false otherwise.
+
+=head2 is_packed( )
+
+Returns true if the reference is packed or false otherwise.
+
+=head2 is_remote( )
+
+Returns true if the reference is remote or false otherwise.
 
 =head2 target( )
 

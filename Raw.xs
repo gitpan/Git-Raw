@@ -7,11 +7,13 @@
 #include <git2.h>
 
 typedef git_blob * Blob;
+typedef git_reference * Branch;
 typedef git_commit * Commit;
 typedef git_config * Config;
 typedef git_diff_list * Diff;
 typedef git_index * Index;
 typedef git_reference * Reference;
+typedef git_refspec * RefSpec;
 typedef git_remote * Remote;
 typedef git_repository * Repository;
 typedef git_signature * Signature;
@@ -111,6 +113,70 @@ int git_diff_wrapper(void *data, git_diff_delta *delta, git_diff_range *range,
 	return 0;
 }
 
+typedef struct {
+	Repository repo;
+	SV* cb;
+} git_foreach_payload;
+
+int git_branch_foreach_cb(const char *name, git_branch_t type, void *payload) {
+	dSP;
+	int rv;
+	Branch branch;
+	SV *cb_arg;
+
+	int rc = git_branch_lookup(
+		&branch, ((git_foreach_payload *) payload) -> repo,
+		name, type
+	);
+	git_check_error(rc);
+
+	ENTER;
+	SAVETMPS;
+
+	cb_arg = sv_newmortal();
+	sv_setref_pv(cb_arg, "Git::Raw::Branch", (void *) branch);
+
+	PUSHMARK(SP);
+	PUSHs(cb_arg);
+	PUTBACK;
+
+	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
+
+	SPAGAIN;
+
+	rv = POPi;
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
+}
+
+int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *payload) {
+	dSP;
+	int rv;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	PUSHs(newSVuv(i));
+	PUSHs(newSVpv(msg, 0));
+	PUSHs(git_oid_to_sv(oid));
+	PUTBACK;
+
+	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
+
+	SPAGAIN;
+
+	rv = POPi;
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
+}
+
 MODULE = Git::Raw			PACKAGE = Git::Raw
 
 INCLUDE: xs/Blob.xs
@@ -120,9 +186,11 @@ INCLUDE: xs/Config.xs
 INCLUDE: xs/Diff.xs
 INCLUDE: xs/Index.xs
 INCLUDE: xs/Reference.xs
+INCLUDE: xs/RefSpec.xs
 INCLUDE: xs/Remote.xs
 INCLUDE: xs/Repository.xs
 INCLUDE: xs/Signature.xs
+INCLUDE: xs/Stash.xs
 INCLUDE: xs/Tag.xs
 INCLUDE: xs/Tree.xs
 INCLUDE: xs/TreeEntry.xs

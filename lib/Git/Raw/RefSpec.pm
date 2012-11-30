@@ -1,16 +1,14 @@
-package Git::Raw::Index;
+package Git::Raw::RefSpec;
 {
-  $Git::Raw::Index::VERSION = '0.16';
+  $Git::Raw::RefSpec::VERSION = '0.16';
 }
 
 use strict;
 use warnings;
 
-use Git::Raw;
-
 =head1 NAME
 
-Git::Raw::Index - Git index class
+Git::Raw::RefSpec - Git refspec class
 
 =head1 VERSION
 
@@ -18,29 +16,17 @@ version 0.16
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Index> represents an index in a Git repository.
+A C<Git::Raw::RefSpec> represents a Git refspec.
 
 =head1 METHODS
 
-=head2 add( $file )
+=head2 dst( )
 
-Add the given file to the index.
+Retrieve the destination specifier.
 
-=head2 clear( )
+=head2 src( )
 
-Clear completely the index.
-
-=head2 read( )
-
-Update the index reading it from disk.
-
-=head2 write( )
-
-Write the index to disk.
-
-=head2 write_tree( )
-
-Create a new tree from the index and write it to disk.
+Retrieve the source specifier.
 
 =head1 AUTHOR
 
@@ -58,4 +44,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::Index
+1; # End of Git::Raw::RefSpec

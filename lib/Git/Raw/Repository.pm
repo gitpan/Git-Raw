@@ -1,10 +1,12 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.15';
+  $Git::Raw::Repository::VERSION = '0.16';
 }
 
 use strict;
 use warnings;
+
+use Git::Raw;
 
 =head1 NAME
 
@@ -12,7 +14,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.15
+version 0.16
 
 =head1 DESCRIPTION
 
@@ -65,10 +67,25 @@ returns a list of status flags. Valid status flags are: C<"index_new">,
 C<"index_modified">, C<"index_deleted">, C<"worktree_new">,
 C<"worktree_modified">, C<"worktree_deleted"> and C<"ignored">.
 
+=head2 ignore( $rules )
+
+Add ignore rules to the repository. The format of the rules is the same one of
+the C<.gitignore> file (see the C<gitignore(5)> manpage). Example:
+
+    $repo -> ignore("*.o\n");
+
 =head2 diff( $repo [, $tree] )
 
 Compute the L<Git::Raw::Diff> between the repository index and a tree. If no
 C<$tree> is passed, the diff will be computed against the working directory.
+
+=head2 blob( $buffer )
+
+Create a new L<Git::Raw::Blob>. Shortcut for C<Git::Raw::Blob-E<gt>create()>.
+
+=cut
+
+sub blob { return Git::Raw::Blob -> create(@_) }
 
 =head2 branch( $name, $target )
 
@@ -77,6 +94,23 @@ Create a new L<Git::Raw::Branch>. Shortcut for C<Git::Raw::Branch-E<gt>create()>
 =cut
 
 sub branch { return Git::Raw::Branch -> create(@_) }
+
+=head2 branches( )
+
+Retrieve a list of L<Git::Raw::Branch> objects.
+
+=cut
+
+sub branches {
+	my $self = shift;
+	my $branches;
+
+	Git::Raw::Branch -> foreach($self, sub {
+		push @$branches, shift; 0
+	});
+
+	return $branches;
+}
 
 =head2 commit( $msg, $author, $committer, [@parents], $tree )
 
@@ -97,6 +131,14 @@ sub tag { return Git::Raw::Tag -> create(@_) }
 =head2 tags( )
 
 Retrieve a list of L<Git::Raw::Tag> objects.
+
+=head2 stash( $stasher, $msg )
+
+Save the local modifications to a new stash. Shortcut for C<Git::Raw::Stash-E<gt>save()>.
+
+=cut
+
+sub stash { return Git::Raw::Stash -> save(@_) }
 
 =head2 remotes( )
 

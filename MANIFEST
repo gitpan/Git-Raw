@@ -17,10 +17,12 @@ lib/Git/Raw/Commit.pm
 lib/Git/Raw/Config.pm
 lib/Git/Raw/Diff.pm
 lib/Git/Raw/Index.pm
+lib/Git/Raw/RefSpec.pm
 lib/Git/Raw/Reference.pm
 lib/Git/Raw/Remote.pm
 lib/Git/Raw/Repository.pm
 lib/Git/Raw/Signature.pm
+lib/Git/Raw/Stash.pm
 lib/Git/Raw/Tag.pm
 lib/Git/Raw/Tree.pm
 lib/Git/Raw/TreeEntry.pm
@@ -36,6 +38,8 @@ t/07-remote.t
 t/08-branch.t
 t/09-diff.t
 t/10-clone.t
+t/11-stash.t
+t/12-blob.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -46,10 +50,12 @@ xs/Commit.xs
 xs/Config.xs
 xs/Diff.xs
 xs/Index.xs
+xs/RefSpec.xs
 xs/Reference.xs
 xs/Remote.xs
 xs/Repository.xs
 xs/Signature.xs
+xs/Stash.xs
 xs/Tag.xs
 xs/Tree.xs
 xs/TreeEntry.xs

@@ -1,6 +1,6 @@
-package Git::Raw::Index;
+package Git::Raw::Stash;
 {
-  $Git::Raw::Index::VERSION = '0.16';
+  $Git::Raw::Stash::VERSION = '0.16';
 }
 
 use strict;
@@ -10,7 +10,7 @@ use Git::Raw;
 
 =head1 NAME
 
-Git::Raw::Index - Git index class
+Git::Raw::Stash - Git stash class
 
 =head1 VERSION
 
@@ -18,29 +18,22 @@ version 0.16
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Index> represents an index in a Git repository.
+Helper class to manage stashes.
 
 =head1 METHODS
 
-=head2 add( $file )
+=head2 save( $repo, $stasher, $msg )
 
-Add the given file to the index.
+Save the local modifications to a new stash.
 
-=head2 clear( )
+=head2 foreach( $repo, $callback )
 
-Clear completely the index.
+Run C<$callback> for every stash in the repo. The callback receives three
+arguments: the stash index, the stash message and the stash object id.
 
-=head2 read( )
+=head2 drop( $repo, $index )
 
-Update the index reading it from disk.
-
-=head2 write( )
-
-Write the index to disk.
-
-=head2 write_tree( )
-
-Create a new tree from the index and write it to disk.
+Remove a single stashed state from the stash list.
 
 =head1 AUTHOR
 
@@ -58,4 +51,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::Index
+1; # End of Git::Raw::Stash

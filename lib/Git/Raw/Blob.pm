@@ -1,10 +1,12 @@
 package Git::Raw::Blob;
 {
-  $Git::Raw::Blob::VERSION = '0.15';
+  $Git::Raw::Blob::VERSION = '0.16';
 }
 
 use strict;
 use warnings;
+
+use Git::Raw;
 
 =head1 NAME
 
@@ -12,13 +14,17 @@ Git::Raw::Blob - Git blob class
 
 =head1 VERSION
 
-version 0.15
+version 0.16
 
 =head1 DESCRIPTION
 
 A C<Git::Raw::Blob> represents a Git blob.
 
 =head1 METHODS
+
+=head2 create( $repo, $buffer )
+
+Create a new blob from the given buffer.
 
 =head2 lookup( $repo, $id )
 
@@ -28,6 +34,10 @@ the same as C<$repo-E<gt>lookup($id)> except that it only returns blobs.
 =head2 content( )
 
 Retrieve the raw content of a blob.
+
+=head2 size( )
+
+Retrieve the size of the raw content of a blob.
 
 =head1 AUTHOR
 

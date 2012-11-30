@@ -1,6 +1,12 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Branch
 
-Reference
+BOOT:
+{
+	AV *isa = perl_get_av("Git::Raw::Branch::ISA",1);
+	av_push(isa, newSVpv("Git::Raw::Reference", 0));
+}
+
+Branch
 create(class, repo, name, target)
 	SV *class
 	Repository repo
@@ -20,7 +26,7 @@ create(class, repo, name, target)
 
 	OUTPUT: RETVAL
 
-Reference
+Branch
 lookup(class, repo, name, is_local)
 	SV *class
 	Repository repo
@@ -39,3 +45,35 @@ lookup(class, repo, name, is_local)
 		RETVAL = b;
 
 	OUTPUT: RETVAL
+
+void
+move(self, name, force)
+	Branch self
+	SV *name
+	bool force
+
+	CODE:
+		const char *new = SvPVbyte_nolen(name);
+
+		int rc = git_branch_move(self, new, force);
+		git_check_error(rc);
+
+void
+foreach(class, repo, cb)
+	SV *class
+	Repository repo
+	SV *cb
+
+	CODE:
+		git_foreach_payload payload = {
+			.repo = repo,
+			.cb = cb
+		};
+
+		int rc = git_branch_foreach(
+			repo, GIT_BRANCH_LOCAL|GIT_BRANCH_REMOTE,
+			git_branch_foreach_cb, &payload
+		);
+
+		if (rc != GIT_EUSER)
+			git_check_error(rc);
