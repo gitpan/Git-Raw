@@ -16,6 +16,7 @@ void test_network_remoterename__initialize(void)
 void test_network_remoterename__cleanup(void)
 {
 	git_remote_free(_remote);
+	_remote = NULL;
 
 	cl_git_sandbox_cleanup();
 }
@@ -63,7 +64,7 @@ void test_network_remoterename__renaming_a_remote_without_a_fetchrefspec_doesnt_
 
 	git_remote_free(_remote);
 	cl_git_pass(git_repository_config__weakptr(&config, _repo));
-	cl_git_pass(git_config_delete(config, "remote.test.fetch"));
+	cl_git_pass(git_config_delete_entry(config, "remote.test.fetch"));
 
 	cl_git_pass(git_remote_load(&_remote, _repo, "test"));
 

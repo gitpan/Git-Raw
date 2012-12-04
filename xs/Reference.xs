@@ -51,33 +51,6 @@ type(self)
 
 	OUTPUT: RETVAL
 
-bool
-is_branch(self)
-	Reference self
-
-	CODE:
-		RETVAL = !!git_reference_is_branch(self);
-
-	OUTPUT: RETVAL
-
-bool
-is_packed(self)
-	Reference self
-
-	CODE:
-		RETVAL = !!git_reference_is_packed(self);
-
-	OUTPUT: RETVAL
-
-bool
-is_remote(self)
-	Reference self
-
-	CODE:
-		RETVAL = !!git_reference_is_remote(self);
-
-	OUTPUT: RETVAL
-
 SV *
 target(self, repo)
 	Reference self
@@ -90,7 +63,9 @@ target(self, repo)
 		switch (git_reference_type(self)) {
 			case GIT_REF_OID: {
 				git_object *o;
-				const git_oid *oid = git_reference_oid(self);
+				const git_oid *oid;
+
+				oid = git_reference_target(self);
 
 				rc = git_object_lookup(
 					&o, repo, oid, GIT_OBJ_ANY
@@ -103,9 +78,12 @@ target(self, repo)
 
 			case GIT_REF_SYMBOLIC: {
 				Reference f;
-				const char *target = git_reference_target(self);
+				const char *target;
+
+				target = git_reference_symbolic_target(self);
 
 				rc = git_reference_lookup(&f, repo, target);
+				git_check_error(rc);
 
 				result = sv_setref_pv(
 					newSV(0), "Git::Raw::Reference",
@@ -118,6 +96,33 @@ target(self, repo)
 		}
 
 		RETVAL = result;
+
+	OUTPUT: RETVAL
+
+bool
+is_branch(self)
+	Reference self
+
+	CODE:
+		RETVAL = git_reference_is_branch(self);
+
+	OUTPUT: RETVAL
+
+bool
+is_packed(self)
+	Reference self
+
+	CODE:
+		RETVAL = git_reference_is_packed(self);
+
+	OUTPUT: RETVAL
+
+bool
+is_remote(self)
+	Reference self
+
+	CODE:
+		RETVAL = git_reference_is_remote(self);
 
 	OUTPUT: RETVAL
 

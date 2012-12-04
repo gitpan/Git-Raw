@@ -13,13 +13,15 @@ void test_object_commit_commitstagedfile__initialize(void)
 void test_object_commit_commitstagedfile__cleanup(void)
 {
 	git_repository_free(repo);
+	repo = NULL;
+
 	cl_fixture_cleanup("treebuilder");
 }
 
 void test_object_commit_commitstagedfile__generate_predictable_object_ids(void)
 {
 	git_index *index;
-	git_index_entry *entry;
+	const git_index_entry *entry;
 	git_oid expected_blob_oid, tree_oid, expected_tree_oid, commit_oid, expected_commit_oid;
 	git_signature *signature;
 	git_tree *tree;
@@ -99,7 +101,7 @@ void test_object_commit_commitstagedfile__generate_predictable_object_ids(void)
 	/*
 	 * Build the tree from the index
 	 */
-	cl_git_pass(git_tree_create_fromindex(&tree_oid, index));
+	cl_git_pass(git_index_write_tree(&tree_oid, index));
 
 	cl_assert(git_oid_cmp(&expected_tree_oid, &tree_oid) == 0);
 

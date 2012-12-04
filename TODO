@@ -3,19 +3,13 @@
 * note
 * odb
 * packbuilder
+* push
 * reflog
 * submodule
 * transport
 * treebuilder
 
-# Methods (other)
-* Branch -> is_head
-* Config -> foreach(...)
-* Config -> refresh
-* Index -> remove(...)
+# Methods
 * Reference -> foreach(...) (replaces Branch -> foreach?)
-* Remote -> foreach(...) (+ update $repo -> remotes)
 * Repository -> state
-* Repository -> checkout(...)
 * Repository -> merge(...)
-* Tag -> foreach (+ update $repo -> tags)

@@ -10,6 +10,7 @@
 #include "fileops.h"
 #include "filebuf.h"
 #include "buffer.h"
+#include "buf_text.h"
 #include "git2/config.h"
 #include "git2/types.h"
 #include "strmap.h"
@@ -64,7 +65,7 @@ typedef struct cvar_t {
 		 (iter) = (tmp))
 
 typedef struct {
-	git_config_file parent;
+	git_config_backend parent;
 
 	git_strmap *values;
 
@@ -75,7 +76,11 @@ typedef struct {
 		int eof;
 	} reader;
 
-	char *file_path;
+	char  *file_path;
+	time_t file_mtime;
+	size_t file_size;
+
+	unsigned int level;
 } diskfile_backend;
 
 static int config_parse(diskfile_backend *cfg_file, unsigned int level);
@@ -145,33 +150,61 @@ static void free_vars(git_strmap *values)
 	git_strmap_free(values);
 }
 
-static int config_open(git_config_file *cfg, unsigned int level)
+static int config_open(git_config_backend *cfg, unsigned int level)
 {
 	int res;
 	diskfile_backend *b = (diskfile_backend *)cfg;
+
+	b->level = level;
 
 	b->values = git_strmap_alloc();
 	GITERR_CHECK_ALLOC(b->values);
 
 	git_buf_init(&b->reader.buffer, 0);
-	res = git_futils_readbuffer(&b->reader.buffer, b->file_path);
+	res = git_futils_readbuffer_updated(
+		&b->reader.buffer, b->file_path, &b->file_mtime, &b->file_size, NULL);
 
 	/* It's fine if the file doesn't exist */
 	if (res == GIT_ENOTFOUND)
 		return 0;
 
-	if (res < 0 || config_parse(b, level) <  0) {
+	if (res < 0 || (res = config_parse(b, level)) < 0) {
 		free_vars(b->values);
 		b->values = NULL;
-		git_buf_free(&b->reader.buffer);
-		return -1;
 	}
 
 	git_buf_free(&b->reader.buffer);
-	return 0;
+	return res;
 }
 
-static void backend_free(git_config_file *_backend)
+static int config_refresh(git_config_backend *cfg)
+{
+	int res, updated = 0;
+	diskfile_backend *b = (diskfile_backend *)cfg;
+	git_strmap *old_values;
+
+	res = git_futils_readbuffer_updated(
+		&b->reader.buffer, b->file_path, &b->file_mtime, &b->file_size, &updated);
+	if (res < 0 || !updated)
+		return (res == GIT_ENOTFOUND) ? 0 : res;
+
+	/* need to reload - store old values and prep for reload */
+	old_values = b->values;
+	b->values = git_strmap_alloc();
+	GITERR_CHECK_ALLOC(b->values);
+
+	if ((res = config_parse(b, b->level)) < 0) {
+		free_vars(b->values);
+		b->values = old_values;
+	} else {
+		free_vars(old_values);
+	}
+
+	git_buf_free(&b->reader.buffer);
+	return res;
+}
+
+static void backend_free(git_config_backend *_backend)
 {
 	diskfile_backend *backend = (diskfile_backend *)_backend;
 
@@ -184,7 +217,7 @@ static void backend_free(git_config_file *_backend)
 }
 
 static int file_foreach(
-	git_config_file *backend,
+	git_config_backend *backend,
 	const char *regexp,
 	int (*fn)(const git_config_entry *, void *),
 	void *data)
@@ -230,7 +263,7 @@ cleanup:
 	return result;
 }
 
-static int config_set(git_config_file *cfg, const char *name, const char *value)
+static int config_set(git_config_backend *cfg, const char *name, const char *value)
 {
 	cvar_t *var = NULL, *old_var;
 	diskfile_backend *b = (diskfile_backend *)cfg;
@@ -314,7 +347,7 @@ static int config_set(git_config_file *cfg, const char *name, const char *value)
 /*
  * Internal function that actually gets the value in string form
  */
-static int config_get(git_config_file *cfg, const char *name, const git_config_entry **out)
+static int config_get(const git_config_backend *cfg, const char *name, const git_config_entry **out)
 {
 	diskfile_backend *b = (diskfile_backend *)cfg;
 	char *key;
@@ -336,7 +369,7 @@ static int config_get(git_config_file *cfg, const char *name, const git_config_e
 }
 
 static int config_get_multivar(
-	git_config_file *cfg,
+	git_config_backend *cfg,
 	const char *name,
 	const char *regex_str,
 	int (*fn)(const git_config_entry *, void *),
@@ -399,7 +432,7 @@ static int config_get_multivar(
 }
 
 static int config_set_multivar(
-	git_config_file *cfg, const char *name, const char *regexp, const char *value)
+	git_config_backend *cfg, const char *name, const char *regexp, const char *value)
 {
 	int replaced = 0;
 	cvar_t *var, *newvar;
@@ -474,7 +507,7 @@ static int config_set_multivar(
 	return result;
 }
 
-static int config_delete(git_config_file *cfg, const char *name)
+static int config_delete(git_config_backend *cfg, const char *name)
 {
 	cvar_t *var;
 	diskfile_backend *b = (diskfile_backend *)cfg;
@@ -508,7 +541,7 @@ static int config_delete(git_config_file *cfg, const char *name)
 	return result;
 }
 
-int git_config_file__ondisk(git_config_file **out, const char *path)
+int git_config_file__ondisk(git_config_backend **out, const char *path)
 {
 	diskfile_backend *backend;
 
@@ -527,9 +560,10 @@ int git_config_file__ondisk(git_config_file **out, const char *path)
 	backend->parent.set_multivar = config_set_multivar;
 	backend->parent.del = config_delete;
 	backend->parent.foreach = file_foreach;
+	backend->parent.refresh = config_refresh;
 	backend->parent.free = backend_free;
 
-	*out = (git_config_file *)backend;
+	*out = (git_config_backend *)backend;
 
 	return 0;
 }
@@ -821,17 +855,14 @@ fail_parse:
 
 static int skip_bom(diskfile_backend *cfg)
 {
-	static const char utf8_bom[] = { '\xef', '\xbb', '\xbf' };
+	git_bom_t bom;
+	int bom_offset = git_buf_text_detect_bom(&bom,
+		&cfg->reader.buffer, cfg->reader.read_ptr - cfg->reader.buffer.ptr);
 
-	if (cfg->reader.buffer.size < sizeof(utf8_bom))
-		return 0;
+	if (bom == GIT_BOM_UTF8)
+		cfg->reader.read_ptr += bom_offset;
 
-	if (memcmp(cfg->reader.read_ptr, utf8_bom, sizeof(utf8_bom)) == 0)
-		cfg->reader.read_ptr += sizeof(utf8_bom);
-
-	/* TODO: the reference implementation does pretty stupid
-		shit with the BoM
-	*/
+	/* TODO: reference implementation is pretty stupid with BoM */
 
 	return 0;
 }
@@ -891,7 +922,7 @@ static int strip_comments(char *line, int in_quotes)
 	}
 
 	/* skip any space at the end */
-	if (git__isspace(ptr[-1])) {
+	if (ptr > line && git__isspace(ptr[-1])) {
 		ptr--;
 	}
 	ptr[0] = '\0';
@@ -1187,7 +1218,7 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 			}
 
 			/* If we are here, there is at least a section line */
-			if (*(cfg->reader.buffer.ptr + cfg->reader.buffer.size - 1) != '\n')
+			if (cfg->reader.buffer.size > 0 && *(cfg->reader.buffer.ptr + cfg->reader.buffer.size - 1) != '\n')
 				git_filebuf_write(&file, "\n", 1);
 
 			git_filebuf_printf(&file, "\t%s = %s\n", name, value);
@@ -1197,8 +1228,12 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 	git__free(section);
 	git__free(current_section);
 
+	/* refresh stats - if this errors, then commit will error too */
+	(void)git_filebuf_stats(&cfg->file_mtime, &cfg->file_size, &file);
+
 	result = git_filebuf_commit(&file, GIT_CONFIG_FILE_MODE);
 	git_buf_free(&cfg->reader.buffer);
+
 	return result;
 
 rewrite_fail:
@@ -1361,7 +1396,7 @@ static int parse_variable(diskfile_backend *cfg, char **var_name, char **var_val
 		value_start = var_end + 1;
 
 	do var_end--;
-	while (git__isspace(*var_end));
+	while (var_end>line && git__isspace(*var_end));
 
 	*var_name = git__strndup(line, var_end - line + 1);
 	GITERR_CHECK_ALLOC(*var_name);
@@ -1395,8 +1430,10 @@ static int parse_variable(diskfile_backend *cfg, char **var_name, char **var_val
 		else if (value_start[0] != '\0') {
 			*var_value = fixup_line(value_start, 0);
 			GITERR_CHECK_ALLOC(*var_value);
+		} else { /* equals sign but missing rhs */
+			*var_value = git__strdup("");
+			GITERR_CHECK_ALLOC(*var_value);
 		}
-
 	}
 
 	git__free(line);

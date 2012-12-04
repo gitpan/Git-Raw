@@ -1,6 +1,6 @@
 package Git::Raw::Diff;
 {
-  $Git::Raw::Diff::VERSION = '0.16';
+  $Git::Raw::Diff::VERSION = '0.17';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Diff - Git diff class
 
 =head1 VERSION
 
-version 0.16
+version 0.17
 
 =head1 DESCRIPTION
 
@@ -28,17 +28,18 @@ Merge the given diff with the C<Git::Raw::Diff> C<$from>.
 
 =head2 patch( $callback )
 
-Generate text output from a C<Git::Raw::Diff>. The C<$callback> will be called
-for each line of the diff, with two arguments: the first one represents the type
-of patch line (either C<"ctx"> for context lines, C<"add"> for additions,
-C<"del"> for deletions, C<"file"> for file headers, C<"hunk"> for hunk headers
-and C<"bin"> for binary data) and the second argument contains the actual patch
-line.
+Generate text output from the diff object. The C<$callback> will be called for
+each line of the diff with two arguments: the first one represents the type of
+the patch line (C<"ctx"> for context lines, C<"add"> for additions, C<"del">
+for deletions, C<"file"> for file headers, C<"hunk"> for hunk headers or
+C<"bin"> for binary data) and the second argument contains the content of the
+patch line.
 
 =head2 compact( $callback )
 
-Generate compact text output from a C<Git::Raw::Diff>. Differently from
-C<patch()>, this function only passes names and status of changed files.
+Generate compact text output from a diff object. Differently from C<patch()>,
+this function only passes the names and statuses of changed files to the
+callback.
 
 =head1 AUTHOR
 

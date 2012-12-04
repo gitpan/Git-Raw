@@ -26,8 +26,12 @@ void test_stash_save__initialize(void)
 void test_stash_save__cleanup(void)
 {
 	git_signature_free(signature);
+	signature = NULL;
+
 	git_repository_free(repo);
-	cl_git_pass(git_futils_rmdir_r("stash", NULL, GIT_DIRREMOVAL_FILES_AND_DIRS));
+	repo = NULL;
+
+	cl_git_pass(git_futils_rmdir_r("stash", NULL, GIT_RMDIR_REMOVE_FILES));
 }
 
 static void assert_object_oid(const char* revision, const char* expected_oid, git_otype type)
@@ -189,7 +193,7 @@ void test_stash_save__cannot_stash_against_an_unborn_branch(void)
 	git_reference *head;
 
 	cl_git_pass(git_reference_lookup(&head, repo, "HEAD"));
-	cl_git_pass(git_reference_set_target(head, "refs/heads/unborn"));
+	cl_git_pass(git_reference_symbolic_set_target(head, "refs/heads/unborn"));
 
 	cl_assert_equal_i(GIT_EORPHANEDHEAD,
 		git_stash_save(&stash_tip_oid, repo, signature, NULL, GIT_STASH_DEFAULT));
@@ -246,8 +250,8 @@ void test_stash_save__cannot_stash_when_there_are_no_local_change(void)
 	 * 'what' and 'who' are being committed.
 	 * 'when' remain untracked.
 	 */
-	git_index_add_from_workdir(index, "what");
-	git_index_add_from_workdir(index, "who");
+	cl_git_pass(git_index_add_from_workdir(index, "what"));
+	cl_git_pass(git_index_add_from_workdir(index, "who"));
 	cl_git_pass(git_index_write(index));
 	commit_staged_files(&commit_oid, index, signature);
 	git_index_free(index);
@@ -356,7 +360,7 @@ void test_stash_save__can_stage_normal_then_stage_untracked(void)
 
 void test_stash_save__including_untracked_without_any_untracked_file_creates_an_empty_tree(void)
 {
-	p_unlink("stash/when");
+	cl_git_pass(p_unlink("stash/when"));
 
 	assert_status("what", GIT_STATUS_WT_MODIFIED | GIT_STATUS_INDEX_MODIFIED);
 	assert_status("how", GIT_STATUS_INDEX_MODIFIED);

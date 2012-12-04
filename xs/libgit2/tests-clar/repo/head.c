@@ -1,8 +1,9 @@
 #include "clar_libgit2.h"
 #include "refs.h"
 #include "repo_helpers.h"
+#include "posix.h"
 
-git_repository *repo;
+static git_repository *repo;
 
 void test_repo_head__initialize(void)
 {
@@ -18,14 +19,14 @@ void test_repo_head__head_detached(void)
 {
 	git_reference *ref;
 
-	cl_assert(git_repository_head_detached(repo) == 0);
+	cl_git_pass(git_repository_head_detached(repo));
 
-	git_repository_detach_head(repo);
+	cl_git_pass(git_repository_detach_head(repo));
 
 	cl_assert_equal_i(true, git_repository_head_detached(repo));
 
 	/* take the reop back to it's original state */
-	cl_git_pass(git_reference_create_symbolic(&ref, repo, "HEAD", "refs/heads/master", 1));
+	cl_git_pass(git_reference_symbolic_create(&ref, repo, "HEAD", "refs/heads/master", 1));
 	git_reference_free(ref);
 
 	cl_assert_equal_i(false, git_repository_head_detached(repo));
@@ -35,7 +36,7 @@ void test_repo_head__head_orphan(void)
 {
 	git_reference *ref;
 
-	cl_assert(git_repository_head_orphan(repo) == 0);
+	cl_git_pass(git_repository_head_detached(repo));
 
 	make_head_orphaned(repo, NON_EXISTING_HEAD);
 
@@ -43,7 +44,7 @@ void test_repo_head__head_orphan(void)
 
 
 	/* take the repo back to it's original state */
-	cl_git_pass(git_reference_create_symbolic(&ref, repo, "HEAD", "refs/heads/master", 1));
+	cl_git_pass(git_reference_symbolic_create(&ref, repo, "HEAD", "refs/heads/master", 1));
 	cl_assert(git_repository_head_orphan(repo) == 0);
 
 	git_reference_free(ref);
@@ -93,7 +94,7 @@ static void assert_head_is_correctly_detached(void)
 
 	cl_git_pass(git_repository_head(&head, repo));
 
-	cl_git_pass(git_object_lookup(&commit, repo, git_reference_oid(head), GIT_OBJ_COMMIT));
+	cl_git_pass(git_object_lookup(&commit, repo, git_reference_target(head), GIT_OBJ_COMMIT));
 
 	git_object_free(commit);
 	git_reference_free(head);
@@ -155,7 +156,7 @@ void test_repo_head__detach_head_Fails_if_HEAD_and_point_to_a_non_commitish(void
 {
 	git_reference *head;
 
-	cl_git_pass(git_reference_create_symbolic(&head, repo, GIT_HEAD_FILE, "refs/tags/point_to_blob", 1));
+	cl_git_pass(git_reference_symbolic_create(&head, repo, GIT_HEAD_FILE, "refs/tags/point_to_blob", 1));
 
 	cl_git_fail(git_repository_detach_head(repo));
 
@@ -176,6 +177,15 @@ void test_repo_head__retrieving_an_orphaned_head_returns_GIT_EORPHANEDHEAD(void)
 	make_head_orphaned(repo, NON_EXISTING_HEAD);
 
 	cl_assert_equal_i(GIT_EORPHANEDHEAD, git_repository_head(&head, repo));
+}
+
+void test_repo_head__retrieving_a_missing_head_returns_GIT_ENOTFOUND(void)
+{
+	git_reference *head;
+
+	delete_head(repo);
+
+	cl_assert_equal_i(GIT_ENOTFOUND, git_repository_head(&head, repo));
 }
 
 void test_repo_head__can_tell_if_an_orphaned_head_is_detached(void)

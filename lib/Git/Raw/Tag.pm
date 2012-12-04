@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.16';
+  $Git::Raw::Tag::VERSION = '0.17';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.16
+version 0.17
 
 =head1 DESCRIPTION
 
@@ -24,17 +24,22 @@ A C<Git::Raw::Tag> represents a Git tag.
 
 =head2 create( $repo, $name, $msg, $tagger, $target )
 
-Create a new L<Git::Raw::Tag> given a name, a message, a L<Git::Raw::Signature>
-representing the tagger and a target object.
+Create a new tag given a name, a message, a L<Git::Raw::Signature> representing
+the tagger and a target object.
 
 =head2 lookup( $repo, $id )
 
-Retrieve the tag corresponding to the given id. This function is pretty much
-the same as C<$repo-E<gt>lookup($id)> except that it only returns tags.
+Retrieve the tag corresponding to C<$id>. This function is pretty much the same
+as C<$repo-E<gt>lookup($id)> except that it only returns tags.
+
+=head2 foreach( $repo, $callback )
+
+Run C<$callback> for every tag in the repo. The callback receives a tag object.
+A non-zero return value stops the loop.
 
 =head2 delete( $repo, $name )
 
-Delete the tag with the given name.
+Delete the tag with name C<$name>
 
 =head2 id( )
 

@@ -382,9 +382,10 @@ int git_path_walk_up(
 	iter.asize = path->asize;
 
 	while (scan >= stop) {
-		if ((error = cb(data, &iter)) < 0)
-			break;
+		error = cb(data, &iter);
 		iter.ptr[scan] = oldc;
+		if (error < 0)
+			break;
 		scan = git_buf_rfind_next(&iter, '/');
 		if (scan >= 0) {
 			scan++;
@@ -510,7 +511,7 @@ static bool _check_dir_contents(
 	size_t sub_size = strlen(sub);
 
 	/* leave base valid even if we could not make space for subdir */
-	if (git_buf_try_grow(dir, dir_size + sub_size + 2) < 0)
+	if (git_buf_try_grow(dir, dir_size + sub_size + 2, false) < 0)
 		return false;
 
 	/* save excursion */

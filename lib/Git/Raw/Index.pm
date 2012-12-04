@@ -1,6 +1,6 @@
 package Git::Raw::Index;
 {
-  $Git::Raw::Index::VERSION = '0.16';
+  $Git::Raw::Index::VERSION = '0.17';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.16
+version 0.17
 
 =head1 DESCRIPTION
 
@@ -24,11 +24,11 @@ A C<Git::Raw::Index> represents an index in a Git repository.
 
 =head2 add( $file )
 
-Add the given file to the index.
+Add C<$file> to the index.
 
 =head2 clear( )
 
-Clear completely the index.
+Clear the index.
 
 =head2 read( )
 
@@ -38,9 +38,17 @@ Update the index reading it from disk.
 
 Write the index to disk.
 
+=head2 read_tree( $tree )
+
+Replace the index contente with C<$tree>.
+
 =head2 write_tree( )
 
 Create a new tree from the index and write it to disk.
+
+=head2 remove( $path )
+
+Remove C<$path> from the index.
 
 =head1 AUTHOR
 

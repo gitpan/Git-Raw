@@ -87,7 +87,7 @@ int git_object__from_odb_object(
 	git_object *object = NULL;
 
 	if (type != GIT_OBJ_ANY && type != odb_obj->raw.type) {
-		giterr_set(GITERR_ODB, "The requested type does not match the type in the ODB");
+		giterr_set(GITERR_INVALID, "The requested type does not match the type in the ODB");
 		return GIT_ENOTFOUND;
 	}
 
@@ -161,7 +161,7 @@ int git_object_lookup_prefix(
 		if (object != NULL) {
 			if (type != GIT_OBJ_ANY && type != object->type) {
 				git_object_free(object);
-				giterr_set(GITERR_ODB, "The given type does not match the type in ODB");
+				giterr_set(GITERR_INVALID, "The requested type does not match the type in ODB");
 				return GIT_ENOTFOUND;
 			}
 
@@ -304,46 +304,6 @@ size_t git_object__size(git_otype type)
 	return git_objects_table[type].size;
 }
 
-int git_object__resolve_to_type(git_object **obj, git_otype type)
-{
-	int error = 0;
-	git_object *scan, *next;
-
-	if (type == GIT_OBJ_ANY)
-		return 0;
-
-	scan = *obj;
-
-	while (!error && scan && git_object_type(scan) != type) {
-
-		switch (git_object_type(scan)) {
-		case GIT_OBJ_COMMIT:
-		{
-			git_tree *tree = NULL;
-			error = git_commit_tree(&tree, (git_commit *)scan);
-			next = (git_object *)tree;
-			break;
-		}
-
-		case GIT_OBJ_TAG:
-			error = git_tag_target(&next, (git_tag *)scan);
-			break;
-
-		default:
-			giterr_set(GITERR_REFERENCE, "Object does not resolve to type");
-			error = -1;
-			next = NULL;
-			break;
-		}
-
-		git_object_free(scan);
-		scan = next;
-	}
-
-	*obj = scan;
-	return error;
-}
-
 static int peel_error(int error, const char* msg)
 {
 	giterr_set(GITERR_INVALID, "The given object cannot be peeled - %s", msg);
@@ -374,7 +334,7 @@ static int dereference_object(git_object **dereferenced, git_object *obj)
 
 int git_object_peel(
 	git_object **peeled,
-	git_object *object,
+	const git_object *object,
 	git_otype target_type)
 {
 	git_object *source, *deref = NULL;
@@ -382,9 +342,9 @@ int git_object_peel(
 	assert(object && peeled);
 
 	if (git_object_type(object) == target_type)
-		return git_object__dup(peeled, object);
+		return git_object__dup(peeled, (git_object *)object);
 
-	source = object;
+	source = (git_object *)object;
 
 	while (!dereference_object(&deref, source)) {
 
@@ -413,3 +373,4 @@ int git_object_peel(
 	git_object_free(deref);
 	return -1;
 }
+

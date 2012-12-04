@@ -34,6 +34,15 @@ write(self)
 		int rc = git_index_write(self);
 		git_check_error(rc);
 
+void
+read_tree(self, tree)
+	Index self
+	Tree tree
+
+	CODE:
+		int rc = git_index_read_tree(self, tree);
+		git_check_error(rc);
+
 SV *
 write_tree(self)
 	Index self
@@ -42,12 +51,23 @@ write_tree(self)
 		Tree tree;
 		git_oid oid;
 
-		int rc = git_tree_create_fromindex(&oid, self);
+		int rc = git_index_write_tree(&oid, self);
 		git_check_error(rc);
 
 		RETVAL = git_oid_to_sv(&oid);
 
 	OUTPUT: RETVAL
+
+void
+remove(self, path)
+	Index self
+	SV *path
+
+	CODE:
+		const char *path_str = SvPVbyte_nolen(path);
+
+		int rc = git_index_remove(self, path_str, 0);
+		git_check_error(rc);
 
 void
 DESTROY(self)

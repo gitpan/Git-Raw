@@ -1,7 +1,6 @@
 #include "clar_libgit2.h"
 #include "buffer.h"
 #include "refspec.h"
-#include "transport.h"
 #include "remote.h"
 
 static git_remote *_remote;
@@ -21,6 +20,8 @@ void test_network_remotes__initialize(void)
 void test_network_remotes__cleanup(void)
 {
 	git_remote_free(_remote);
+	_remote = NULL;
+
 	cl_git_sandbox_cleanup();
 }
 
@@ -32,9 +33,9 @@ void test_network_remotes__parsing(void)
 	cl_assert_equal_s(git_remote_url(_remote), "git://github.com/libgit2/libgit2");
 	cl_assert(git_remote_pushurl(_remote) == NULL);
 
-	cl_assert_equal_s(git_remote__urlfordirection(_remote, GIT_DIR_FETCH),
+	cl_assert_equal_s(git_remote__urlfordirection(_remote, GIT_DIRECTION_FETCH),
 					  "git://github.com/libgit2/libgit2");
-	cl_assert_equal_s(git_remote__urlfordirection(_remote, GIT_DIR_PUSH),
+	cl_assert_equal_s(git_remote__urlfordirection(_remote, GIT_DIRECTION_PUSH),
 					  "git://github.com/libgit2/libgit2");
 
 	cl_git_pass(git_remote_load(&_remote2, _repo, "test_with_pushurl"));
@@ -42,9 +43,9 @@ void test_network_remotes__parsing(void)
 	cl_assert_equal_s(git_remote_url(_remote2), "git://github.com/libgit2/fetchlibgit2");
 	cl_assert_equal_s(git_remote_pushurl(_remote2), "git://github.com/libgit2/pushlibgit2");
 
-	cl_assert_equal_s(git_remote__urlfordirection(_remote2, GIT_DIR_FETCH),
+	cl_assert_equal_s(git_remote__urlfordirection(_remote2, GIT_DIRECTION_FETCH),
 					  "git://github.com/libgit2/fetchlibgit2");
-	cl_assert_equal_s(git_remote__urlfordirection(_remote2, GIT_DIR_PUSH),
+	cl_assert_equal_s(git_remote__urlfordirection(_remote2, GIT_DIRECTION_PUSH),
 					  "git://github.com/libgit2/pushlibgit2");
 
 	git_remote_free(_remote2);
@@ -184,13 +185,13 @@ void test_network_remotes__list(void)
 	git_config *cfg;
 
 	cl_git_pass(git_remote_list(&list, _repo));
-	cl_assert(list.count == 3);
+	cl_assert(list.count == 4);
 	git_strarray_free(&list);
 
 	cl_git_pass(git_repository_config(&cfg, _repo));
 	cl_git_pass(git_config_set_string(cfg, "remote.specless.url", "http://example.com"));
 	cl_git_pass(git_remote_list(&list, _repo));
-	cl_assert(list.count == 4);
+	cl_assert(list.count == 5);
 	git_strarray_free(&list);
 
 	git_config_free(cfg);
@@ -269,4 +270,12 @@ void test_network_remotes__tagopt(void)
 	cl_assert(git_config_get_string(&opt, cfg, "remote.test.tagopt") == GIT_ENOTFOUND);
 
 	git_config_free(cfg);
+}
+
+void test_network_remotes__cannot_load_with_an_empty_url(void)
+{
+	git_remote *remote;
+
+	cl_git_fail(git_remote_load(&remote, _repo, "empty-remote-url"));
+	cl_assert(giterr_last()->klass == GITERR_INVALID);
 }

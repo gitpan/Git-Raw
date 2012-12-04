@@ -18,11 +18,12 @@ init(class, path, is_bare)
 	OUTPUT: RETVAL
 
 Repository
-clone(class, url, path, is_bare)
+clone(class, url, path, strategy, is_bare)
 	SV *class
 	SV *url
 	SV *path
-	unsigned is_bare
+	HV *strategy
+	bool is_bare
 
 	CODE:
 		int rc;
@@ -30,16 +31,15 @@ clone(class, url, path, is_bare)
 		const char *url_str = SvPVbyte_nolen(url);
 		const char *path_str = SvPVbyte_nolen(path);
 
-		git_checkout_opts opts;
+		git_checkout_opts opts = GIT_CHECKOUT_OPTS_INIT;
 
-		memset(&opts, 0, sizeof(opts));
-		opts.checkout_strategy = GIT_CHECKOUT_CREATE_MISSING;
+		opts.checkout_strategy = git_hv_to_checkout_strategy(strategy);
 
 		if (is_bare)
 			rc = git_clone_bare(&r, url_str, path_str, NULL, NULL);
 		else
 			rc = git_clone(
-				&r, url_str, path_str, NULL, NULL, &opts
+				&r, url_str, path_str, &opts, NULL, NULL
 			);
 
 		git_check_error(rc);
@@ -126,7 +126,7 @@ head(self)
 		int rc = git_repository_head(&r, self);
 		git_check_error(rc);
 
-		oid = git_reference_oid(r);
+		oid = git_reference_target(r);
 
 		rc = git_object_lookup(&o, self, oid, GIT_OBJ_ANY);
 		git_check_error(rc);
@@ -158,6 +158,22 @@ lookup(self, id)
 	OUTPUT: RETVAL
 
 void
+checkout(self, target, strategy)
+	Repository self
+	SV *target
+	HV *strategy
+
+	CODE:
+		int rc;
+		SV **opt;
+		git_checkout_opts opts = GIT_CHECKOUT_OPTS_INIT;
+
+		opts.checkout_strategy = git_hv_to_checkout_strategy(strategy);
+
+		rc = git_checkout_tree(self, git_sv_to_obj(target), &opts);
+		git_check_error(rc);
+
+void
 reset(self, target, type)
 	Repository self
 	SV *target
@@ -166,7 +182,7 @@ reset(self, target, type)
 	CODE:
 		int rc;
 		STRLEN len;
-		git_reset_type t;
+		git_reset_t t;
 		const char *type_str = SvPVbyte(type, len);
 
 		if (strcmp(type_str, "soft"))
@@ -235,11 +251,15 @@ diff(self, ...)
 	CODE:
 		int rc;
 		Diff diff;
+		Index index;
+
+		rc = git_repository_index(&index, self);
+		git_check_error(rc);
 
 		switch (items) {
 			case 1: {
 				rc = git_diff_workdir_to_index(
-					self, NULL, &diff
+					&diff, self, index, NULL
 				);
 				git_check_error(rc);
 
@@ -252,12 +272,12 @@ diff(self, ...)
 				if (sv_isobject(sv) &&
 				    sv_derived_from(sv, "Git::Raw::Tree")) {
 
-					Tree new =  INT2PTR(
+					Tree tree = INT2PTR(
 						Tree, SvIV((SV *) SvRV(sv))
 					);
 
 					rc = git_diff_index_to_tree(
-						self, NULL, new, &diff
+						&diff, self, tree, index, NULL
 					);
 					git_check_error(rc);
 				} else Perl_croak(aTHX_ "Invalid diff target");
@@ -269,47 +289,6 @@ diff(self, ...)
 		}
 
 		RETVAL = diff;
-
-	OUTPUT: RETVAL
-
-AV *
-tags(self)
-	Repository self
-
-	CODE:
-		int i, rc;
-		AV *output = newAV();
-		git_strarray tags;
-
-		rc = git_tag_list(&tags, self);
-		git_check_error(rc);
-
-		for (i = 0; i < tags.count; i++) {
-			SV *tag;
-			Reference r;
-			git_object *o;
-			const git_oid *oid;
-
-			char *name = malloc(strlen(tags.strings[i]) + 11);
-			sprintf(name, "refs/tags/%s", tags.strings[i]);
-
-			rc = git_reference_lookup(&r, self, name);
-			git_check_error(rc);
-			free(name);
-
-			oid = git_reference_oid(r);
-
-			rc = git_object_lookup(&o, self, oid, GIT_OBJ_TAG);
-			git_check_error(rc);
-
-			tag = git_obj_to_sv(o);
-
-			av_push(output, tag);
-		}
-
-		git_strarray_free(&tags);
-
-		RETVAL = output;
 
 	OUTPUT: RETVAL
 

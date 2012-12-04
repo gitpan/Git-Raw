@@ -18,7 +18,6 @@
 
 #include "common.h"
 #include "remote.h"
-#include "pkt.h"
 #include "fileops.h"
 #include "refs.h"
 #include "path.h"
@@ -29,18 +28,18 @@ static int create_branch(
 	const git_oid *target,
 	const char *name)
 {
-	git_object *head_obj = NULL;
+	git_commit *head_obj = NULL;
 	git_reference *branch_ref;
 	int error;
 
 	/* Find the target commit */
-	if ((error = git_object_lookup(&head_obj, repo, target, GIT_OBJ_ANY)) < 0)
+	if ((error = git_commit_lookup(&head_obj, repo, target)) < 0)
 		return error;
 
 	/* Create the new branch */
 	error = git_branch_create(&branch_ref, repo, name, head_obj, 0);
 
-	git_object_free(head_obj);
+	git_commit_free(head_obj);
 
 	if (!error)
 		*branch = branch_ref;
@@ -123,7 +122,7 @@ static int reference_matches_remote_head(
 	if (git_buf_len(&head_info->branchname) > 0)
 		return 0;
 
-	if (git_reference_name_to_oid(
+	if (git_reference_name_to_id(
 		&oid,
 		head_info->repo,
 		reference_name) < 0) {
@@ -171,11 +170,19 @@ static int update_head_to_new_branch(
 	return error;
 }
 
+static int get_head_callback(git_remote_head *head, void *payload)
+{
+	git_remote_head **destination = (git_remote_head **)payload;
+
+	/* Save the first entry, and terminate the enumeration */
+	*destination = head;
+	return 1;
+}
+
 static int update_head_to_remote(git_repository *repo, git_remote *remote)
 {
 	int retcode = -1;
 	git_remote_head *remote_head;
-	git_pkt_ref *pkt;
 	struct head_info head_info;
 	git_buf remote_master_name = GIT_BUF_INIT;
 
@@ -189,8 +196,13 @@ static int update_head_to_remote(git_repository *repo, git_remote *remote)
 	}
 
 	/* Get the remote's HEAD. This is always the first ref in remote->refs. */
-	pkt = remote->transport->refs.contents[0];
-	remote_head = &pkt->head;
+	remote_head = NULL;
+	
+	if (!remote->transport->ls(remote->transport, get_head_callback, &remote_head))
+		return -1;
+
+	assert(remote_head);
+
 	git_oid_cpy(&head_info.remote_head_oid, &remote_head->oid);
 	git_buf_init(&head_info.branchname, 16);
 	head_info.repo = repo;
@@ -259,8 +271,14 @@ static int setup_remotes_and_fetch(
 
 	/* Create the "origin" remote */
 	if (!git_remote_add(&origin, repo, GIT_REMOTE_ORIGIN, origin_url)) {
+		/*
+		 * Don't write FETCH_HEAD, we'll check out the remote tracking
+		 * branch ourselves based on the server's default.
+		 */
+		git_remote_set_update_fetchhead(origin, 0);
+
 		/* Connect and download everything */
-		if (!git_remote_connect(origin, GIT_DIR_FETCH)) {
+		if (!git_remote_connect(origin, GIT_DIRECTION_FETCH)) {
 			if (!git_remote_download(origin, progress_cb, progress_payload)) {
 				/* Create "origin/foo" branches for all remote branches */
 				if (!git_remote_update_tips(origin)) {
@@ -326,7 +344,7 @@ static int clone_internal(
 						fetch_progress_cb, fetch_progress_payload)) < 0) {
 			/* Failed to fetch; clean up */
 			git_repository_free(repo);
-			git_futils_rmdir_r(path, NULL, GIT_DIRREMOVAL_FILES_AND_DIRS);
+			git_futils_rmdir_r(path, NULL, GIT_RMDIR_REMOVE_FILES);
 		} else {
 			*out = repo;
 			retcode = 0;
@@ -363,9 +381,9 @@ int git_clone(
 		git_repository **out,
 		const char *origin_url,
 		const char *workdir_path,
+		git_checkout_opts *checkout_opts,
 		git_transfer_progress_callback fetch_progress_cb,
-		void *fetch_progress_payload,
-		git_checkout_opts *checkout_opts)
+		void *fetch_progress_payload)
 {
 	assert(out && origin_url && workdir_path);
 

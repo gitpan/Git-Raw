@@ -29,8 +29,12 @@ void test_stash_foreach__initialize(void)
 void test_stash_foreach__cleanup(void)
 {
 	git_signature_free(signature);
+	signature = NULL;
+
 	git_repository_free(repo);
-	cl_git_pass(git_futils_rmdir_r(REPO_NAME, NULL, GIT_DIRREMOVAL_FILES_AND_DIRS));
+	repo = NULL;
+
+	cl_git_pass(git_futils_rmdir_r(REPO_NAME, NULL, GIT_RMDIR_REMOVE_FILES));
 }
 
 static int callback_cb(
@@ -45,7 +49,7 @@ static int callback_cb(
 	GIT_UNUSED(message);
 
 	cl_assert_equal_i(0, git_oid_streq(stash_oid, data->oids[data->invokes++]));
-	
+
 	return 0;
 }
 

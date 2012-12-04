@@ -68,8 +68,50 @@ SV *git_oid_to_sv(git_oid *oid) {
 	return newSVpv(out, 0);
 }
 
-int git_diff_wrapper(void *data, git_diff_delta *delta, git_diff_range *range,
-				char usage, const char *line, size_t line_len) {
+#define GIT_CHECKOUT_OPT(HV, NAME, MASK) ({				\
+	SV **opt;							\
+									\
+	if ((opt = hv_fetchs(HV, NAME, 0)) && (SvIV(*opt) != 0)) {	\
+		out |= MASK;						\
+	}								\
+})
+
+unsigned git_hv_to_checkout_strategy(HV *strategy) {
+	unsigned out = 0;
+
+	GIT_CHECKOUT_OPT(
+		strategy, "update_unmodifed", GIT_CHECKOUT_UPDATE_UNMODIFIED
+	);
+
+	GIT_CHECKOUT_OPT(
+		strategy, "update_missing",   GIT_CHECKOUT_UPDATE_MISSING
+	);
+
+	GIT_CHECKOUT_OPT(
+		strategy, "update_modified",  GIT_CHECKOUT_UPDATE_MODIFIED
+	);
+
+	GIT_CHECKOUT_OPT(
+		strategy, "update_untracked", GIT_CHECKOUT_UPDATE_UNTRACKED
+	);
+
+	GIT_CHECKOUT_OPT(
+		strategy, "allow_conflicts",  GIT_CHECKOUT_ALLOW_CONFLICTS
+	);
+
+	GIT_CHECKOUT_OPT(
+		strategy, "skip_unmerged",    GIT_CHECKOUT_SKIP_UNMERGED
+	);
+
+	GIT_CHECKOUT_OPT(
+		strategy, "update_only",      GIT_CHECKOUT_UPDATE_ONLY
+	);
+
+	return out;
+}
+
+int git_diff_cb(const git_diff_delta *delta, const git_diff_range *range,
+		char usage, const char *line, size_t line_len, void *data) {
 	dSP;
 
 	SV *coderef = data;
@@ -121,8 +163,8 @@ typedef struct {
 int git_branch_foreach_cb(const char *name, git_branch_t type, void *payload) {
 	dSP;
 	int rv;
-	Branch branch;
 	SV *cb_arg;
+	Branch branch;
 
 	int rc = git_branch_lookup(
 		&branch, ((git_foreach_payload *) payload) -> repo,
@@ -152,6 +194,31 @@ int git_branch_foreach_cb(const char *name, git_branch_t type, void *payload) {
 	return rv;
 }
 
+int git_config_foreach_cbb(git_config_entry *entry, void *payload) {
+	dSP;
+	int rv;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	PUSHs(newSVpv(entry -> name, 0));
+	PUSHs(newSVpv(entry -> value, 0));
+	PUSHs(newSVuv(entry -> level));
+	PUTBACK;
+
+	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
+
+	SPAGAIN;
+
+	rv = POPi;
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
+}
+
 int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *payload) {
 	dSP;
 	int rv;
@@ -162,7 +229,40 @@ int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *pa
 	PUSHMARK(SP);
 	PUSHs(newSVuv(i));
 	PUSHs(newSVpv(msg, 0));
-	PUSHs(git_oid_to_sv(oid));
+	PUSHs(git_oid_to_sv((git_oid *) oid));
+	PUTBACK;
+
+	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
+
+	SPAGAIN;
+
+	rv = POPi;
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
+}
+
+int git_tag_foreach_cbb(const char *name, const git_oid *oid, void *payload) {
+	dSP;
+	int rv;
+	Tag tag;
+	SV *cb_arg;
+
+	int rc = git_tag_lookup(
+		&tag, ((git_foreach_payload *) payload) -> repo, oid
+	);
+	git_check_error(rc);
+
+	ENTER;
+	SAVETMPS;
+
+	cb_arg = sv_newmortal();
+	sv_setref_pv(cb_arg, "Git::Raw::Tag", (void *) tag);
+
+	PUSHMARK(SP);
+	PUSHs(cb_arg);
 	PUTBACK;
 
 	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);

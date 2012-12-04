@@ -39,11 +39,14 @@ ENDIF()
 # Specify sha1 implementation
 IF (SHA1_TYPE STREQUAL "ppc")
 	ADD_DEFINITIONS(-DPPC_SHA1)
-	FILE(GLOB SRC_SHA1 src/ppc/*.c src/ppc/*.S)
-ELSEIF (OPENSSL_FOUND) # libcrypto's implementation is faster than ours
-	ADD_DEFINITIONS(-DOPENSSL_SHA)
-ELSE ()
-	FILE(GLOB SRC_SHA1 src/sha1/*.c)
+	FILE(GLOB SRC_SHA1 src/hash/hash_ppc.c src/hash/hash_ppc_core.S)
+ELSEIF (WIN32 AND NOT MINGW AND NOT SHA1_TYPE STREQUAL "builtin")
+    ADD_DEFINITIONS(-DWIN32_SHA1)
+    FILE(GLOB SRC_SHA1 src/hash/hash_win32.c)
+ELSEIF (OPENSSL_FOUND AND NOT SHA1_TYPE STREQUAL "builtin")
+	ADD_DEFINITIONS(-DOPENSSL_SHA1)
+ELSE()
+	FILE(GLOB SRC_SHA1 src/hash/hash_generic.c)
 ENDIF()
 
 IF (NOT WIN32)
@@ -87,7 +90,7 @@ IF (MSVC)
 
     STRING(REPLACE "/Zm1000" " " CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 
-	SET(CMAKE_C_FLAGS "/W4 /MP /nologo /Zi ${CMAKE_C_FLAGS}")
+	SET(CMAKE_C_FLAGS "/MP /nologo /Zi ${CMAKE_C_FLAGS}")
 	IF (STDCALL)
 	  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /Gz")
 	ENDIF ()
@@ -103,6 +106,9 @@ ELSE ()
 		STRING(REGEX REPLACE "-fPIC" "" CMAKE_SHARED_LIBRARY_C_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
 	ELSE ()
 		SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fvisibility=hidden -fPIC")
+	ENDIF ()
+	IF (APPLE) # Apple deprecated OpenSSL
+		SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-deprecated-declarations")
 	ENDIF ()
 	IF (PROFILE)
 		SET(CMAKE_C_FLAGS "-pg ${CMAKE_C_FLAGS}")
@@ -166,7 +172,7 @@ SET_TARGET_PROPERTIES(git2 PROPERTIES VERSION ${LIBGIT2_VERSION_STRING})
 SET_TARGET_PROPERTIES(git2 PROPERTIES SOVERSION ${LIBGIT2_VERSION_MAJOR})
 CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/libgit2.pc.in ${CMAKE_CURRENT_BINARY_DIR}/libgit2.pc @ONLY)
 
-IF (MSVC)
+IF (MSVC_IDE)
    # Precompiled headers
    SET_TARGET_PROPERTIES(git2 PROPERTIES COMPILE_FLAGS "/Yuprecompiled.h /FIprecompiled.h")
    SET_SOURCE_FILES_PROPERTIES(src/win32/precompiled.c COMPILE_FLAGS "/Ycprecompiled.h")
@@ -198,14 +204,14 @@ IF (BUILD_CLAR)
 
 	ADD_CUSTOM_COMMAND(
 		OUTPUT ${CLAR_PATH}/clar_main.c ${CLAR_PATH}/clar.h
-		COMMAND ${PYTHON_EXECUTABLE} clar -vtap .
+		COMMAND ${PYTHON_EXECUTABLE} clar .
 		DEPENDS ${CLAR_PATH}/clar ${SRC_TEST}
 		WORKING_DIRECTORY ${CLAR_PATH}
 	)
 	ADD_EXECUTABLE(libgit2_clar ${SRC} ${CLAR_PATH}/clar_main.c ${SRC_TEST} ${SRC_ZLIB} ${SRC_HTTP} ${SRC_REGEX} ${SRC_SHA1})
 	TARGET_LINK_LIBRARIES(libgit2_clar ${CMAKE_THREAD_LIBS_INIT} ${SSL_LIBRARIES})
 
-        IF (MSVC)
+        IF (MSVC_IDE)
            # Precompiled headers
            SET_TARGET_PROPERTIES(libgit2_clar PROPERTIES COMPILE_FLAGS "/Yuprecompiled.h /FIprecompiled.h")
         ENDIF ()

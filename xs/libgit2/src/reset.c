@@ -41,14 +41,14 @@ static int update_head(git_repository *repo, git_object *commit)
 		if ((error = git_reference_lookup(&head, repo, GIT_HEAD_FILE)) < 0)
 			goto cleanup;
 
-		if ((error = git_reference_create_oid(
+		if ((error = git_reference_create(
 			&target,
 			repo,
-			git_reference_target(head),
+			git_reference_symbolic_target(head),
 			git_object_id(commit), 0)) < 0)
 				goto cleanup;
 	} else {
-		if ((error = git_reference_set_oid(head, git_object_id(commit))) < 0)
+		if ((error = git_reference_set_target(head, git_object_id(commit))) < 0)
 			goto cleanup;
 	}
 
@@ -63,7 +63,7 @@ cleanup:
 int git_reset(
 	git_repository *repo,
 	git_object *target,
-	git_reset_type reset_type)
+	git_reset_t reset_type)
 {
 	git_object *commit = NULL;
 	git_index *index = NULL;
@@ -137,12 +137,9 @@ int git_reset(
 	}
 
 	memset(&opts, 0, sizeof(opts));
-	opts.checkout_strategy =
-		GIT_CHECKOUT_CREATE_MISSING
-		| GIT_CHECKOUT_OVERWRITE_MODIFIED
-		| GIT_CHECKOUT_REMOVE_UNTRACKED;
+	opts.checkout_strategy = GIT_CHECKOUT_FORCE;
 
-	if (git_checkout_index(repo, &opts) < 0) {
+	if (git_checkout_index(repo, NULL, &opts) < 0) {
 		giterr_set(GITERR_INDEX, "%s - Failed to checkout the index.", ERROR_MSG);
 		goto cleanup;
 	}

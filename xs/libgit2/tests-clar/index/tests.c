@@ -1,8 +1,8 @@
 #include "clar_libgit2.h"
 #include "index.h"
 
-static const int index_entry_count = 109;
-static const int index_entry_count_2 = 1437;
+static const size_t index_entry_count = 109;
+static const size_t index_entry_count_2 = 1437;
 #define TEST_INDEX_PATH cl_fixture("testrepo.git/index")
 #define TEST_INDEX2_PATH cl_fixture("gitgit.index")
 #define TEST_INDEXBIG_PATH cl_fixture("big.index")
@@ -99,7 +99,7 @@ void test_index_tests__default_test_index(void)
    cl_git_pass(git_index_open(&index, TEST_INDEX_PATH));
    cl_assert(index->on_disk);
 
-   cl_assert(git_index_entrycount(index) == (unsigned int)index_entry_count);
+   cl_assert(git_index_entrycount(index) == index_entry_count);
    cl_assert(index->entries.sorted);
 
    entries = (git_index_entry **)index->entries.contents;
@@ -122,7 +122,7 @@ void test_index_tests__gitgit_index(void)
    cl_git_pass(git_index_open(&index, TEST_INDEX2_PATH));
    cl_assert(index->on_disk);
 
-   cl_assert(git_index_entrycount(index) == (unsigned int)index_entry_count_2);
+   cl_assert(git_index_entrycount(index) == index_entry_count_2);
    cl_assert(index->entries.sorted);
    cl_assert(index->tree != NULL);
 
@@ -208,7 +208,7 @@ void test_index_tests__add(void)
    git_index *index;
    git_filebuf file = GIT_FILEBUF_INIT;
    git_repository *repo;
-   git_index_entry *entry;
+   const git_index_entry *entry;
    git_oid id1;
 
    /* Intialize a new repository */
@@ -248,3 +248,43 @@ void test_index_tests__add(void)
    git_repository_free(repo);
 }
 
+void test_index_tests__add_from_workdir_to_a_bare_repository_returns_EBAREPO(void)
+{
+	git_repository *bare_repo;
+	git_index *index;
+
+	cl_git_pass(git_repository_open(&bare_repo, cl_fixture("testrepo.git")));
+	cl_git_pass(git_repository_index(&index, bare_repo));
+
+	cl_assert_equal_i(GIT_EBAREREPO, git_index_add_from_workdir(index, "test.txt"));
+
+	git_index_free(index);
+	git_repository_free(bare_repo);
+}
+
+/* Test that writing an invalid filename fails */
+void test_index_tests__write_invalid_filename(void)
+{
+	git_repository *repo;
+	git_index *index;
+	git_oid expected;
+
+	p_mkdir("read_tree", 0700);
+
+	cl_git_pass(git_repository_init(&repo, "./read_tree", 0));
+	cl_git_pass(git_repository_index(&index, repo));
+
+	cl_assert(git_index_entrycount(index) == 0);
+
+	cl_git_mkfile("./read_tree/.git/hello", NULL);
+
+	cl_git_pass(git_index_add_from_workdir(index, ".git/hello"));
+
+	/* write-tree */
+	cl_git_fail(git_index_write_tree(&expected, index));
+
+	git_index_free(index);
+	git_repository_free(repo);
+
+	cl_fixture_cleanup("read_tree");
+}

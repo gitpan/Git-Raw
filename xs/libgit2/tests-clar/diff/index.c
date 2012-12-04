@@ -32,10 +32,10 @@ void test_diff_index__0(void)
 
 	memset(&exp, 0, sizeof(exp));
 
-	cl_git_pass(git_diff_index_to_tree(g_repo, &opts, a, &diff));
+	cl_git_pass(git_diff_index_to_tree(&diff, g_repo, a, NULL, &opts));
 
 	cl_git_pass(git_diff_foreach(
-		diff, &exp, diff_file_fn, diff_hunk_fn, diff_line_fn));
+		diff, diff_file_cb, diff_hunk_cb, diff_line_cb, &exp));
 
 	/* to generate these values:
 	 * - cd to tests/resources/status,
@@ -45,9 +45,9 @@ void test_diff_index__0(void)
 	 * - mv .git .gitted
 	 */
 	cl_assert_equal_i(8, exp.files);
-	cl_assert_equal_i(3, exp.file_adds);
-	cl_assert_equal_i(2, exp.file_dels);
-	cl_assert_equal_i(3, exp.file_mods);
+	cl_assert_equal_i(3, exp.file_status[GIT_DELTA_ADDED]);
+	cl_assert_equal_i(2, exp.file_status[GIT_DELTA_DELETED]);
+	cl_assert_equal_i(3, exp.file_status[GIT_DELTA_MODIFIED]);
 
 	cl_assert_equal_i(8, exp.hunks);
 
@@ -60,10 +60,10 @@ void test_diff_index__0(void)
 	diff = NULL;
 	memset(&exp, 0, sizeof(exp));
 
-	cl_git_pass(git_diff_index_to_tree(g_repo, &opts, b, &diff));
+	cl_git_pass(git_diff_index_to_tree(&diff, g_repo, b, NULL, &opts));
 
 	cl_git_pass(git_diff_foreach(
-		diff, &exp, diff_file_fn, diff_hunk_fn, diff_line_fn));
+		diff, diff_file_cb, diff_hunk_cb, diff_line_cb, &exp));
 
 	/* to generate these values:
 	 * - cd to tests/resources/status,
@@ -73,9 +73,9 @@ void test_diff_index__0(void)
 	 * - mv .git .gitted
 	 */
 	cl_assert_equal_i(12, exp.files);
-	cl_assert_equal_i(7, exp.file_adds);
-	cl_assert_equal_i(2, exp.file_dels);
-	cl_assert_equal_i(3, exp.file_mods);
+	cl_assert_equal_i(7, exp.file_status[GIT_DELTA_ADDED]);
+	cl_assert_equal_i(2, exp.file_status[GIT_DELTA_DELETED]);
+	cl_assert_equal_i(3, exp.file_status[GIT_DELTA_MODIFIED]);
 
 	cl_assert_equal_i(12, exp.hunks);
 
@@ -92,11 +92,11 @@ void test_diff_index__0(void)
 }
 
 static int diff_stop_after_2_files(
-	void *cb_data,
 	const git_diff_delta *delta,
-	float progress)
+	float progress,
+	void *payload)
 {
-	diff_expects *e = cb_data;
+	diff_expects *e = payload;
 
 	GIT_UNUSED(progress);
 	GIT_UNUSED(delta);
@@ -125,11 +125,11 @@ void test_diff_index__1(void)
 
 	memset(&exp, 0, sizeof(exp));
 
-	cl_git_pass(git_diff_index_to_tree(g_repo, &opts, a, &diff));
+	cl_git_pass(git_diff_index_to_tree(&diff, g_repo, a, NULL, &opts));
 
 	cl_assert_equal_i(
 		GIT_EUSER,
-		git_diff_foreach(diff, &exp, diff_stop_after_2_files, NULL, NULL)
+		git_diff_foreach(diff, diff_stop_after_2_files, NULL, NULL, &exp)
 	);
 
 	cl_assert_equal_i(2, exp.files);

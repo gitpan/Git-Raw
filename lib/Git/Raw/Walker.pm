@@ -1,6 +1,6 @@
 package Git::Raw::Walker;
 {
-  $Git::Raw::Walker::VERSION = '0.16';
+  $Git::Raw::Walker::VERSION = '0.17';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.16
+version 0.17
 
 =head1 DESCRIPTION
 
@@ -25,7 +25,7 @@ repository's revisions (sort of like C<git log>).
 
 =head2 create( $repo )
 
-Create a new walker to iterate over repository's revisions.
+Create a new revision walker.
 
 =head2 push( $commit )
 

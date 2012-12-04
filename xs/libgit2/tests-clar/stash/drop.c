@@ -14,8 +14,12 @@ void test_stash_drop__initialize(void)
 void test_stash_drop__cleanup(void)
 {
 	git_signature_free(signature);
+	signature = NULL;
+
 	git_repository_free(repo);
-	cl_git_pass(git_futils_rmdir_r("stash", NULL, GIT_DIRREMOVAL_FILES_AND_DIRS));
+	repo = NULL;
+
+	cl_git_pass(git_futils_rmdir_r("stash", NULL, GIT_RMDIR_REMOVE_FILES));
 }
 
 void test_stash_drop__cannot_drop_from_an_empty_stash(void)
@@ -87,22 +91,22 @@ void test_stash_drop__dropping_an_entry_rewrites_reflog_history(void)
 	push_three_states();
 
 	cl_git_pass(git_reference_lookup(&stash, repo, "refs/stash"));
-	
+
 	cl_git_pass(git_reflog_read(&reflog, stash));
 	entry = git_reflog_entry_byindex(reflog, 1);
 
-	git_oid_cpy(&oid, git_reflog_entry_oidold(entry));
+	git_oid_cpy(&oid, git_reflog_entry_id_old(entry));
 	count = git_reflog_entrycount(reflog);
-	
+
 	git_reflog_free(reflog);
 
 	cl_git_pass(git_stash_drop(repo, 1));
 
 	cl_git_pass(git_reflog_read(&reflog, stash));
-	entry = git_reflog_entry_byindex(reflog, 1);
+	entry = git_reflog_entry_byindex(reflog, 0);
 
-	cl_assert_equal_i(0, git_oid_cmp(&oid, git_reflog_entry_oidold(entry)));
-	cl_assert_equal_i(count - 1, git_reflog_entrycount(reflog));
+	cl_assert_equal_i(0, git_oid_cmp(&oid, git_reflog_entry_id_old(entry)));
+	cl_assert_equal_sz(count - 1, git_reflog_entrycount(reflog));
 
 	git_reflog_free(reflog);
 

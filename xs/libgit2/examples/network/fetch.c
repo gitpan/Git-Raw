@@ -25,7 +25,7 @@ static void *download(void *ptr)
 
 	// Connect to the remote end specifying that we want to fetch
 	// information from it.
-	if (git_remote_connect(data->remote, GIT_DIR_FETCH) < 0) {
+	if (git_remote_connect(data->remote, GIT_DIRECTION_FETCH) < 0) {
 		data->ret = -1;
 		goto exit;
 	}
@@ -103,9 +103,9 @@ int fetch(git_repository *repo, int argc, char **argv)
 		usleep(10000);
 
 		if (stats->total_objects > 0)
-			printf("Received %d/%d objects (%d) in %d bytes\r",
+			printf("Received %d/%d objects (%d) in %" PRIuZ " bytes\r",
 			       stats->received_objects, stats->total_objects,
-					 stats->indexed_objects, stats->received_bytes);
+				   stats->indexed_objects, stats->received_bytes);
 	} while (!data.finished);
 
 	if (data.ret < 0)

@@ -16,10 +16,17 @@ void test_notes_notesref__initialize(void)
 void test_notes_notesref__cleanup(void)
 {
 	git_note_free(_note);
+	_note = NULL;
+
 	git_signature_free(_sig);
+	_sig = NULL;
+
 	git_config_free(_cfg);
+	_cfg = NULL;
 
 	git_repository_free(_repo);
+	_repo = NULL;
+
 	cl_fixture_cleanup("testrepo.git");
 }
 
@@ -50,7 +57,7 @@ void test_notes_notesref__config_corenotesref(void)
 	cl_git_pass(git_note_default_ref(&default_ref, _repo));
 	cl_assert(!strcmp(default_ref, "refs/notes/mydefaultnotesref"));
 
-	cl_git_pass(git_config_delete(_cfg, "core.notesRef"));
+	cl_git_pass(git_config_delete_entry(_cfg, "core.notesRef"));
 
 	cl_git_pass(git_note_default_ref(&default_ref, _repo));
 	cl_assert(!strcmp(default_ref, GIT_NOTES_DEFAULT_REF));

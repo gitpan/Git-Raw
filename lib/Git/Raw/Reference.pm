@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.16';
+  $Git::Raw::Reference::VERSION = '0.17';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.16
+version 0.17
 
 =head1 DESCRIPTION
 
@@ -28,7 +28,7 @@ Retrieve the reference with name C<$name>.
 
 =head2 delete( )
 
-Delete the given reference.
+Delete the reference.
 
 =head2 name( )
 
@@ -38,23 +38,23 @@ Retrieve the name of the reference.
 
 Retrieve the type of the reference. Can be either C<"direct"> or C<"symbolic">.
 
-=head2 is_branch( )
-
-Returns true if the reference is a branch or false otherwise.
-
-=head2 is_packed( )
-
-Returns true if the reference is packed or false otherwise.
-
-=head2 is_remote( )
-
-Returns true if the reference is remote or false otherwise.
-
 =head2 target( )
 
 Retrieve the target of the reference. This function returns either an object
 (L<Git::Raw::Blob>, L<Git::Raw::Commit>, L<Git::Raw::Tag> or L<Git::Raw::Tree>)
 for direct references, or another reference for symbolic references.
+
+=head2 is_branch( )
+
+Check if the reference is a branch.
+
+=head2 is_packed( )
+
+Check if the reference is packed.
+
+=head2 is_remote( )
+
+Check if the reference is remote.
 
 =head1 AUTHOR
 

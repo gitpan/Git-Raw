@@ -1,6 +1,6 @@
 package Git::Raw::Remote;
 {
-  $Git::Raw::Remote::VERSION = '0.16';
+  $Git::Raw::Remote::VERSION = '0.17';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.16
+version 0.17
 
 =head1 DESCRIPTION
 
@@ -30,22 +30,22 @@ URL C<$url>.
 =head2 name( [ $name ] )
 
 Retrieve the name of the remote. If C<$name> is passed, the remote's name will
-be updated, and returned.
+be updated and returned.
 
 =head2 url( [ $url ] )
 
 Retrieve the URL of the remote. If C<$url> is passed, the remote's URL will be
-updated, and returned.
+updated and returned.
 
 =head2 fetchspec( [ $spec ] )
 
 Retrieve the fetchspec of the remote. If C<$spec> is passed, the remote's
-fetchspec will be updated, and returned.
+fetchspec will be updated and returned.
 
 =head2 pushspec( [ $spec ] )
 
 Retrieve the pushspec of the remote. If C<$spec> is passed, the remote's
-pushspec will be updated, and returned.
+pushspec will be updated and returned.
 
 =head2 connect( $direction )
 

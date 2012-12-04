@@ -321,7 +321,7 @@ static int packfile_unpack_delta(
 	git__free(base.data);
 	git__free(delta.data);
 
-	/* TODO: we might want to cache this shit. eventually */
+	/* TODO: we might want to cache this. eventually */
 	//add_delta_base_cache(p, base_offset, base, base_size, *type);
 
 	return error; /* error set by git__delta_apply */
@@ -564,8 +564,10 @@ static int packfile_open(struct git_pack_file *p)
 
 	/* TODO: open with noatime */
 	p->mwf.fd = git_futils_open_ro(p->pack_name);
-	if (p->mwf.fd < 0)
-		return p->mwf.fd;
+	if (p->mwf.fd < 0) {
+		p->mwf.fd = -1;
+		return -1;
+	}
 
 	if (p_fstat(p->mwf.fd, &st) < 0 ||
 		git_mwindow_file_register(&p->mwf) < 0)
@@ -696,7 +698,7 @@ static int git__memcmp4(const void *a, const void *b) {
 
 int git_pack_foreach_entry(
 	struct git_pack_file *p,
-	int (*cb)(git_oid *oid, void *data),
+	git_odb_foreach_cb cb,
 	void *data)
 {
 	const unsigned char *index = p->index_map.data, *current;
