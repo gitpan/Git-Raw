@@ -143,6 +143,7 @@ static int local_connect(
 	git_transport *transport,
 	const char *url,
 	git_cred_acquire_cb cred_acquire_cb,
+	void *cred_acquire_payload,
 	int direction, int flags)
 {
 	git_repository *repo;
@@ -152,6 +153,7 @@ static int local_connect(
 	git_buf buf = GIT_BUF_INIT;
 
 	GIT_UNUSED(cred_acquire_cb);
+	GIT_UNUSED(cred_acquire_payload);
 
 	t->url = git__strdup(url);
 	GITERR_CHECK_ALLOC(t->url);
@@ -403,11 +405,10 @@ int git_transport_local(git_transport **out, git_remote *owner, void *param)
 
 	GIT_UNUSED(param);
 
-	t = git__malloc(sizeof(transport_local));
+	t = git__calloc(1, sizeof(transport_local));
 	GITERR_CHECK_ALLOC(t);
 
-	memset(t, 0x0, sizeof(transport_local));
-		
+	t->parent.version = GIT_TRANSPORT_VERSION;
 	t->parent.connect = local_connect;
 	t->parent.negotiate_fetch = local_negotiate_fetch;
 	t->parent.download_pack = local_download_pack;

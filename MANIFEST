@@ -6,6 +6,7 @@ META.json
 META.yml
 Makefile.PL
 README
+README.pod
 Raw.xs
 TODO
 dist.ini
@@ -15,8 +16,10 @@ lib/Git/Raw/Blob.pm
 lib/Git/Raw/Branch.pm
 lib/Git/Raw/Commit.pm
 lib/Git/Raw/Config.pm
+lib/Git/Raw/Cred.pm
 lib/Git/Raw/Diff.pm
 lib/Git/Raw/Index.pm
+lib/Git/Raw/Push.pm
 lib/Git/Raw/RefSpec.pm
 lib/Git/Raw/Reference.pm
 lib/Git/Raw/Remote.pm
@@ -48,8 +51,10 @@ xs/Blob.xs
 xs/Branch.xs
 xs/Commit.xs
 xs/Config.xs
+xs/Cred.xs
 xs/Diff.xs
 xs/Index.xs
+xs/Push.xs
 xs/RefSpec.xs
 xs/Reference.xs
 xs/Remote.xs
@@ -373,6 +378,7 @@ xs/libgit2/tests-clar/commit/parse.c
 xs/libgit2/tests-clar/commit/signature.c
 xs/libgit2/tests-clar/commit/write.c
 xs/libgit2/tests-clar/config/add.c
+xs/libgit2/tests-clar/config/backend.c
 xs/libgit2/tests-clar/config/config_helpers.c
 xs/libgit2/tests-clar/config/config_helpers.h
 xs/libgit2/tests-clar/config/configlevel.c
@@ -496,6 +502,7 @@ xs/libgit2/tests-clar/refs/reflog/reflog.c
 xs/libgit2/tests-clar/refs/rename.c
 xs/libgit2/tests-clar/refs/revparse.c
 xs/libgit2/tests-clar/refs/unicode.c
+xs/libgit2/tests-clar/refs/update.c
 xs/libgit2/tests-clar/repo/discover.c
 xs/libgit2/tests-clar/repo/getters.c
 xs/libgit2/tests-clar/repo/hashfile.c
@@ -578,6 +585,7 @@ xs/libgit2/tests-clar/resources/deprecated-mode.git/hooks/README.sample
 xs/libgit2/tests-clar/resources/deprecated-mode.git/index
 xs/libgit2/tests-clar/resources/deprecated-mode.git/info/exclude
 xs/libgit2/tests-clar/resources/deprecated-mode.git/objects/06/262edc257418e9987caf999f9a7a3e1547adff
+xs/libgit2/tests-clar/resources/deprecated-mode.git/objects/08/10fb7818088ff5ac41ee49199b51473b1bd6c7
 xs/libgit2/tests-clar/resources/deprecated-mode.git/objects/1b/05fdaa881ee45b48cbaa5e9b037d667a47745e
 xs/libgit2/tests-clar/resources/deprecated-mode.git/objects/3d/0970ec547fc41ef8a5882dde99c6adce65b021
 xs/libgit2/tests-clar/resources/deprecated-mode.git/refs/heads/master

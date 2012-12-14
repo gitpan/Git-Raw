@@ -1,6 +1,6 @@
 package Git::Raw::Branch;
 {
-  $Git::Raw::Branch::VERSION = '0.17';
+  $Git::Raw::Branch::VERSION = '0.18';
 }
 
 use strict;
@@ -14,7 +14,17 @@ Git::Raw::Branch - Git branch class
 
 =head1 VERSION
 
-version 0.17
+version 0.18
+
+=head1 SYNOPSIS
+
+    use Git::Raw;
+
+    # open the Git repository at $path
+    my $repo = Git::Raw::Repository -> open($path);
+
+    # create a new branch named 'some_branch'
+    $repo -> branch('some_branch', $repo -> head);
 
 =head1 DESCRIPTION
 

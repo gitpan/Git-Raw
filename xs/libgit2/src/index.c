@@ -957,13 +957,14 @@ int git_index_conflict_remove(git_index *index, const char *path)
 			continue;
 		}
 
-		error = git_vector_remove(&index->entries, (unsigned int)pos);
+		if ((error = git_vector_remove(&index->entries, (unsigned int)pos)) < 0)
+			return error;
 
-		if (error >= 0)
-			index_entry_free(conflict_entry);
+		index_entry_free(conflict_entry);
+		posmax--;
 	}
 
-	return error;
+	return 0;
 }
 
 static int index_conflicts_match(const git_vector *v, size_t idx)
@@ -1641,8 +1642,7 @@ int git_index_read_tree_match(
 
 	pfx = git_pathspec_prefix(strspec);
 
-	if ((error = git_iterator_for_tree_range(
-			 &iter, INDEX_OWNER(index), tree, pfx, pfx)) < 0 ||
+	if ((error = git_iterator_for_tree_range(&iter, tree, pfx, pfx)) < 0 ||
 		(error = git_iterator_current(iter, &entry)) < 0)
 		goto cleanup;
 

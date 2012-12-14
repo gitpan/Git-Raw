@@ -6,10 +6,10 @@ BOOT:
 	av_push(isa, newSVpv("Git::Raw::Reference", 0));
 }
 
-Branch
+SV *
 create(class, repo, name, target)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *name
 	SV *target
 
@@ -19,17 +19,19 @@ create(class, repo, name, target)
 
 		Commit obj = (Commit) git_sv_to_obj(target);
 
-		int rc = git_branch_create(&out, repo, name_str, obj, 0);
+		int rc = git_branch_create(
+			&out, GIT_SV_TO_PTR(Repository, repo), name_str, obj, 0
+		);
 		git_check_error(rc);
 
-		RETVAL = out;
+		GIT_NEW_OBJ_DOUBLE(RETVAL, class, out, repo);
 
 	OUTPUT: RETVAL
 
-Branch
+SV *
 lookup(class, repo, name, is_local)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *name
 	bool is_local
 
@@ -39,10 +41,13 @@ lookup(class, repo, name, is_local)
 			GIT_BRANCH_LOCAL     :
 			GIT_BRANCH_REMOTE    ;
 
-		int rc = git_branch_lookup(&b, repo, SvPVbyte_nolen(name), t);
+		int rc = git_branch_lookup(
+			&b, GIT_SV_TO_PTR(Repository, repo),
+			SvPVbyte_nolen(name), t
+		);
 		git_check_error(rc);
 
-		RETVAL = b;
+		GIT_NEW_OBJ_DOUBLE(RETVAL, class, b, repo);
 
 	OUTPUT: RETVAL
 

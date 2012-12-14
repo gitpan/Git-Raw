@@ -1,6 +1,6 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Commit
 
-Commit
+SV *
 create(class, repo, msg, author, cmtter, parents, tree)
 	SV *class
 	Repository repo
@@ -24,13 +24,7 @@ create(class, repo, msg, author, cmtter, parents, tree)
 			for (i = 0; i < count; i++) {
 				iter = av_shift(parents);
 
-				if (sv_isobject(iter) &&
-				    sv_derived_from(iter, "Git::Raw::Commit"))
-					paren[i] = INT2PTR(
-						git_commit *,
-						SvIV((SV *) SvRV(iter))
-					);
-				else Perl_croak(aTHX_ "parent is not of type Git::Raw::Commit");
+				paren[i] = GIT_SV_TO_PTR(Commit, iter);
 			}
 		}
 
@@ -44,7 +38,7 @@ create(class, repo, msg, author, cmtter, parents, tree)
 		rc = git_commit_lookup(&c, repo, &oid);
 		git_check_error(rc);
 
-		RETVAL = c;
+		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), c);
 
 	OUTPUT: RETVAL
 
@@ -67,7 +61,7 @@ lookup(class, repo, id)
 		rc = git_object_lookup_prefix(&o, repo, &oid, len, GIT_OBJ_COMMIT);
 		git_check_error(rc);
 
-		RETVAL = git_obj_to_sv(o);
+		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), o);
 
 	OUTPUT: RETVAL
 

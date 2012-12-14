@@ -24,6 +24,14 @@
  */
 GIT_BEGIN_DECL
 
+/**
+ * Use this when creating a remote with git_remote_new to get the default fetch
+ * behavior produced by git_remote_add.  It corresponds to this fetchspec (note
+ * the spaces between '/' and '*' to avoid C compiler errors):
+ * "+refs/heads/ *:refs/remotes/<remote_name>/ *"
+ */
+#define GIT_REMOTE_DEFAULT_FETCH ""
+
 typedef int (*git_remote_rename_problem_cb)(const char *problematic_refspec, void *payload);
 /*
  * TODO: This functions still need to be implemented:
@@ -39,30 +47,49 @@ typedef int (*git_remote_rename_problem_cb)(const char *problematic_refspec, voi
  * Create a remote with the default refspecs in memory. You can use
  * this when you have a URL instead of a remote's name.
  *
+ * The name, when provided, will be checked for validity.
+ * See `git_tag_create()` for rules about valid names.
+ *
  * @param out pointer to the new remote object
- * @param repo the associated repository
- * @param name the remote's name
+ * @param repo the associated repository. May be NULL for a "dangling" remote.
+ * @param name the optional remote's name. May be NULL.
  * @param url the remote repository's URL
- * @param fetch the fetch refspec to use for this remote
- * @return 0 or an error code
+ * @param fetch the fetch refspec to use for this remote. May be NULL for defaults.
+ * @return 0, GIT_EINVALIDSPEC or an error code
  */
 GIT_EXTERN(int) git_remote_new(git_remote **out, git_repository *repo, const char *name, const char *url, const char *fetch);
 
 /**
+ * Sets the owning repository for the remote.  This is only allowed on
+ * dangling remotes.
+ *
+ * @param remote the remote to configure
+ * @param repo the repository that will own the remote
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_remote_set_repository(git_remote *remote, git_repository *repo);
+
+/**
  * Get the information for a particular remote
+ *
+ * The name will be checked for validity.
+ * See `git_tag_create()` for rules about valid names.
  *
  * @param out pointer to the new remote object
  * @param repo the associated repository
  * @param name the remote's name
- * @return 0 or an error code
+ * @return 0, GIT_ENOTFOUND, GIT_EINVALIDSPEC or an error code
  */
 GIT_EXTERN(int) git_remote_load(git_remote **out, git_repository *repo, const char *name);
 
 /**
  * Save a remote to its repository's configuration
  *
+ * One can't save a nameless inmemory remote. Doing so will
+ * result in a GIT_EINVALIDSPEC being returned.
+ *
  * @param remote the remote to save to config
- * @return 0 or an error code
+ * @return 0, GIT_EINVALIDSPEC or an error code
  */
 GIT_EXTERN(int) git_remote_save(const git_remote *remote);
 
@@ -304,7 +331,8 @@ GIT_EXTERN(void) git_remote_check_cert(git_remote *remote, int check);
  */
 GIT_EXTERN(void) git_remote_set_cred_acquire_cb(
 	git_remote *remote,
-	git_cred_acquire_cb cred_acquire_cb);
+	git_cred_acquire_cb cred_acquire_cb,
+	void *payload);
 
 /**
  * Sets a custom transport for the remote. The caller can use this function
@@ -338,11 +366,15 @@ typedef enum git_remote_completion_type {
  * Set the calbacks to be called by the remote.
  */
 struct git_remote_callbacks {
+	unsigned int version;
 	void (*progress)(const char *str, int len, void *data);
 	int (*completion)(git_remote_completion_type type, void *data);
 	int (*update_tips)(const char *refname, const git_oid *a, const git_oid *b, void *data);
 	void *payload;
 };
+
+#define GIT_REMOTE_CALLBACKS_VERSION 1
+#define GIT_REMOTE_CALLBACKS_INIT {GIT_REMOTE_CALLBACKS_VERSION}
 
 /**
  * Set the callbacks for a remote
@@ -352,8 +384,9 @@ struct git_remote_callbacks {
  *
  * @param remote the remote to configure
  * @param callbacks a pointer to the user's callback settings
+ * @return 0 or an error code
  */
-GIT_EXTERN(void) git_remote_set_callbacks(git_remote *remote, git_remote_callbacks *callbacks);
+GIT_EXTERN(int) git_remote_set_callbacks(git_remote *remote, git_remote_callbacks *callbacks);
 
 /**
  * Get the statistics structure that is filled in by the fetch operation.
@@ -391,12 +424,15 @@ GIT_EXTERN(void) git_remote_set_autotag(
  * All remote-tracking branches and configuration settings
  * for the remote are updated.
  *
+ * The new name will be checked for validity.
+ * See `git_tag_create()` for rules about valid names.
+ *
  * @param remote the remote to rename
  * @param new_name the new name the remote should bear
  * @param callback Optional callback to notify the consumer of fetch refspecs
  * that haven't been automatically updated and need potential manual tweaking.
  * @param payload Additional data to pass to the callback
- * @return 0 or an error code
+ * @return 0, GIT_EINVALIDSPEC or an error code
  */
 GIT_EXTERN(int) git_remote_rename(
 	git_remote *remote,

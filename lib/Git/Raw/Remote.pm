@@ -1,6 +1,6 @@
 package Git::Raw::Remote;
 {
-  $Git::Raw::Remote::VERSION = '0.17';
+  $Git::Raw::Remote::VERSION = '0.18';
 }
 
 use strict;
@@ -14,7 +14,30 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.17
+version 0.18
+
+=head1 SYNOPSIS
+
+    use Git::Raw;
+
+    # open the Git repository at $path
+    my $repo = Git::Raw::Repository -> open($path);
+
+    # add a new remote
+    my $remote = Git::Raw::Remote -> add($repo, 'origin', $url);
+
+    # set the acquire credentials callback
+    $remote -> cred_acquire(sub { Git::Raw::Cred -> plaintext($usr, $pwd) });
+
+    # connect the remote
+    $remote -> connect('fetch');
+
+    # fetch from the remote and update the local tips
+    $remote -> download;
+    $remote -> update_tips;
+
+    # disconnect
+    $remote -> disconnect;
 
 =head1 DESCRIPTION
 
@@ -22,10 +45,13 @@ A C<Git::Raw::Remote> represents a Git remote.
 
 =head1 METHODS
 
+=head2 new( $repo, $name, $url, $fetch )
+
+Create a new remote. The C<$repo> argument may be C<undef>.
+
 =head2 add( $repo, $name, $url )
 
-Add a new remote to the given L<Git::Raw::Repository> with name C<$name> and
-URL C<$url>.
+Add a remote with the default fetch refspec to the repository's configuration.
 
 =head2 name( [ $name ] )
 
@@ -46,6 +72,12 @@ fetchspec will be updated and returned.
 
 Retrieve the pushspec of the remote. If C<$spec> is passed, the remote's
 pushspec will be updated and returned.
+
+=head2 cred_acquire( $callback )
+
+Run $callback any time authentication is required to connect to the remote
+repository. The callback receives a string containing the URL of the remote, and
+it must return a L<Git::Raw::Cred> object.
 
 =head2 connect( $direction )
 

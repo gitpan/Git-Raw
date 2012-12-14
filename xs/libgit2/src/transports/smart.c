@@ -62,6 +62,7 @@ static int git_smart__connect(
 	git_transport *transport,
 	const char *url,
 	git_cred_acquire_cb cred_acquire_cb,
+	void *cred_acquire_payload,
 	int direction,
 	int flags)
 {
@@ -81,6 +82,7 @@ static int git_smart__connect(
 	t->direction = direction;
 	t->flags = flags;
 	t->cred_acquire_cb = cred_acquire_cb;
+	t->cred_acquire_payload = cred_acquire_payload;
 
 	if (GIT_DIRECTION_FETCH == t->direction)
 		service = GIT_SERVICE_UPLOADPACK_LS;
@@ -303,6 +305,7 @@ int git_transport_smart(git_transport **out, git_remote *owner, void *param)
 	t = git__calloc(sizeof(transport_smart), 1);
 	GITERR_CHECK_ALLOC(t);
 
+	t->parent.version = GIT_TRANSPORT_VERSION;
 	t->parent.set_callbacks = git_smart__set_callbacks;
 	t->parent.connect = git_smart__connect;
 	t->parent.close = git_smart__close;

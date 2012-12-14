@@ -36,10 +36,9 @@ static void progress(const git_transfer_progress *stats, void *payload)
 static void do_fetch(const char *url, git_remote_autotag_option_t flag, int n)
 {
 	git_remote *remote;
-	git_remote_callbacks callbacks;
+	git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
 	size_t bytes_received = 0;
 
-	memset(&callbacks, 0, sizeof(git_remote_callbacks));
 	callbacks.update_tips = update_tips;
 	counter = 0;
 
@@ -79,6 +78,8 @@ void test_network_fetch__no_tags_http(void)
 static void transferProgressCallback(const git_transfer_progress *stats, void *payload)
 {
 	bool *invoked = (bool *)payload;
+
+	GIT_UNUSED(stats);
 	*invoked = true;
 }
 
@@ -88,7 +89,8 @@ void test_network_fetch__doesnt_retrieve_a_pack_when_the_repository_is_up_to_dat
 	git_remote *remote;
 	bool invoked = false;
 
-	cl_git_pass(git_clone_bare(&_repository, "https://github.com/libgit2/TestGitRepository.git", "./fetch/lg2", NULL, NULL));
+	cl_git_pass(git_remote_new(&remote, NULL, "origin", "https://github.com/libgit2/TestGitRepository.git", GIT_REMOTE_DEFAULT_FETCH));
+	cl_git_pass(git_clone_bare(&_repository, remote, "./fetch/lg2", NULL, NULL));
 	git_repository_free(_repository);
 
 	cl_git_pass(git_repository_open(&_repository, "./fetch/lg2"));

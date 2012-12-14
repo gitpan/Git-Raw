@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.17';
+  $Git::Raw::Reference::VERSION = '0.18';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.17
+version 0.18
 
 =head1 DESCRIPTION
 
@@ -43,6 +43,10 @@ Retrieve the type of the reference. Can be either C<"direct"> or C<"symbolic">.
 Retrieve the target of the reference. This function returns either an object
 (L<Git::Raw::Blob>, L<Git::Raw::Commit>, L<Git::Raw::Tag> or L<Git::Raw::Tree>)
 for direct references, or another reference for symbolic references.
+
+=head2 owner( )
+
+Retrieve the L<Git::Raw::Repository> owning the reference.
 
 =head2 is_branch( )
 

@@ -1,29 +1,37 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Reference
 
-Reference
+SV *
 lookup(class, name, repo)
 	SV *class
 	SV *name
-	Repository repo
+	SV *repo
 
 	CODE:
 		Reference r;
 
 		const char *name_str = SvPVbyte_nolen(name);
-		int rc = git_reference_lookup(&r, repo, name_str);
+
+		int rc = git_reference_lookup(
+			&r, GIT_SV_TO_PTR(Repository, repo), name_str
+		);
 		git_check_error(rc);
 
-		RETVAL = r;
+		GIT_NEW_OBJ_DOUBLE(RETVAL, class, r, repo);
 
 	OUTPUT: RETVAL
 
 void
 delete(self)
-	Reference self
+	SV *self
 
 	CODE:
-		int rc = git_reference_delete(self);
+		int rc;
+		Reference ref = GIT_SV_TO_PTR(Reference, self);
+
+		rc = git_reference_delete(ref);
 		git_check_error(rc);
+
+		sv_setiv(SvRV(self), 0);
 
 SV *
 name(self)
@@ -45,9 +53,24 @@ type(self)
 		switch (git_reference_type(self)) {
 			case GIT_REF_OID: type = newSVpv("direct", 0); break;
 			case GIT_REF_SYMBOLIC: type = newSVpv("symbolic", 0); break;
+			default: break;
 		}
 
 		RETVAL = type;
+
+	OUTPUT: RETVAL
+
+SV *
+owner(self)
+	SV *self
+
+	CODE:
+		if (!SvROK(self)) Perl_croak(aTHX_ "Not a reference");
+
+		SV *r = xs_object_magic_get_struct(aTHX_ SvRV(self));
+		if (!r) Perl_croak(aTHX_ "Invalid object");
+
+		RETVAL = newRV_inc(r);
 
 	OUTPUT: RETVAL
 
@@ -128,7 +151,8 @@ is_remote(self)
 
 void
 DESTROY(self)
-	Reference self
+	SV *self
 
 	CODE:
-		git_reference_free(self);
+		git_reference_free(GIT_SV_TO_PTR(Reference, self));
+		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));

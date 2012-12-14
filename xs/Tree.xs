@@ -19,7 +19,7 @@ lookup(class, repo, id)
 		rc = git_object_lookup_prefix(&o, repo, &oid, len, GIT_OBJ_TREE);
 		git_check_error(rc);
 
-		RETVAL = git_obj_to_sv(o);
+		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), o);
 
 	OUTPUT: RETVAL
 
@@ -77,20 +77,12 @@ diff(self, repo, ...)
 			}
 
 			case 3: {
-				SV *sv = ST(2);
+				Tree new = GIT_SV_TO_PTR(Tree, ST(2));
 
-				if (sv_isobject(sv) &&
-				    sv_derived_from(sv, "Git::Raw::Tree")) {
-
-					Tree new =  INT2PTR(
-						Tree, SvIV((SV *) SvRV(sv))
-					);
-
-					rc = git_diff_tree_to_tree(
-						&diff, repo, self, new, NULL
-					);
-					git_check_error(rc);
-				} else Perl_croak(aTHX_ "Invalid diff target");
+				rc = git_diff_tree_to_tree(
+					&diff, repo, self, new, NULL
+				);
+				git_check_error(rc);
 
 				break;
 			}

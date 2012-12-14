@@ -1,6 +1,6 @@
 package Git::Raw::Walker;
 {
-  $Git::Raw::Walker::VERSION = '0.17';
+  $Git::Raw::Walker::VERSION = '0.18';
 }
 
 use strict;
@@ -14,7 +14,25 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.17
+version 0.18
+
+=head1 SYNOPSIS
+
+    use Git::Raw;
+
+    # open the Git repository at $path
+    my $repo = Git::Raw::Repository -> open($path);
+
+    # create a new walker
+    my $log  = $repo -> walker;
+
+    # push the head of the repository
+    $log -> push($repo -> head);
+
+    # print all commit messages
+    while (my $commit = $log -> next) {
+      say $commit -> message;
+    }
 
 =head1 DESCRIPTION
 
@@ -31,6 +49,37 @@ Create a new revision walker.
 
 Push a L<Git::Raw::Commit> to the list of commits to be used as roots when
 starting a revision walk.
+
+=head2 push_glob( $glob )
+
+Push references by C<$glob> to the list of commits to be used as roots when
+starting a revision walk.
+
+=head2 push_ref( $name )
+
+Push a reference by C<$name> to the list of commits to be used as roots when
+starting a revision walk.
+
+=head2 push_head( )
+
+Push HEAD of the repository to the list of commits to be used as roots when
+starting a revision walk.
+
+=head2 hide( $commit )
+
+Hide a L<Git::Raw::Commit> and its ancestors from the walker.
+
+=head2 hide_glob( $glob )
+
+Hide references by C<$glob> and all ancestors from the walker.
+
+=head2 hide_ref( $name )
+
+Hide a reference by C<$name> and its ancestors from the walker.
+
+=head2 hide_head( )
+
+Hide HEAD of the repository and its ancestors from the walker.
 
 =head2 next( )
 

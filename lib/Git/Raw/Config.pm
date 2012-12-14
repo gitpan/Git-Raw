@@ -1,6 +1,6 @@
 package Git::Raw::Config;
 {
-  $Git::Raw::Config::VERSION = '0.17';
+  $Git::Raw::Config::VERSION = '0.18';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Config - Git config class
 
 =head1 VERSION
 
-version 0.17
+version 0.18
 
 =head1 DESCRIPTION
 

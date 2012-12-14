@@ -10,8 +10,10 @@ typedef git_blob * Blob;
 typedef git_reference * Branch;
 typedef git_commit * Commit;
 typedef git_config * Config;
+typedef git_cred * Cred;
 typedef git_diff_list * Diff;
 typedef git_index * Index;
+typedef git_push * Push;
 typedef git_reference * Reference;
 typedef git_refspec * RefSpec;
 typedef git_remote * Remote;
@@ -58,6 +60,17 @@ git_object *git_sv_to_obj(SV *sv) {
 
 	return NULL;
 }
+
+#define GIT_SV_TO_PTR(type, sv) ({					\
+	void *ptr;							\
+									\
+	if (sv_isobject(sv) && sv_derived_from(sv, "Git::Raw::" #type))	\
+		ptr = INT2PTR(void *, SvIV((SV *) SvRV(sv)));		\
+	else								\
+		Perl_croak(aTHX_ "Argument is not of type Git::Raw::" #type); \
+									\
+	ptr;								\
+})
 
 SV *git_oid_to_sv(git_oid *oid) {
 	char out[41];
@@ -194,7 +207,7 @@ int git_branch_foreach_cb(const char *name, git_branch_t type, void *payload) {
 	return rv;
 }
 
-int git_config_foreach_cbb(git_config_entry *entry, void *payload) {
+int git_config_foreach_cbb(const git_config_entry *entry, void *payload) {
 	dSP;
 	int rv;
 
@@ -244,7 +257,7 @@ int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *pa
 	return rv;
 }
 
-int git_tag_foreach_cbb(const char *name, const git_oid *oid, void *payload) {
+int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	dSP;
 	int rv;
 	Tag tag;
@@ -277,14 +290,92 @@ int git_tag_foreach_cbb(const char *name, const git_oid *oid, void *payload) {
 	return rv;
 }
 
+int git_cred_acquire_cbb(git_cred **cred, const char *url,
+						unsigned int allow, void *cb) {
+	dSP;
+	SV *creds;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	PUSHs(newSVpv(url, 0));
+	PUTBACK;
+
+	call_sv(cb, G_SCALAR);
+
+	SPAGAIN;
+
+	creds = POPs;
+
+	*cred = GIT_SV_TO_PTR(Cred, creds);
+
+	FREETMPS;
+	LEAVE;
+
+	return 0;
+}
+
+STATIC MGVTBL null_mg_vtbl = {
+	NULL, /* get */
+	NULL, /* set */
+	NULL, /* len */
+	NULL, /* clear */
+	NULL, /* free */
+#if MGf_COPY
+	NULL, /* copy */
+#endif /* MGf_COPY */
+#if MGf_DUP
+	NULL, /* dup */
+#endif /* MGf_DUP */
+#if MGf_LOCAL
+	NULL, /* local */
+#endif /* MGf_LOCAL */
+};
+
+void xs_object_magic_attach_struct(pTHX_ SV *sv, void *ptr) {
+	sv_magicext(sv, NULL, PERL_MAGIC_ext, &null_mg_vtbl, ptr, 0);
+}
+
+STATIC MAGIC *xs_object_magic_get_mg(pTHX_ SV *sv) {
+	MAGIC *mg;
+
+	if (SvTYPE(sv) >= SVt_PVMG) {
+		for (mg = SvMAGIC(sv); mg; mg = mg->mg_moremagic) {
+			if ((mg->mg_type == PERL_MAGIC_ext) &&
+			    (mg->mg_virtual == &null_mg_vtbl))
+				return mg;
+		}
+	}
+
+	return NULL;
+}
+
+void *xs_object_magic_get_struct(pTHX_ SV *sv) {
+	MAGIC *mg = xs_object_magic_get_mg(aTHX_ sv);
+
+	return (mg) ? mg -> mg_ptr : NULL;
+}
+
+#define GIT_NEW_OBJ_DOUBLE(rv, class, primary, secondary)	\
+	STMT_START {						\
+		(rv) = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), primary); \
+		xs_object_magic_attach_struct(			\
+			aTHX_ SvRV(rv),				\
+			SvREFCNT_inc_NN(SvRV(secondary))	\
+		);						\
+	} STMT_END
+
 MODULE = Git::Raw			PACKAGE = Git::Raw
 
 INCLUDE: xs/Blob.xs
 INCLUDE: xs/Branch.xs
 INCLUDE: xs/Commit.xs
 INCLUDE: xs/Config.xs
+INCLUDE: xs/Cred.xs
 INCLUDE: xs/Diff.xs
 INCLUDE: xs/Index.xs
+INCLUDE: xs/Push.xs
 INCLUDE: xs/Reference.xs
 INCLUDE: xs/RefSpec.xs
 INCLUDE: xs/Remote.xs

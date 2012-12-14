@@ -1,6 +1,6 @@
 package Git::Raw;
 {
-  $Git::Raw::VERSION = '0.17';
+  $Git::Raw::VERSION = '0.18';
 }
 
 use strict;
@@ -17,34 +17,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.17
-
-=head1 SYNOPSIS
-
-    use Git::Raw;
-
-    # open the Git repository at $path
-    my $repo = Git::Raw::Repository -> open($path);
-
-    # add a file to the repository default index
-    my $index = $repo -> index;
-    $index -> add('test');
-    $index -> write;
-
-    # create a new tree out of the repository index
-    my $tree_id = $index -> write_tree;
-    my $tree    = $repo -> lookup($tree_id);
-
-    # retrieve user's name and email from the Git configuration
-    my $config = $repo -> config;
-    my $name   = $config -> str('user.name');
-    my $email  = $config -> str('user.email');
-
-    # create a new Git signature
-    my $me = Git::Raw::Signature -> now($name, $email);
-
-    # create a new commit out of the above tree, with no parents
-    my $commit = $repo -> commit('initial commit', $me, $me, [], $tree);
+version 0.18
 
 =head1 DESCRIPTION
 

@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.17';
+  $Git::Raw::Tag::VERSION = '0.18';
 }
 
 use strict;
@@ -14,7 +14,25 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.17
+version 0.18
+
+=head1 SYNOPSIS
+
+    use Git::Raw;
+
+    # open the Git repository at $path
+    my $repo = Git::Raw::Repository -> open($path);
+
+    # retrieve user's name and email from the Git configuration
+    my $config = $repo -> config;
+    my $name   = $config -> str('user.name');
+    my $email  = $config -> str('user.email');
+
+    # create a new Git signature
+    my $me = Git::Raw::Signature -> now($name, $email);
+
+    # create a new tag
+    my $tag = $repo -> tag('v0.1', 'Initial version', $me, $repo -> head);
 
 =head1 DESCRIPTION
 

@@ -61,11 +61,12 @@ void test_refs_branches_tracking__trying_to_retrieve_a_remote_tracking_reference
 	cl_assert_equal_i(GIT_ENOTFOUND, git_branch_tracking(&tracking, branch));
 }
 
-static void assert_merge_and_or_remote_key_missing(git_repository *repository, git_object *target, const char *entry_name)
+static void assert_merge_and_or_remote_key_missing(git_repository *repository, const git_commit *target, const char *entry_name)
 {
 	git_reference *branch;
 
-	cl_git_pass(git_branch_create(&branch, repository, entry_name, target, 0));
+	cl_assert_equal_i(GIT_OBJ_COMMIT, git_object_type((git_object*)target));
+	cl_git_pass(git_branch_create(&branch, repository, entry_name, (git_commit*)target, 0));
 
 	cl_assert_equal_i(GIT_ENOTFOUND, git_branch_tracking(&tracking, branch));
 
@@ -76,19 +77,19 @@ void test_refs_branches_tracking__retrieve_a_remote_tracking_reference_from_a_br
 {
 	git_reference *head;
 	git_repository *repository;
-	git_object *target;
+	git_commit *target;
 
 	repository = cl_git_sandbox_init("testrepo.git");
 
 	cl_git_pass(git_repository_head(&head, repository));
-	cl_git_pass(git_reference_peel(&target, head, GIT_OBJ_COMMIT));
+	cl_git_pass(git_reference_peel(((git_object **)&target), head, GIT_OBJ_COMMIT));
 	git_reference_free(head);
 
 	assert_merge_and_or_remote_key_missing(repository, target, "remoteless");
 	assert_merge_and_or_remote_key_missing(repository, target, "mergeless");
 	assert_merge_and_or_remote_key_missing(repository, target, "mergeandremoteless");
 
-	git_object_free(target);
+	git_commit_free(target);
 
 	cl_git_sandbox_cleanup();
 }
