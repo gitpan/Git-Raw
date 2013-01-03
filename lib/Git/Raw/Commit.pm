@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.18';
+  $Git::Raw::Commit::VERSION = '0.19';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.18
+version 0.19
 
 =head1 SYNOPSIS
 
@@ -43,7 +43,7 @@ version 0.18
     # create a new commit out of the above tree, with the repository HEAD as
     # parent
     my $commit = $repo -> commit(
-      'some commit', $me, $me, [ $repo -> head ], $tree
+      'some commit', $me, $me, [ $repo -> head -> target ], $tree
     );
 
 =head1 DESCRIPTION

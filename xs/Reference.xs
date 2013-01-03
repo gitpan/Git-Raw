@@ -7,16 +7,15 @@ lookup(class, name, repo)
 	SV *repo
 
 	CODE:
-		Reference r;
-
-		const char *name_str = SvPVbyte_nolen(name);
+		Reference ref;
 
 		int rc = git_reference_lookup(
-			&r, GIT_SV_TO_PTR(Repository, repo), name_str
+			&ref, GIT_SV_TO_PTR(Repository, repo),
+			SvPVbyte_nolen(name)
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ_DOUBLE(RETVAL, class, r, repo);
+		GIT_NEW_OBJ_DOUBLE(RETVAL, class, ref, repo);
 
 	OUTPUT: RETVAL
 
@@ -75,42 +74,44 @@ owner(self)
 	OUTPUT: RETVAL
 
 SV *
-target(self, repo)
+target(self, ...)
 	Reference self
-	Repository repo
 
+	PROTOTYPE: $;$
 	CODE:
 		int rc;
 		SV *result;
 
+		if (items > 1)
+			warn("Second argument (former repo) is ignored. In future versions this will be fatal error");
+
 		switch (git_reference_type(self)) {
 			case GIT_REF_OID: {
-				git_object *o;
+				git_object *obj;
 				const git_oid *oid;
 
 				oid = git_reference_target(self);
 
 				rc = git_object_lookup(
-					&o, repo, oid, GIT_OBJ_ANY
+					&obj, git_reference_owner(self), oid, GIT_OBJ_ANY
 				);
 				git_check_error(rc);
 
-				result = git_obj_to_sv(o);
+				result = git_obj_to_sv(obj);
 				break;
 			}
 
 			case GIT_REF_SYMBOLIC: {
-				Reference f;
+				Reference ref;
 				const char *target;
 
 				target = git_reference_symbolic_target(self);
 
-				rc = git_reference_lookup(&f, repo, target);
+				rc = git_reference_lookup(&ref, git_reference_owner(self), target);
 				git_check_error(rc);
 
 				result = sv_setref_pv(
-					newSV(0), "Git::Raw::Reference",
-					(void *) f
+					newSV(0), "Git::Raw::Reference", ref
 				);
 				break;
 			}

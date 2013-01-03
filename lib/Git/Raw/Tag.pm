@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.18';
+  $Git::Raw::Tag::VERSION = '0.19';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.18
+version 0.19
 
 =head1 SYNOPSIS
 
@@ -32,7 +32,9 @@ version 0.18
     my $me = Git::Raw::Signature -> now($name, $email);
 
     # create a new tag
-    my $tag = $repo -> tag('v0.1', 'Initial version', $me, $repo -> head);
+    my $tag = $repo -> tag(
+      'v0.1', 'Initial version', $me, $repo -> head -> target
+    );
 
 =head1 DESCRIPTION
 

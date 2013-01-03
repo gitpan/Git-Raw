@@ -57,7 +57,7 @@
          "web" : "https://github.com/ghedo/p5-Git-Raw"
       }
    },
-   "version" : "0.18",
+   "version" : "0.19",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.014002"
@@ -126,12 +126,12 @@
          {
             "class" : "Dist::Zilla::Plugin::GitHub::Meta",
             "name" : "@Author::ALEXBIO/@GitHub/GitHub::Meta",
-            "version" : "0.28"
+            "version" : "0.29"
          },
          {
             "class" : "Dist::Zilla::Plugin::GitHub::Update",
             "name" : "@Author::ALEXBIO/@GitHub/GitHub::Update",
-            "version" : "0.28"
+            "version" : "0.29"
          },
          {
             "class" : "Dist::Zilla::Plugin::Git::NextVersion",

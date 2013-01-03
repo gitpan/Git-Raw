@@ -201,15 +201,13 @@ int git__strncasecmp(const char *a, const char *b, size_t sz)
 {
 	int al, bl;
 
-	while (sz && *a && *b) {
+	do {
 		al = (unsigned char)tolower(*a);
 		bl = (unsigned char)tolower(*b);
-		if (al != bl)
-			break;
-		--sz, ++a, ++b;
-	}
+		++a, ++b;
+	} while (--sz && al && al == bl);
 
-	return !sz ? 0 : al - bl;
+	return al - bl;
 }
 
 void git__strntolower(char *str, size_t len)
@@ -269,6 +267,24 @@ char *git__strtok(char **end, const char *sep)
 			**end = '\0';
 			++*end;
 		}
+
+		return start;
+	}
+
+	return NULL;
+}
+
+/* Similar to strtok, but does not collapse repeated tokens. */
+char *git__strsep(char **end, const char *sep)
+{
+	char *start = *end, *ptr = *end;
+
+	while (*ptr && !strchr(sep, *ptr))
+		++ptr;
+
+	if (*ptr) {
+		*end = ptr + 1;
+		*ptr = '\0';
 
 		return start;
 	}

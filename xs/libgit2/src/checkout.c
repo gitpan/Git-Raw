@@ -452,9 +452,7 @@ static int checkout_get_actions(
 		goto fail;
 
 	if ((diff->opts.flags & GIT_DIFF_DELTAS_ARE_ICASE) != 0 &&
-		!hiter->ignore_case &&
-		(error = git_iterator_spoolandsort(
-			&hiter, hiter, diff->entrycomp, true)) < 0)
+		(error = git_iterator_spoolandsort_push(hiter, true)) < 0)
 		goto fail;
 
 	if ((error = git_iterator_current(hiter, &he)) < 0)
@@ -632,7 +630,7 @@ int git_checkout_index(
 	if (opts && opts->paths.count > 0)
 		diff_opts.pathspec = opts->paths;
 
-	if ((error = git_diff_workdir_to_index(&diff, repo, index, &diff_opts)) < 0)
+	if ((error = git_diff_index_to_workdir(&diff, repo, index, &diff_opts)) < 0)
 		goto cleanup;
 
 	if ((error = git_buf_puts(&workdir, git_repository_workdir(repo))) < 0)

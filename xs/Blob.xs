@@ -8,11 +8,12 @@ create(class, repo, buffer)
 
 	CODE:
 		Blob blob;
-		STRLEN len;
 		git_oid oid;
-		const char *buf = SvPVbyte(buffer, len);
 
-		int rc = git_blob_create_frombuffer(&oid, repo, buf, len);
+		STRLEN len;
+		const char *buffer_str = SvPVbyte(buffer, len);
+
+		int rc = git_blob_create_frombuffer(&oid, repo, buffer_str, len);
 		git_check_error(rc);
 
 		rc = git_blob_lookup(&blob, repo, &oid);
@@ -30,7 +31,7 @@ lookup(class, repo, id)
 
 	CODE:
 		git_oid oid;
-		git_object *o;
+		git_object *obj;
 
 		STRLEN len;
 		const char *id_str = SvPVbyte(id, len);
@@ -38,10 +39,10 @@ lookup(class, repo, id)
 		int rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
-		rc = git_object_lookup_prefix(&o, repo, &oid, len, GIT_OBJ_BLOB);
+		rc = git_object_lookup_prefix(&obj, repo, &oid, len, GIT_OBJ_BLOB);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), o);
+		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), obj);
 
 	OUTPUT: RETVAL
 

@@ -1,6 +1,6 @@
 package Git::Raw::Push;
 {
-  $Git::Raw::Push::VERSION = '0.18';
+  $Git::Raw::Push::VERSION = '0.19';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Push - Git push class
 
 =head1 VERSION
 
-version 0.18
+version 0.19
 
 =head1 SYNOPSIS
 
@@ -25,7 +25,7 @@ version 0.18
     my $remote = Git::Raw::Remote -> add($repo, 'origin', $url);
 
     # set the acquire credentials callback
-    $remote -> acquire_cred(sub { Git::Raw::Cred -> plaintext($usr, $pwd) });
+    $remote -> cred_acquire(sub { Git::Raw::Cred -> plaintext($usr, $pwd) });
 
     # connect the remote
     $remote -> connect('push');

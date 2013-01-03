@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.18';
+  $Git::Raw::Repository::VERSION = '0.19';
 }
 
 use strict;
@@ -14,20 +14,15 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.18
+version 0.19
 
 =head1 SYNOPSIS
 
     use Git::Raw;
 
-    # create a new dangling remote
-    my $url    = 'git://github.com/ghedo/p5-Git-Raw.git';
-    my $origin = Git::Raw::Remote -> new(undef, 'origin', $url);
-
-    # clone the Git repository
-    my $repo = Git::Raw::Repository -> clone(
-      $origin, 'p5-Git-Raw', { 'update_missing' => 1}, 0
-    );
+    # clone a Git repository
+    my $url  = 'git://github.com/ghedo/p5-Git-Raw.git';
+    my $repo = Git::Raw::Repository -> clone($url, 'p5-Git-Raw', { });
 
     # print all the tags of the repository
     foreach my $tag (@{ $repo -> tags }) {
@@ -44,11 +39,24 @@ A C<Git::Raw::Repository> represents a Git repository.
 
 Initialize a new repository at C<$path>.
 
-=head2 clone( $remote, $path, \%strategy, $is_bare )
+=head2 clone( $url, $path, \%opts )
 
-Clone the repository at C<$remote> to C<$path>. See the C<checkout()> description
-for more information about C<%strategy>. The C<$remote> object must be created
-passing an C<undef> repository.
+Clone the repository at C<$url> to C<$path>. Valid fields for the C<%opts> hash
+are:
+
+=over 4
+
+=item * "bare"
+
+If true (default is false) create a bare repository.
+
+=item * "cred_acquire"
+
+The callback to be called any time authentication is required to connect to the
+remote repository. The callback receives a string containing the URL of the
+remote, and it must return a L<Git::Raw::Cred> object.
+
+=back
 
 =head2 open( $path )
 
@@ -68,42 +76,71 @@ Retrieve the default L<Git::Raw::Index> of the repository.
 
 =head2 head( )
 
-Retrieve the object pointed by the HEAD of the repository.
+Retrieve the L<Git::Raw::Reference> pointed by the HEAD of the repository.
 
 =head2 lookup( $id )
 
 Retrieve the object corresponding to C<$id>.
 
-=head2 checkout( $object, \%strategy )
+=head2 checkout( $object, \%opts )
 
 Updates the files in the index and working tree to match the content of
-C<$object>. The C<%strategy> paramenter can have set the following values:
+C<$object>. Valid fields for the C<%opts> hash are:
 
 =over 4
 
+=item * "checkout_strategy"
+
+Hash representing the desired checkout strategy. Valid fields are:
+
+=over 8
+
 =item * "update_unmodified"
+
+Update any file where the working directory content matches the HEAD.
 
 =item * "update_missing"
 
+Create a missing file that exists in the index and does not exist in the
+working directory.
+
 =item * "update_modified"
+
+Update files where the working directory does not match the HEAD so long as the
+file actually exists in the HEAD.
 
 =item * "update_untracked"
 
+Update files even if there is a working directory version that does not exist
+in the HEAD.
+
 =item * "allow_conflicts"
+
+It is okay to update the files that are allowed by the strategy even if there
+are conflicts.
 
 =item * "skip_unmerged"
 
+Proceed even if there are unmerged entries in the index, and just skip them.
+
 =item * "update_only"
 
+Update is not allowed to create new files or delete old ones, only update
+existing content.
+
 =item * "remove_untracked"
+
+Files in the working directory that are untracked (and not ignored) will be
+removed altogether.
+
+=back
 
 =back
 
 Example:
 
-    $repo -> checkout($repo -> head, {
-      'update_missing'  => 1,
-      'update_modified' => 1
+    $repo -> checkout($repo -> head -> target, {
+      'checkout_strategy' => { 'update_missing'  => 1, 'update_modified' => 1 }
     });
 
 =head2 reset( $target, $type )
@@ -128,8 +165,9 @@ of the C<.gitignore> file (see the C<gitignore(5)> manpage). Example:
 
 =head2 diff( $repo [, $tree] )
 
-Compute the L<Git::Raw::Diff> between the repository default index and a tree.
-If no C<$tree> is passed, the diff will be computed against the working directory.
+Compute the L<Git::Raw::Diff> between the given L<Git::Raw::Tree> and the repo
+default index. If no C<$tree> is passed, the diff will be computed between the
+repo index and the working directory.
 
 =head2 blob( $buffer )
 

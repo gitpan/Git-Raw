@@ -1,6 +1,6 @@
 package Git::Raw::Walker;
 {
-  $Git::Raw::Walker::VERSION = '0.18';
+  $Git::Raw::Walker::VERSION = '0.19';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.18
+version 0.19
 
 =head1 SYNOPSIS
 
@@ -27,7 +27,7 @@ version 0.18
     my $log  = $repo -> walker;
 
     # push the head of the repository
-    $log -> push($repo -> head);
+    $log -> push_head;
 
     # print all commit messages
     while (my $commit = $log -> next) {

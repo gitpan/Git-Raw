@@ -11,7 +11,7 @@ my $repo = Git::Raw::Repository -> open($path);
 my $name = 'some_remote';
 my $url  = 'git://github.com/ghedo/a_git_repository.git';
 
-my $github = Git::Raw::Remote -> add($repo, $name, $url);
+my $github = Git::Raw::Remote -> create($repo, $name, $url);
 
 is $github -> name, $name;
 is $github -> url, $url;
@@ -56,7 +56,7 @@ $github -> update_tips;
 my $ref = Git::Raw::Reference -> lookup('refs/remotes/github/master', $repo);
 is $ref -> type, 'direct';
 
-my $head = $ref -> target($repo);
+my $head = $ref -> target;
 isa_ok $head, 'Git::Raw::Commit';
 
 is $head -> author -> name, 'Alessandro Ghedini';

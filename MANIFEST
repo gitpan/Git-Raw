@@ -43,6 +43,7 @@ t/09-diff.t
 t/10-clone.t
 t/11-stash.t
 t/12-blob.t
+t/13-checkout.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -370,6 +371,7 @@ xs/libgit2/tests-clar/checkout/typechange.c
 xs/libgit2/tests-clar/clar
 xs/libgit2/tests-clar/clar_helpers.c
 xs/libgit2/tests-clar/clar_libgit2.h
+xs/libgit2/tests-clar/clone/empty.c
 xs/libgit2/tests-clar/clone/network.c
 xs/libgit2/tests-clar/clone/nonetwork.c
 xs/libgit2/tests-clar/commit/commit.c

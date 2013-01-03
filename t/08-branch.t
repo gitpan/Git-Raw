@@ -16,7 +16,7 @@ my $time = time();
 my $off  = 120;
 my $me   = Git::Raw::Signature -> new($name, $email, $time, $off);
 
-my $commit = $repo -> head;
+my $commit = $repo -> head -> target;
 
 isa_ok $commit, 'Git::Raw::Commit';
 
@@ -36,7 +36,7 @@ $branch_name = 'some_branch';
 $branch -> move($branch_name, 0);
 is $branch -> name, "refs/heads/$branch_name";
 
-my $head = $branch -> target($repo);
+my $head = $branch -> target;
 
 isa_ok $head, 'Git::Raw::Commit';
 

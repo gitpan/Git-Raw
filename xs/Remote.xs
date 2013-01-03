@@ -1,34 +1,7 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Remote
 
 Remote
-new(class, repo, name, url, fetch)
-	SV *class
-	SV *repo
-	SV *name
-	SV *url
-	SV *fetch
-
-	CODE:
-		Remote remote;
-		Repository r = NULL;
-
-		if (repo != &PL_sv_undef)
-			r = GIT_SV_TO_PTR(Repository, repo);
-
-		int rc = git_remote_new(
-			&remote, r,
-			SvPVbyte_nolen(name),
-			SvPVbyte_nolen(url),
-			SvPVbyte_nolen(fetch)
-		);
-		git_check_error(rc);
-
-		RETVAL = remote;
-
-	OUTPUT: RETVAL
-
-Remote
-add(class, repo, name, url)
+create(class, repo, name, url)
 	SV *class
 	Repository repo
 	SV *name
@@ -37,7 +10,7 @@ add(class, repo, name, url)
 	CODE:
 		Remote remote;
 
-		int rc = git_remote_add(
+		int rc = git_remote_create(
 			&remote, repo, SvPVbyte_nolen(name), SvPVbyte_nolen(url)
 		);
 		git_check_error(rc);
@@ -55,9 +28,9 @@ name(self, ...)
 		const char *name;
 
 		if (items == 2) {
-			const char *new = SvPVbyte_nolen(ST(1));
-
-			int rc = git_remote_rename(self, new, NULL, NULL);
+			int rc = git_remote_rename(
+				self, SvPVbyte_nolen(ST(1)), NULL, NULL
+			);
 			git_check_error(rc);
 		}
 
@@ -76,9 +49,7 @@ url(self, ...)
 		const char *url;
 
 		if (items == 2) {
-			const char *new = SvPVbyte_nolen(ST(1));
-
-			int rc = git_remote_set_url(self, new);
+			int rc = git_remote_set_url(self, SvPVbyte_nolen(ST(1)));
 			git_check_error(rc);
 		}
 
@@ -97,9 +68,9 @@ fetchspec(self, ...)
 		RefSpec spec;
 
 		if (items == 2) {
-			const char *new = SvPVbyte_nolen(ST(1));
-
-			int rc = git_remote_set_fetchspec(self, new);
+			int rc = git_remote_set_fetchspec(
+				self, SvPVbyte_nolen(ST(1))
+			);
 			git_check_error(rc);
 		}
 
@@ -118,9 +89,9 @@ pushspec(self, ...)
 		RefSpec spec;
 
 		if (items == 2) {
-			const char *new = SvPVbyte_nolen(ST(1));
-
-			int rc = git_remote_set_pushspec(self, new);
+			int rc = git_remote_set_pushspec(
+				self, SvPVbyte_nolen(ST(1))
+			);
 			git_check_error(rc);
 		}
 
@@ -187,7 +158,6 @@ cred_acquire(self, cb)
 
 	CODE:
 		SvREFCNT_inc(cb);
-
 		git_remote_set_cred_acquire_cb(self, git_cred_acquire_cbb, cb);
 
 bool
