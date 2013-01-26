@@ -31,6 +31,7 @@ my %WriteMakefileArgs = (
     'Capture::Tiny' => '0',
     'Cwd' => '0',
     'File::Find' => '0',
+    'File::Path' => '0',
     'File::Slurp' => '0',
     'File::Temp' => '0',
     'Test::More' => '0'
@@ -51,7 +52,7 @@ my %WriteMakefileArgs = (
     'strict' => '0',
     'warnings' => '0'
   },
-  'VERSION' => '0.19',
+  'VERSION' => '0.20',
   'test' => {
     'TESTS' => 't/*.t'
   }

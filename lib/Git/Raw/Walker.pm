@@ -1,6 +1,6 @@
 package Git::Raw::Walker;
 {
-  $Git::Raw::Walker::VERSION = '0.19';
+  $Git::Raw::Walker::VERSION = '0.20';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.19
+version 0.20
 
 =head1 SYNOPSIS
 
@@ -38,6 +38,9 @@ version 0.19
 
 A C<Git::Raw::Walker> represents a graph walker used to walk through the
 repository's revisions (sort of like C<git log>).
+
+B<WARNING>: The API of this module is unstable and may change without warning
+(any change will be appropriately documented in the changelog).
 
 =head1 METHODS
 

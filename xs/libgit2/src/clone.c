@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 the libgit2 contributors
+ * Copyright (C) the libgit2 contributors. All rights reserved.
  *
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
@@ -29,7 +29,7 @@ static int create_branch(
 	const char *name)
 {
 	git_commit *head_obj = NULL;
-	git_reference *branch_ref;
+	git_reference *branch_ref = NULL;
 	int error;
 
 	/* Find the target commit */
@@ -105,6 +105,7 @@ struct head_info {
 	git_oid remote_head_oid;
 	git_buf branchname;
 	const git_refspec *refspec;
+	bool found;
 };
 
 static int reference_matches_remote_head(
@@ -119,16 +120,16 @@ static int reference_matches_remote_head(
 	 */
 
 	/* Stop looking if we've already found a match */
-	if (git_buf_len(&head_info->branchname) > 0)
+	if (head_info->found)
 		return 0;
 
 	if (git_reference_name_to_id(
 		&oid,
 		head_info->repo,
 		reference_name) < 0) {
-			/* TODO: How to handle not found references?
-			 */
-			return -1;
+			/* If the reference doesn't exists, it obviously cannot match the expected oid. */
+			giterr_clear();
+			return 0;
 	}
 
 	if (git_oid_cmp(&head_info->remote_head_oid, &oid) == 0) {
@@ -139,10 +140,14 @@ static int reference_matches_remote_head(
 			reference_name) < 0)
 				return -1;
 		
-		if (git_buf_sets(
-			&head_info->branchname,
-			git_buf_cstr(&head_info->branchname) + strlen(GIT_REFS_HEADS_DIR)) < 0)
-				return -1;
+		if (git_buf_len(&head_info->branchname) > 0) {
+			if (git_buf_sets(
+				&head_info->branchname,
+				git_buf_cstr(&head_info->branchname) + strlen(GIT_REFS_HEADS_DIR)) < 0)
+					return -1;
+
+			head_info->found = 1;
+		}
 	}
 
 	return 0;
@@ -207,6 +212,7 @@ static int update_head_to_remote(git_repository *repo, git_remote *remote)
 	git_buf_init(&head_info.branchname, 16);
 	head_info.repo = repo;
 	head_info.refspec = git_remote_fetchspec(remote);
+	head_info.found = 0;
 	
 	/* Determine the remote tracking reference name from the local master */
 	if (git_refspec_transform_r(
@@ -219,7 +225,7 @@ static int update_head_to_remote(git_repository *repo, git_remote *remote)
 	if (reference_matches_remote_head(git_buf_cstr(&remote_master_name), &head_info) < 0)
 		goto cleanup;
 
-	if (git_buf_len(&head_info.branchname) > 0) {
+	if (head_info.found) {
 		retcode = update_head_to_new_branch(
 			repo,
 			&head_info.remote_head_oid,
@@ -236,7 +242,7 @@ static int update_head_to_remote(git_repository *repo, git_remote *remote)
 		&head_info) < 0)
 			goto cleanup;
 
-	if (git_buf_len(&head_info.branchname) > 0) {
+	if (head_info.found) {
 		retcode = update_head_to_new_branch(
 			repo,
 			&head_info.remote_head_oid,
@@ -251,6 +257,32 @@ static int update_head_to_remote(git_repository *repo, git_remote *remote)
 cleanup:
 	git_buf_free(&remote_master_name);
 	git_buf_free(&head_info.branchname);
+	return retcode;
+}
+
+static int update_head_to_branch(
+		git_repository *repo,
+		const git_clone_options *options)
+{
+	int retcode;
+	git_buf remote_branch_name = GIT_BUF_INIT;
+	git_reference* remote_ref = NULL;
+	
+	assert(options->checkout_branch);
+
+	if ((retcode = git_buf_printf(&remote_branch_name, GIT_REFS_REMOTES_DIR "%s/%s",
+		options->remote_name, options->checkout_branch)) < 0 )
+		goto cleanup;
+
+	if ((retcode = git_reference_lookup(&remote_ref, repo, git_buf_cstr(&remote_branch_name))) < 0)
+		goto cleanup;
+
+	retcode = update_head_to_new_branch(repo, git_reference_target(remote_ref),
+		options->checkout_branch);
+
+cleanup:
+	git_reference_free(remote_ref);
+	git_buf_free(&remote_branch_name);
 	return retcode;
 }
 
@@ -325,14 +357,20 @@ static int setup_remotes_and_fetch(
 						options->fetch_progress_payload)) {
 				/* Create "origin/foo" branches for all remote branches */
 				if (!git_remote_update_tips(origin)) {
+					/* Point HEAD to the requested branch */
+					if (options->checkout_branch) {
+						if (!update_head_to_branch(repo, options))
+							retcode = 0;
+					}
 					/* Point HEAD to the same ref as the remote's head */
-					if (!update_head_to_remote(repo, origin)) {
+					else if (!update_head_to_remote(repo, origin)) {
 						retcode = 0;
 					}
 				}
 			}
 			git_remote_disconnect(origin);
 		}
+		git_remote_free(origin);
 	}
 
 	return retcode;
@@ -362,7 +400,7 @@ static bool should_checkout(
 	if (!opts)
 		return false;
 
-	if (opts->checkout_strategy == GIT_CHECKOUT_DEFAULT)
+	if (opts->checkout_strategy == GIT_CHECKOUT_NONE)
 		return false;
 
 	return !git_repository_head_orphan(repo);

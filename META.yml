@@ -6,6 +6,7 @@ build_requires:
   Capture::Tiny: 0
   Cwd: 0
   File::Find: 0
+  File::Path: 0
   File::Slurp: 0
   File::Temp: 0
   Test::More: 0
@@ -27,7 +28,7 @@ resources:
   bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/ghedo/p5-Git-Raw.git
-version: 0.19
+version: 0.20
 x_Dist_Zilla:
   perl:
     version: 5.014002
@@ -83,11 +84,11 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::GitHub::Meta
       name: '@Author::ALEXBIO/@GitHub/GitHub::Meta'
-      version: 0.29
+      version: 0.30
     -
       class: Dist::Zilla::Plugin::GitHub::Update
       name: '@Author::ALEXBIO/@GitHub/GitHub::Update'
-      version: 0.29
+      version: 0.30
     -
       class: Dist::Zilla::Plugin::Git::NextVersion
       name: '@Author::ALEXBIO/Git::NextVersion'

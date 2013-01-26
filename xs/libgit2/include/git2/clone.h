@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2012 the libgit2 contributors
+ * Copyright (C) the libgit2 contributors. All rights reserved.
  *
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
@@ -57,6 +57,8 @@ GIT_BEGIN_DECL
  *   the origin remote before the fetch is initiated.
  * - `remote_autotag` may be used to specify the autotag setting before the
  *   initial fetch.
+ * - `checkout_branch` gives the name of the branch to checkout. NULL means
+ *   use the remote's HEAD.
  */
 
 typedef struct git_clone_options {
@@ -76,10 +78,11 @@ typedef struct git_clone_options {
 	git_transport *transport;
 	git_remote_callbacks *remote_callbacks;
 	git_remote_autotag_option_t remote_autotag;
+	const char* checkout_branch;
 } git_clone_options;
 
 #define GIT_CLONE_OPTIONS_VERSION 1
-#define GIT_CLONE_OPTIONS_INIT {GIT_CLONE_OPTIONS_VERSION, {GIT_CHECKOUT_OPTS_VERSION, GIT_CHECKOUT_SAFE}}
+#define GIT_CLONE_OPTIONS_INIT {GIT_CLONE_OPTIONS_VERSION, {GIT_CHECKOUT_OPTS_VERSION, GIT_CHECKOUT_SAFE_CREATE}}
 
 /**
  * Clone a remote repository, and checkout the branch pointed to by the remote

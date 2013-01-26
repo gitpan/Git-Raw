@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.19';
+  $Git::Raw::Repository::VERSION = '0.20';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.19
+version 0.20
 
 =head1 SYNOPSIS
 
@@ -32,6 +32,9 @@ version 0.19
 =head1 DESCRIPTION
 
 A C<Git::Raw::Repository> represents a Git repository.
+
+B<WARNING>: The API of this module is unstable and may change without warning
+(any change will be appropriately documented in the changelog).
 
 =head1 METHODS
 
@@ -74,9 +77,11 @@ Retrieve the default L<Git::Raw::Config> of the repository.
 
 Retrieve the default L<Git::Raw::Index> of the repository.
 
-=head2 head( )
+=head2 head( [$new_head] )
 
-Retrieve the L<Git::Raw::Reference> pointed by the HEAD of the repository.
+Retrieve the L<Git::Raw::Reference> pointed by the HEAD of the repository. If
+the L<Git::Raw::Reference> C<$new_head> is passed, the HEAD of the repository
+will be changed to point to it.
 
 =head2 lookup( $id )
 
@@ -95,43 +100,54 @@ Hash representing the desired checkout strategy. Valid fields are:
 
 =over 8
 
-=item * "update_unmodified"
+=item * "none"
 
-Update any file where the working directory content matches the HEAD.
+Dry-run checkout strategy. It doesn't make any changes, but checks for
+conflicts.
 
-=item * "update_missing"
+=item * "force"
 
-Create a missing file that exists in the index and does not exist in the
-working directory.
+Take any action to make the working directory match the target (pretty much the
+opposite of C<"none">.
 
-=item * "update_modified"
+=item * "safe"
 
-Update files where the working directory does not match the HEAD so long as the
-file actually exists in the HEAD.
+Make only modifications that will not lose changes (to be used in order to
+simulate C<git checkout>.
 
-=item * "update_untracked"
+=item * "safe_create"
 
-Update files even if there is a working directory version that does not exist
-in the HEAD.
+Like C<"safe">, but will also cause a file to be checked out if it is missing
+from the working directory even if it is not modified between the target and
+baseline (to be used in order to simulate C<git checkout-index> and C<git clone>).
 
 =item * "allow_conflicts"
 
-It is okay to update the files that are allowed by the strategy even if there
-are conflicts.
-
-=item * "skip_unmerged"
-
-Proceed even if there are unmerged entries in the index, and just skip them.
-
-=item * "update_only"
-
-Update is not allowed to create new files or delete old ones, only update
-existing content.
+Apply safe updates even if there are conflicts.
 
 =item * "remove_untracked"
 
-Files in the working directory that are untracked (and not ignored) will be
-removed altogether.
+Remove untracked files from the working directory.
+
+=item * "remove_ignored"
+
+Remove ignored files from the working directory.
+
+=item * "update_only"
+
+Only update files that already exists (files won't be created not deleted).
+
+=item * "dont_update_index"
+
+Do not write the updated files' info to the index.
+
+=item * "no_refresh"
+
+Do not reload the index and git attrs from disk before operations.
+
+=item * "skip_unmerged"
+
+Skip files with unmerged index entries, instead of treating them as conflicts.
 
 =back
 
@@ -140,7 +156,7 @@ removed altogether.
 Example:
 
     $repo -> checkout($repo -> head -> target, {
-      'checkout_strategy' => { 'update_missing'  => 1, 'update_modified' => 1 }
+      'checkout_strategy' => { 'safe'  => 1 }
     });
 
 =head2 reset( $target, $type )
@@ -259,9 +275,10 @@ sub walker { return Git::Raw::Walker -> create(@_) }
 
 Retrieve the complete path of the repository.
 
-=head2 workdir( )
+=head2 workdir( [$new_dir] )
 
-Retrieve the working directory of the repository.
+Retrieve the working directory of the repository. If C<$new_dir> is passed, the
+working directory of the repository will be set to the directory.
 
 =head2 is_empty( )
 

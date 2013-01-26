@@ -124,18 +124,28 @@ index(self)
 	OUTPUT: RETVAL
 
 SV *
-head(self)
+head(self, ...)
 	SV *self
 
+	PROTOTYPE: $;$
 	CODE:
-		Reference ref;
+		int rc;
+		Reference head;
+		Repository repo = GIT_SV_TO_PTR(Repository, self);
 
-		int rc = git_repository_head(
-			&ref, GIT_SV_TO_PTR(Repository, self)
-		);
+		if (items == 2) {
+			Reference new_head = GIT_SV_TO_PTR(Reference, ST(1));
+
+			rc = git_repository_set_head(
+				repo, git_reference_name(new_head)
+			);
+			git_check_error(rc);
+		}
+
+		rc = git_repository_head(&head, repo);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), "Git::Raw::Reference", ref);
+		RETVAL = sv_setref_pv(newSV(0), "Git::Raw::Reference", head);
 
 		xs_object_magic_attach_struct(
 			aTHX_ SvRV(RETVAL), SvREFCNT_inc_NN(SvRV(self))
@@ -339,11 +349,21 @@ path(self)
 	OUTPUT: RETVAL
 
 SV *
-workdir(self)
+workdir(self, ...)
 	Repository self
 
+	PROTOTYPE: $;$
 	CODE:
-		const char *path = git_repository_workdir(self);
+		const char *path;
+
+		if (items == 2) {
+			const char *new_path = SvPVbyte_nolen(ST(1));
+
+			int rc = git_repository_set_workdir(self, new_path, 1);
+			git_check_error(rc);
+		}
+
+		path = git_repository_workdir(self);
 		RETVAL = newSVpv(path, 0);
 
 	OUTPUT: RETVAL

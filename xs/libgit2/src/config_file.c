@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 the libgit2 contributors
+ * Copyright (C) the libgit2 contributors. All rights reserved.
  *
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
@@ -1319,8 +1319,15 @@ out:
 
 static int is_multiline_var(const char *str)
 {
+	int count = 0;
 	const char *end = str + strlen(str);
-	return (end > str) && (end[-1] == '\\');
+	while (end > str && end[-1] == '\\') {
+		count++;
+		end--;
+	}
+
+	/* An odd number means last backslash wasn't escaped, so it's multiline */
+	return (end > str) && (count & 1);
 }
 
 static int parse_multiline_variable(diskfile_backend *cfg, git_buf *value, int in_quotes)

@@ -1,6 +1,6 @@
 package Git::Raw::Branch;
 {
-  $Git::Raw::Branch::VERSION = '0.19';
+  $Git::Raw::Branch::VERSION = '0.20';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Branch - Git branch class
 
 =head1 VERSION
 
-version 0.19
+version 0.20
 
 =head1 SYNOPSIS
 
@@ -24,12 +24,15 @@ version 0.19
     my $repo = Git::Raw::Repository -> open($path);
 
     # create a new branch named 'some_branch'
-    $repo -> branch('some_branch', $repo -> head);
+    $repo -> branch('some_branch', $repo -> head -> target);
 
 =head1 DESCRIPTION
 
 Helper class for branch manipulation. Note that a Git branch is nothing more
 than a L<Git::Raw::Reference>, so this class inherits all methods from it.
+
+B<WARNING>: The API of this module is unstable and may change without warning
+(any change will be appropriately documented in the changelog).
 
 =head1 METHODS
 

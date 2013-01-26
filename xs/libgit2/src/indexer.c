@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 the libgit2 contributors
+ * Copyright (C) the libgit2 contributors. All rights reserved.
  *
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
@@ -273,7 +273,7 @@ static int crc_object(uint32_t *crc_out, git_mwindow_file *mwf, git_off_t start,
 		if (ptr == NULL)
 			return -1;
 
-		len = min(left, (size_t)size);
+		len = min(left, (unsigned int)size);
 		crc = crc32(crc, ptr, len);
 		size -= len;
 		start += len;
@@ -706,7 +706,9 @@ int git_indexer_stream_finalize(git_indexer_stream *idx, git_transfer_progress *
 		goto on_error;
 
 	git_mwindow_free_all(&idx->pack->mwf);
+	/* We need to close the descriptor here so Windows doesn't choke on commit_at */
 	p_close(idx->pack->mwf.fd);
+	idx->pack->mwf.fd = -1;
 
 	if (index_path_stream(&filename, idx, ".pack") < 0)
 		goto on_error;
@@ -719,7 +721,6 @@ int git_indexer_stream_finalize(git_indexer_stream *idx, git_transfer_progress *
 
 on_error:
 	git_mwindow_free_all(&idx->pack->mwf);
-	p_close(idx->pack->mwf.fd);
 	git_filebuf_cleanup(&idx->index_file);
 	git_buf_free(&filename);
 	git_hash_ctx_cleanup(&ctx);
@@ -747,7 +748,7 @@ void git_indexer_stream_free(git_indexer_stream *idx)
 	git_vector_foreach(&idx->deltas, i, delta)
 		git__free(delta);
 	git_vector_free(&idx->deltas);
-	git__free(idx->pack);
+	git_packfile_free(idx->pack);
 	git__free(idx);
 }
 
@@ -1051,7 +1052,6 @@ void git_indexer_free(git_indexer *idx)
 	if (idx == NULL)
 		return;
 
-	p_close(idx->pack->mwf.fd);
 	git_mwindow_file_deregister(&idx->pack->mwf);
 	git_vector_foreach(&idx->objects, i, e)
 		git__free(e);
@@ -1059,7 +1059,7 @@ void git_indexer_free(git_indexer *idx)
 	git_vector_foreach(&idx->pack->cache, i, pe)
 		git__free(pe);
 	git_vector_free(&idx->pack->cache);
-	git__free(idx->pack);
+	git_packfile_free(idx->pack);
 	git__free(idx);
 }
 

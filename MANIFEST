@@ -102,6 +102,7 @@ xs/libgit2/deps/zlib/zconf.h
 xs/libgit2/deps/zlib/zlib.h
 xs/libgit2/deps/zlib/zutil.c
 xs/libgit2/deps/zlib/zutil.h
+xs/libgit2/docs/checkout-internals.md
 xs/libgit2/docs/error-handling.md
 xs/libgit2/examples/Makefile
 xs/libgit2/examples/README.md
@@ -125,6 +126,7 @@ xs/libgit2/include/git2/clone.h
 xs/libgit2/include/git2/commit.h
 xs/libgit2/include/git2/common.h
 xs/libgit2/include/git2/config.h
+xs/libgit2/include/git2/cred_helpers.h
 xs/libgit2/include/git2/diff.h
 xs/libgit2/include/git2/errors.h
 xs/libgit2/include/git2/graph.h
@@ -174,6 +176,7 @@ xs/libgit2/src/attr_file.h
 xs/libgit2/src/blob.c
 xs/libgit2/src/blob.h
 xs/libgit2/src/branch.c
+xs/libgit2/src/branch.h
 xs/libgit2/src/bswap.h
 xs/libgit2/src/buf_text.c
 xs/libgit2/src/buf_text.h
@@ -183,6 +186,7 @@ xs/libgit2/src/cache.c
 xs/libgit2/src/cache.h
 xs/libgit2/src/cc-compat.h
 xs/libgit2/src/checkout.c
+xs/libgit2/src/checkout.h
 xs/libgit2/src/clone.c
 xs/libgit2/src/commit.c
 xs/libgit2/src/commit.h
@@ -228,9 +232,6 @@ xs/libgit2/src/hash.h
 xs/libgit2/src/hash/hash_generic.c
 xs/libgit2/src/hash/hash_generic.h
 xs/libgit2/src/hash/hash_openssl.h
-xs/libgit2/src/hash/hash_ppc.c
-xs/libgit2/src/hash/hash_ppc.h
-xs/libgit2/src/hash/hash_ppc_core.S
 xs/libgit2/src/hash/hash_win32.c
 xs/libgit2/src/hash/hash_win32.h
 xs/libgit2/src/ignore.c
@@ -258,6 +259,7 @@ xs/libgit2/src/odb.c
 xs/libgit2/src/odb.h
 xs/libgit2/src/odb_loose.c
 xs/libgit2/src/odb_pack.c
+xs/libgit2/src/offmap.h
 xs/libgit2/src/oid.c
 xs/libgit2/src/oidmap.h
 xs/libgit2/src/pack-objects.c
@@ -306,6 +308,7 @@ xs/libgit2/src/thread-utils.c
 xs/libgit2/src/thread-utils.h
 xs/libgit2/src/transport.c
 xs/libgit2/src/transports/cred.c
+xs/libgit2/src/transports/cred_helpers.c
 xs/libgit2/src/transports/git.c
 xs/libgit2/src/transports/http.c
 xs/libgit2/src/transports/local.c
@@ -364,15 +367,23 @@ xs/libgit2/tests-clar/attr/lookup.c
 xs/libgit2/tests-clar/attr/repo.c
 xs/libgit2/tests-clar/buf/basic.c
 xs/libgit2/tests-clar/buf/splice.c
+xs/libgit2/tests-clar/checkout/binaryunicode.c
+xs/libgit2/tests-clar/checkout/checkout_helpers.c
+xs/libgit2/tests-clar/checkout/checkout_helpers.h
+xs/libgit2/tests-clar/checkout/crlf.c
 xs/libgit2/tests-clar/checkout/head.c
 xs/libgit2/tests-clar/checkout/index.c
 xs/libgit2/tests-clar/checkout/tree.c
 xs/libgit2/tests-clar/checkout/typechange.c
-xs/libgit2/tests-clar/clar
-xs/libgit2/tests-clar/clar_helpers.c
+xs/libgit2/tests-clar/clar.c
+xs/libgit2/tests-clar/clar.h
+xs/libgit2/tests-clar/clar/fixtures.h
+xs/libgit2/tests-clar/clar/fs.h
+xs/libgit2/tests-clar/clar/print.h
+xs/libgit2/tests-clar/clar/sandbox.h
+xs/libgit2/tests-clar/clar_libgit2.c
 xs/libgit2/tests-clar/clar_libgit2.h
 xs/libgit2/tests-clar/clone/empty.c
-xs/libgit2/tests-clar/clone/network.c
 xs/libgit2/tests-clar/clone/nonetwork.c
 xs/libgit2/tests-clar/commit/commit.c
 xs/libgit2/tests-clar/commit/parent.c
@@ -399,6 +410,7 @@ xs/libgit2/tests-clar/core/filebuf.c
 xs/libgit2/tests-clar/core/hex.c
 xs/libgit2/tests-clar/core/mkdir.c
 xs/libgit2/tests-clar/core/oid.c
+xs/libgit2/tests-clar/core/opts.c
 xs/libgit2/tests-clar/core/path.c
 xs/libgit2/tests-clar/core/pool.c
 xs/libgit2/tests-clar/core/rmdir.c
@@ -419,8 +431,8 @@ xs/libgit2/tests-clar/diff/rename.c
 xs/libgit2/tests-clar/diff/tree.c
 xs/libgit2/tests-clar/diff/workdir.c
 xs/libgit2/tests-clar/fetchhead/fetchhead_data.h
-xs/libgit2/tests-clar/fetchhead/network.c
 xs/libgit2/tests-clar/fetchhead/nonetwork.c
+xs/libgit2/tests-clar/generate.py
 xs/libgit2/tests-clar/index/conflicts.c
 xs/libgit2/tests-clar/index/filemodes.c
 xs/libgit2/tests-clar/index/inmemory.c
@@ -429,12 +441,11 @@ xs/libgit2/tests-clar/index/rename.c
 xs/libgit2/tests-clar/index/reuc.c
 xs/libgit2/tests-clar/index/stage.c
 xs/libgit2/tests-clar/index/tests.c
+xs/libgit2/tests-clar/main.c
+xs/libgit2/tests-clar/merge/setup.c
 xs/libgit2/tests-clar/network/createremotethenload.c
-xs/libgit2/tests-clar/network/fetch.c
+xs/libgit2/tests-clar/network/cred.c
 xs/libgit2/tests-clar/network/fetchlocal.c
-xs/libgit2/tests-clar/network/push.c
-xs/libgit2/tests-clar/network/push_util.c
-xs/libgit2/tests-clar/network/push_util.h
 xs/libgit2/tests-clar/network/refspecs.c
 xs/libgit2/tests-clar/network/remotelocal.c
 xs/libgit2/tests-clar/network/remoterename.c
@@ -478,6 +489,12 @@ xs/libgit2/tests-clar/odb/pack_data_one.h
 xs/libgit2/tests-clar/odb/packed.c
 xs/libgit2/tests-clar/odb/packed_one.c
 xs/libgit2/tests-clar/odb/sorting.c
+xs/libgit2/tests-clar/online/clone.c
+xs/libgit2/tests-clar/online/fetch.c
+xs/libgit2/tests-clar/online/fetchhead.c
+xs/libgit2/tests-clar/online/push.c
+xs/libgit2/tests-clar/online/push_util.c
+xs/libgit2/tests-clar/online/push_util.h
 xs/libgit2/tests-clar/pack/packbuilder.c
 xs/libgit2/tests-clar/refs/branches/create.c
 xs/libgit2/tests-clar/refs/branches/delete.c
@@ -485,7 +502,9 @@ xs/libgit2/tests-clar/refs/branches/foreach.c
 xs/libgit2/tests-clar/refs/branches/ishead.c
 xs/libgit2/tests-clar/refs/branches/lookup.c
 xs/libgit2/tests-clar/refs/branches/move.c
+xs/libgit2/tests-clar/refs/branches/name.c
 xs/libgit2/tests-clar/refs/branches/tracking.c
+xs/libgit2/tests-clar/refs/branches/trackingname.c
 xs/libgit2/tests-clar/refs/crashes.c
 xs/libgit2/tests-clar/refs/create.c
 xs/libgit2/tests-clar/refs/delete.c
@@ -560,6 +579,7 @@ xs/libgit2/tests-clar/resources/bad_tag.git/objects/pack/pack-7a28f4e000a17f49a4
 xs/libgit2/tests-clar/resources/bad_tag.git/packed-refs
 xs/libgit2/tests-clar/resources/bad_tag.git/refs/dummy-marker.txt
 xs/libgit2/tests-clar/resources/big.index
+xs/libgit2/tests-clar/resources/binaryunicode/file.txt
 xs/libgit2/tests-clar/resources/config/config0
 xs/libgit2/tests-clar/resources/config/config1
 xs/libgit2/tests-clar/resources/config/config10
@@ -865,6 +885,7 @@ xs/libgit2/tests-clar/status/status_helpers.c
 xs/libgit2/tests-clar/status/status_helpers.h
 xs/libgit2/tests-clar/status/submodules.c
 xs/libgit2/tests-clar/status/worktree.c
+xs/libgit2/tests-clar/status/worktree_init.c
 xs/libgit2/tests-clar/submodule/lookup.c
 xs/libgit2/tests-clar/submodule/modify.c
 xs/libgit2/tests-clar/submodule/status.c

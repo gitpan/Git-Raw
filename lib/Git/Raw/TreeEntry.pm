@@ -1,6 +1,6 @@
 package Git::Raw::TreeEntry;
 {
-  $Git::Raw::TreeEntry::VERSION = '0.19';
+  $Git::Raw::TreeEntry::VERSION = '0.20';
 }
 
 use strict;
@@ -14,11 +14,14 @@ Git::Raw::TreeEntry - Git tree entry class
 
 =head1 VERSION
 
-version 0.19
+version 0.20
 
 =head1 DESCRIPTION
 
 A C<Git::Raw::TreeEntry> represents an entry in a L<Git::Raw::Tree>.
+
+B<WARNING>: The API of this module is unstable and may change without warning
+(any change will be appropriately documented in the changelog).
 
 =head1 METHODS
 

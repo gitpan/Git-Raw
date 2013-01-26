@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 the libgit2 contributors
+ * Copyright (C) the libgit2 contributors. All rights reserved.
  *
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
@@ -313,6 +313,17 @@ GIT_EXTERN(const git_index_entry *) git_index_get_bypath(
 GIT_EXTERN(int) git_index_remove(git_index *index, const char *path, int stage);
 
 /**
+ * Remove all entries from the index under a given directory
+ *
+ * @param index an existing index object
+ * @param dir container directory path
+ * @param stage stage to search
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_index_remove_directory(
+	git_index *index, const char *dir, int stage);
+
+/**
  * Add or update an index entry from an in-memory struct
  *
  * If a previous index entry exists that has the same path and stage
@@ -351,7 +362,7 @@ GIT_EXTERN(int) git_index_entry_stage(const git_index_entry *entry);
 /**@{*/
 
 /**
- * Add or update an index entry from a file in disk
+ * Add or update an index entry from a file on disk
  *
  * The file `path` must be relative to the repository's
  * working folder and must be readable.
@@ -370,7 +381,23 @@ GIT_EXTERN(int) git_index_entry_stage(const git_index_entry *entry);
  * @param path filename to add
  * @return 0 or an error code
  */
-GIT_EXTERN(int) git_index_add_from_workdir(git_index *index, const char *path);
+GIT_EXTERN(int) git_index_add_bypath(git_index *index, const char *path);
+
+/**
+ * Remove an index entry corresponding to a file on disk
+ *
+ * The file `path` must be relative to the repository's
+ * working folder.  It may exist.
+ *
+ * If this file currently is the result of a merge conflict, this
+ * file will no longer be marked as conflicting.  The data about
+ * the conflict will be moved to the "resolve undo" (REUC) section.
+ *
+ * @param index an existing index object
+ * @param path filename to remove
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_index_remove_bypath(git_index *index, const char *path);
 
 /**
  * Find the first index of any entries which point to given

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2009-2012 the libgit2 contributors
+ * Copyright (C) the libgit2 contributors. All rights reserved.
  *
  * This file is part of libgit2, distributed under the GNU GPL v2 with
  * a Linking Exception. For full terms see the included COPYING file.
@@ -328,7 +328,7 @@ static int packed_parse_peel(
 	if (git__prefixcmp(tag_ref->name, GIT_REFS_TAGS_DIR) != 0)
 		goto corrupt;
 
-	if (buffer + GIT_OID_HEXSZ >= buffer_end)
+	if (buffer + GIT_OID_HEXSZ > buffer_end)
 		goto corrupt;
 
 	/* Is this a valid object id? */
@@ -339,10 +339,14 @@ static int packed_parse_peel(
 	if (*buffer == '\r')
 		buffer++;
 
-	if (*buffer != '\n')
-		goto corrupt;
+	if (buffer != buffer_end) {
+		if (*buffer == '\n')
+			buffer++;
+		else
+			goto corrupt;
+	}
 
-	*buffer_out = buffer + 1;
+	*buffer_out = buffer;
 	return 0;
 
 corrupt:
@@ -373,7 +377,7 @@ static int packed_parse_oid(
 
 	refname_end = memchr(refname_begin, '\n', buffer_end - refname_begin);
 	if (refname_end == NULL)
-		goto corrupt;
+		refname_end = buffer_end;
 
 	if (refname_end[-1] == '\r')
 		refname_end--;
@@ -1905,10 +1909,15 @@ int git_reference_has_log(
 	return result;
 }
 
+int git_reference__is_branch(const char *ref_name)
+{
+	return git__prefixcmp(ref_name, GIT_REFS_HEADS_DIR) == 0;
+}
+
 int git_reference_is_branch(git_reference *ref)
 {
 	assert(ref);
-	return git__prefixcmp(ref->name, GIT_REFS_HEADS_DIR) == 0;
+	return git_reference__is_branch(ref->name);
 }
 
 int git_reference_is_remote(git_reference *ref)

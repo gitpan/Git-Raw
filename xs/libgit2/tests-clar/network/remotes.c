@@ -60,6 +60,28 @@ void test_network_remotes__pushurl(void)
 	cl_assert(git_remote_pushurl(_remote) == NULL);
 }
 
+void test_network_remotes__error_when_no_push_available(void)
+{
+	git_remote *r;
+	git_transport *t;
+	git_push *p;
+
+	cl_git_pass(git_remote_create_inmemory(&r, _repo, NULL, cl_fixture("testrepo.git")));
+
+	cl_git_pass(git_transport_local(&t,r,NULL));
+
+	/* Make sure that push is really not available */
+	t->push = NULL;
+	cl_git_pass(git_remote_connect(r, GIT_DIRECTION_PUSH));
+	cl_git_pass(git_push_new(&p, r));
+	cl_git_pass(git_push_add_refspec(p, "refs/heads/master"));
+	cl_git_fail_with(git_push_finish(p), GIT_ERROR);
+
+	git_push_free(p);
+	t->free(t);
+	git_remote_free(r);
+}
+
 void test_network_remotes__parsing_ssh_remote(void)
 {
 	cl_assert( git_remote_valid_url("git@github.com:libgit2/libgit2.git") );
@@ -236,9 +258,9 @@ void test_network_remotes__add(void)
 
 	cl_git_pass(git_remote_load(&_remote, _repo, "addtest"));
 	_refspec = git_remote_fetchspec(_remote);
-	cl_assert(!strcmp(git_refspec_src(_refspec), "refs/heads/*"));
+	cl_assert_equal_s("refs/heads/*", git_refspec_src(_refspec));
 	cl_assert(git_refspec_force(_refspec) == 1);
-	cl_assert(!strcmp(git_refspec_dst(_refspec), "refs/remotes/addtest/*"));
+	cl_assert_equal_s("refs/remotes/addtest/*", git_refspec_dst(_refspec));
 	cl_assert_equal_s(git_remote_url(_remote), "http://github.com/libgit2/libgit2");
 }
 
@@ -288,12 +310,12 @@ void test_network_remotes__tagopt(void)
 	git_remote_set_autotag(_remote, GIT_REMOTE_DOWNLOAD_TAGS_ALL);
 	cl_git_pass(git_remote_save(_remote));
 	cl_git_pass(git_config_get_string(&opt, cfg, "remote.test.tagopt"));
-	cl_assert(!strcmp(opt, "--tags"));
+	cl_assert_equal_s("--tags", opt);
 
 	git_remote_set_autotag(_remote, GIT_REMOTE_DOWNLOAD_TAGS_NONE);
 	cl_git_pass(git_remote_save(_remote));
 	cl_git_pass(git_config_get_string(&opt, cfg, "remote.test.tagopt"));
-	cl_assert(!strcmp(opt, "--no-tags"));
+	cl_assert_equal_s("--no-tags", opt);
 
 	git_remote_set_autotag(_remote, GIT_REMOTE_DOWNLOAD_TAGS_AUTO);
 	cl_git_pass(git_remote_save(_remote));

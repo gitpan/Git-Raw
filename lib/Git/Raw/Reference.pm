@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.19';
+  $Git::Raw::Reference::VERSION = '0.20';
 }
 
 use strict;
@@ -14,17 +14,20 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.19
+version 0.20
 
 =head1 DESCRIPTION
 
 A C<Git::Raw::Reference> represents a Git reference.
 
+B<WARNING>: The API of this module is unstable and may change without warning
+(any change will be appropriately documented in the changelog).
+
 =head1 METHODS
 
-=head2 lookup( $name )
+=head2 lookup( $name, $repo )
 
-Retrieve the reference with name C<$name>.
+Retrieve the reference with name C<$name> in C<$repo>.
 
 =head2 delete( )
 
