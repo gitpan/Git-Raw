@@ -14,6 +14,7 @@ static char *_remote_user;
 static char *_remote_pass;
 
 static git_remote *_remote;
+static bool _cred_acquire_called;
 static record_callbacks_data _record_cbs_data = {{ 0 }};
 static git_remote_callbacks _record_cbs = RECORD_CALLBACKS_INIT(&_record_cbs_data);
 
@@ -29,9 +30,15 @@ static git_oid _tag_tree;
 static git_oid _tag_blob;
 static git_oid _tag_lightweight;
 
-static int cred_acquire_cb(git_cred **cred, const char *url, unsigned int allowed_types, void *payload)
+static int cred_acquire_cb(
+		git_cred **cred,
+		const char *url,
+		const char *user_from_url,
+		unsigned int allowed_types,
+		void *payload)
 {
 	GIT_UNUSED(url);
+	GIT_UNUSED(user_from_url);
 
 	*((bool*)payload) = true;
 
@@ -79,7 +86,9 @@ static void do_verify_push_status(git_push *push, const push_status expected[], 
 	else
 		git_vector_foreach(&actual, i, iter)
 			if (strcmp(expected[i].ref, iter->ref) ||
-				(expected[i].msg && strcmp(expected[i].msg, iter->msg))) {
+				(expected[i].msg && !iter->msg) ||
+				(!expected[i].msg && iter->msg) ||
+				(expected[i].msg && iter->msg && strcmp(expected[i].msg, iter->msg))) {
 				failed = true;
 				break;
 			}
@@ -231,7 +240,7 @@ void test_online_push__initialize(void)
 	git_vector delete_specs = GIT_VECTOR_INIT;
 	size_t i;
 	char *curr_del_spec;
-	bool cred_acquire_called = false;
+	_cred_acquire_called = false;
 
 	_repo = cl_git_sandbox_init("push_src");
 
@@ -272,7 +281,7 @@ void test_online_push__initialize(void)
 	if (_remote_url) {
 		cl_git_pass(git_remote_create(&_remote, _repo, "test", _remote_url));
 
-		git_remote_set_cred_acquire_cb(_remote, cred_acquire_cb, &cred_acquire_called);
+		git_remote_set_cred_acquire_cb(_remote, cred_acquire_cb, &_cred_acquire_called);
 		record_callbacks_data_clear(&_record_cbs_data);
 		git_remote_set_callbacks(_remote, &_record_cbs);
 
@@ -340,13 +349,18 @@ static void do_push(const char *refspecs[], size_t refspecs_len,
 	expected_ref expected_refs[], size_t expected_refs_len, int expected_ret)
 {
 	git_push *push;
+	git_push_options opts = GIT_PUSH_OPTIONS_INIT;
 	size_t i;
 	int ret;
 
 	if (_remote) {
+		/* Auto-detect the number of threads to use */
+		opts.pb_parallelism = 0;
+
 		cl_git_pass(git_remote_connect(_remote, GIT_DIRECTION_PUSH));
 
 		cl_git_pass(git_push_new(&push, _remote));
+		cl_git_pass(git_push_set_options(push, &opts));
 
 		for (i = 0; i < refspecs_len; i++)
 			cl_git_pass(git_push_add_refspec(push, refspecs[i]));

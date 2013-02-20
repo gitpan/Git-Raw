@@ -109,17 +109,17 @@ config(self)
 
 	OUTPUT: RETVAL
 
-Index
+SV *
 index(self)
-	Repository self
+	SV *self
 
 	CODE:
 		Index index;
 
-		int rc = git_repository_index(&index, self);
+		int rc = git_repository_index(&index, GIT_SV_TO_PTR(Repository, self));
 		git_check_error(rc);
 
-		RETVAL = index;
+		GIT_NEW_OBJ(RETVAL, "Git::Raw::Index", index, SvRV(self));
 
 	OUTPUT: RETVAL
 
@@ -155,7 +155,7 @@ head(self, ...)
 
 SV *
 lookup(self, id)
-	Repository self
+	SV *self
 	SV *id
 
 	CODE:
@@ -168,10 +168,12 @@ lookup(self, id)
 		int rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
-		rc = git_object_lookup_prefix(&obj, self, &oid, len, GIT_OBJ_ANY);
+		rc = git_object_lookup_prefix(
+			&obj, GIT_SV_TO_PTR(Repository, self), &oid, len, GIT_OBJ_ANY
+		);
 		git_check_error(rc);
 
-		RETVAL = git_obj_to_sv(obj);
+		RETVAL = git_obj_to_sv(obj, self);
 
 	OUTPUT: RETVAL
 

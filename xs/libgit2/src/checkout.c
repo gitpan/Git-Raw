@@ -64,6 +64,7 @@ static int checkout_notify(
 {
 	git_diff_file wdfile;
 	const git_diff_file *baseline = NULL, *target = NULL, *workdir = NULL;
+	const char *path = NULL;
 
 	if (!data->opts.notify_cb)
 		return 0;
@@ -81,6 +82,8 @@ static int checkout_notify(
 		wdfile.mode = wditem->mode;
 
 		workdir = &wdfile;
+
+		path = wditem->path;
 	}
 
 	if (delta) {
@@ -101,11 +104,12 @@ static int checkout_notify(
 			baseline = &delta->old_file;
 			break;
 		}
+
+		path = delta->old_file.path;
 	}
 
 	return data->opts.notify_cb(
-		why, delta ? delta->old_file.path : wditem->path,
-		baseline, target, workdir, data->opts.notify_payload);
+		why, path, baseline, target, workdir, data->opts.notify_payload);
 }
 
 static bool checkout_is_workdir_modified(
@@ -224,7 +228,7 @@ static int checkout_action_wd_only(
 	if (!git_pathspec_match_path(
 			pathspec, wd->path,
 			(data->strategy & GIT_CHECKOUT_DISABLE_PATHSPEC_MATCH) != 0,
-			git_iterator_ignore_case(workdir)))
+			git_iterator_ignore_case(workdir), NULL))
 		return 0;
 
 	/* check if item is tracked in the index but not in the checkout diff */
@@ -683,7 +687,7 @@ static int blob_content_to_file(
 {
 	int error = -1, nb_filters = 0;
 	mode_t file_mode = opts->file_mode;
-	bool dont_free_filtered = false;
+	bool dont_free_filtered;
 	git_buf unfiltered = GIT_BUF_INIT, filtered = GIT_BUF_INIT;
 	git_vector filters = GIT_VECTOR_INIT;
 

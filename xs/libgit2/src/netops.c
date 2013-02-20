@@ -40,16 +40,15 @@
 #ifdef GIT_WIN32
 static void net_set_error(const char *str)
 {
-	int size, error = WSAGetLastError();
-	LPSTR err_str = NULL;
+	int error = WSAGetLastError();
+	char * win32_error = git_win32_get_error_message(error);
 
-	size = FormatMessage(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-			     0, error, 0, (LPSTR)&err_str, 0, 0);
-
-	GIT_UNUSED(size);
-
-	giterr_set(GITERR_NET, "%s: %s", str, err_str);
-	LocalFree(err_str);
+	if (win32_error) {
+		giterr_set(GITERR_NET, "%s: %s", str, win32_error);
+		git__free(win32_error);
+	} else {
+		giterr_set(GITERR_NET, str);
+	}
 }
 #else
 static void net_set_error(const char *str)
@@ -578,27 +577,54 @@ int gitno_select_in(gitno_buffer *buf, long int sec, long int usec)
 	return select((int)buf->socket->socket + 1, &fds, NULL, NULL, &tv);
 }
 
-int gitno_extract_host_and_port(char **host, char **port, const char *url, const char *default_port)
+int gitno_extract_url_parts(
+		char **host,
+		char **port,
+		char **username,
+		char **password,
+		const char *url,
+		const char *default_port)
 {
-	char *colon, *slash, *delim;
+	char *colon, *slash, *at, *end;
+	const char *start;
+
+	/*
+	 *
+	 * ==> [user[:pass]@]hostname.tld[:port]/resource
+	 */
 
 	colon = strchr(url, ':');
 	slash = strchr(url, '/');
+	at = strchr(url, '@');
 
 	if (slash == NULL) {
 		giterr_set(GITERR_NET, "Malformed URL: missing /");
 		return -1;
 	}
 
+	start = url;
+	if (at && at < slash) {
+		start = at+1;
+		*username = git__substrdup(url, at - url);
+	}
+
+	if (colon && colon < at) {
+		git__free(*username);
+		*username = git__substrdup(url, colon-url);
+		*password = git__substrdup(colon+1, at-colon-1);
+		colon = strchr(at, ':');
+	}
+
 	if (colon == NULL) {
 		*port = git__strdup(default_port);
 	} else {
-		*port = git__strndup(colon + 1, slash - colon - 1);
+		*port = git__substrdup(colon + 1, slash - colon - 1);
 	}
 	GITERR_CHECK_ALLOC(*port);
 
-	delim = colon == NULL ? slash : colon;
-	*host = git__strndup(url, delim - url);
+	end = colon == NULL ? slash : colon;
+
+	*host = git__substrdup(start, end - start);
 	GITERR_CHECK_ALLOC(*host);
 
 	return 0;

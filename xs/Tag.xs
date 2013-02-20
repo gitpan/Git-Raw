@@ -3,7 +3,7 @@ MODULE = Git::Raw			PACKAGE = Git::Raw::Tag
 SV *
 create(class, repo, name, msg, tagger, target)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *name
 	SV *msg
 	Signature tagger
@@ -14,6 +14,7 @@ create(class, repo, name, msg, tagger, target)
 
 		git_oid oid;
 		git_object *obj;
+		Repository r = GIT_SV_TO_PTR(Repository, repo);
 
 		obj = git_sv_to_obj(target);
 
@@ -21,67 +22,76 @@ create(class, repo, name, msg, tagger, target)
 			Perl_croak(aTHX_ "target is not of a valid type");
 
 		int rc = git_tag_create(
-			&oid, repo, SvPVbyte_nolen(name),
+			&oid, r, SvPVbyte_nolen(name),
 			obj, tagger, SvPVbyte_nolen(msg), 0
 		);
 		git_check_error(rc);
 
-		rc = git_tag_lookup(&tag, repo, &oid);
+		rc = git_tag_lookup(&tag, r, &oid);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), tag);
+		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo));
 
 	OUTPUT: RETVAL
 
 SV *
 lookup(class, repo, id)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *id
 
 	CODE:
+		Tag tag;
 		git_oid oid;
-		git_object *obj;
 
 		STRLEN len;
 		const char *id_str = SvPVbyte(id, len);
+		Repository repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 
 		int rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
-		rc = git_object_lookup_prefix(&obj, repo, &oid, len, GIT_OBJ_TAG);
+		rc = git_tag_lookup_prefix(&tag, repo_ptr, &oid, len);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), obj);
+		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo));
 
 	OUTPUT: RETVAL
 
 void
 foreach(class, repo, cb)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *cb
 
 	CODE:
 		git_foreach_payload payload = {
-			.repo = repo,
-			.cb = cb
+			.repo_ptr = GIT_SV_TO_PTR(Repository, repo),
+			.repo     = repo,
+			.cb       = cb
 		};
 
-		int rc = git_tag_foreach(repo, git_tag_foreach_cbb, &payload);
+		int rc = git_tag_foreach(payload.repo_ptr, git_tag_foreach_cbb, &payload);
 
 		if (rc != GIT_EUSER)
 			git_check_error(rc);
 
 void
-delete(class, repo, name, is_local)
-	SV *class
-	Repository repo
-	SV *name
+delete(self)
+	SV *self
 
 	CODE:
-		int rc = git_tag_delete(repo, SvPVbyte_nolen(name));
+		Tag tag_ptr = GIT_SV_TO_PTR(Tag, self);
+
+		Repository repo = INT2PTR(
+			Repository, SvIV((SV *) GIT_SV_TO_REPO(self))
+		);
+
+		int rc = git_tag_delete(repo, git_tag_name(tag_ptr));
 		git_check_error(rc);
+
+		git_tag_free(tag_ptr);
+		sv_setiv(SvRV(self), 0);
 
 SV *
 id(self)
@@ -125,21 +135,22 @@ tagger(self)
 
 SV *
 target(self)
-	Tag self
+	SV *self
 
 	CODE:
 		git_object *obj;
 
-		int rc = git_tag_target(&obj, self);
+		int rc = git_tag_target(&obj, GIT_SV_TO_PTR(Tag, self));
 		git_check_error(rc);
 
-		RETVAL = git_obj_to_sv(obj);
+		RETVAL = git_obj_to_sv(obj, self);
 
 	OUTPUT: RETVAL
 
 void
 DESTROY(self)
-	Tag self
+	SV *self
 
 	CODE:
-		git_tag_free(self);
+		git_tag_free(GIT_SV_TO_PTR(Tag, self));
+		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));

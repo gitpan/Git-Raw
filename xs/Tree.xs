@@ -3,23 +3,24 @@ MODULE = Git::Raw			PACKAGE = Git::Raw::Tree
 SV *
 lookup(class, repo, id)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *id
 
 	CODE:
+		Tree tree;
 		git_oid oid;
-		git_object *obj;
 
 		STRLEN len;
 		const char *id_str = SvPVbyte(id, len);
+		Repository repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 
 		int rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
-		rc = git_object_lookup_prefix(&obj, repo, &oid, len, GIT_OBJ_TREE);
+		rc = git_tree_lookup_prefix(&tree, repo_ptr, &oid, len);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), obj);
+		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), tree, SvRV(repo));
 
 	OUTPUT: RETVAL
 
@@ -35,21 +36,25 @@ id(self)
 
 AV *
 entries(self)
-	Tree self
+	SV *self
 
 	CODE:
+		SV *repo = GIT_SV_TO_REPO(self);
+
 		AV *entries = newAV();
-		int rc, i, count = git_tree_entrycount(self);
+		Tree self_ptr = GIT_SV_TO_PTR(Tree, self);
+		int rc, i, count = git_tree_entrycount(self_ptr);
 
 		for (i = 0; i < count; i++) {
-			TreeEntry entry = (TreeEntry) git_tree_entry_byindex(self, i);
+			SV *tmp;
+			TreeEntry entry = (TreeEntry) git_tree_entry_byindex(self_ptr, i);
 
-			SV *sv = sv_setref_pv(
-				newSV(0), "Git::Raw::TreeEntry",
-				git_tree_entry_dup(entry)
+			GIT_NEW_OBJ(
+				tmp, "Git::Raw::TreeEntry",
+				git_tree_entry_dup(entry), repo
 			);
 
-			av_push(entries, sv);
+			av_push(entries, tmp);
 		}
 
 		RETVAL = entries;
@@ -58,73 +63,75 @@ entries(self)
 
 SV *
 entry_byname(self, name)
-	Tree self
+	SV *self
 	SV *name
 
 	CODE:
+		SV *repo = GIT_SV_TO_REPO(self);
+
 		STRLEN len;
 		const char *name_str = SvPVbyte(name, len);
 
-		TreeEntry entry = (TreeEntry) git_tree_entry_byname(self, name_str);
-		if (!entry) Perl_croak(aTHX_ "Invalid name");
-
-		SV *sv = sv_setref_pv(
-			newSV(0), "Git::Raw::TreeEntry",
-			git_tree_entry_dup(entry)
+		TreeEntry entry = (TreeEntry) git_tree_entry_byname(
+			GIT_SV_TO_PTR(Tree, self), name_str
 		);
 
-		RETVAL = sv;
+		if (!entry) Perl_croak(aTHX_ "Invalid name");
+
+		GIT_NEW_OBJ(
+			RETVAL, "Git::Raw::TreeEntry",
+			git_tree_entry_dup(entry), repo
+		);
 
 	OUTPUT: RETVAL
 
 SV *
 entry_bypath(self, path)
-	Tree self
+	SV *self
 	SV *path
 
 	CODE:
+		SV *repo = GIT_SV_TO_REPO(self);
+
 		int rc;
 		STRLEN len;
 		const char *path_str = SvPVbyte(path, len);
+
 		TreeEntry entry;
 
-		rc = git_tree_entry_bypath(&entry, self, path_str);
+		rc = git_tree_entry_bypath(
+			&entry, GIT_SV_TO_PTR(Tree, self), path_str
+		);
 		git_check_error(rc);
 
-		SV *sv = sv_setref_pv(
-			newSV(0), "Git::Raw::TreeEntry",
-			git_tree_entry_dup(entry)
-		);
-
-		RETVAL = sv;
+		GIT_NEW_OBJ(RETVAL, "Git::Raw::TreeEntry", entry, repo);
 
 	OUTPUT: RETVAL
 
 Diff
-diff(self, repo, ...)
+diff(self, ...)
 	Tree self
-	Repository repo
 
-	PROTOTYPE: $$;$
+	PROTOTYPE: $;$
 	CODE:
 		int rc;
 		Diff diff;
 
 		switch (items) {
-			case 2: {
+			case 1: {
 				rc = git_diff_tree_to_workdir(
-					&diff, repo, self, NULL
+					&diff, git_tree_owner(self), self, NULL
 				);
 				git_check_error(rc);
 
 				break;
 			}
 
-			case 3: {
-				Tree new = GIT_SV_TO_PTR(Tree, ST(2));
+			case 2: {
+				Tree new = GIT_SV_TO_PTR(Tree, ST(1));
 
 				rc = git_diff_tree_to_tree(
-					&diff, repo, self, new, NULL
+					&diff, git_tree_owner(self), self, new, NULL
 				);
 				git_check_error(rc);
 
@@ -140,7 +147,8 @@ diff(self, repo, ...)
 
 void
 DESTROY(self)
-	Tree self
+	SV *self
 
 	CODE:
-		git_tree_free(self);
+		git_tree_free(GIT_SV_TO_PTR(Tree, self));
+		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));

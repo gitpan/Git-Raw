@@ -89,13 +89,14 @@ static void update_delta_is_binary(git_diff_delta *delta)
 	/* otherwise leave delta->binary value untouched */
 }
 
-static int diff_delta_is_binary_by_attr(
-	diff_context *ctxt, git_diff_patch *patch)
+/* returns if we forced binary setting (and no further checks needed) */
+static bool diff_delta_is_binary_forced(
+	diff_context *ctxt,
+	git_diff_delta *delta)
 {
-	int error = 0, mirror_new;
-	git_diff_delta *delta = patch->delta;
-
-	delta->binary = -1;
+	/* return true if binary-ness has already been settled */
+	if (delta->binary != -1)
+		return true;
 
 	/* make sure files are conceivably mmap-able */
 	if ((git_off_t)((size_t)delta->old_file.size) != delta->old_file.size ||
@@ -104,7 +105,7 @@ static int diff_delta_is_binary_by_attr(
 		delta->old_file.flags |= GIT_DIFF_FILE_BINARY;
 		delta->new_file.flags |= GIT_DIFF_FILE_BINARY;
 		delta->binary = 1;
-		return 0;
+		return true;
 	}
 
 	/* check if user is forcing us to text diff these files */
@@ -112,8 +113,22 @@ static int diff_delta_is_binary_by_attr(
 		delta->old_file.flags |= GIT_DIFF_FILE_NOT_BINARY;
 		delta->new_file.flags |= GIT_DIFF_FILE_NOT_BINARY;
 		delta->binary = 0;
-		return 0;
+		return true;
 	}
+
+	return false;
+}
+
+static int diff_delta_is_binary_by_attr(
+	diff_context *ctxt, git_diff_patch *patch)
+{
+	int error = 0, mirror_new;
+	git_diff_delta *delta = patch->delta;
+
+	delta->binary = -1;
+
+	if (diff_delta_is_binary_forced(ctxt, delta))
+		return 0;
 
 	/* check diff attribute +, -, or 0 */
 	if (update_file_is_binary_by_attr(ctxt->repo, &delta->old_file) < 0)
@@ -137,15 +152,17 @@ static int diff_delta_is_binary_by_content(
 	git_diff_file *file,
 	const git_map *map)
 {
-	const git_buf search = { map->data, 0, min(map->len, 4000) };
-
-	GIT_UNUSED(ctxt);
+	if (diff_delta_is_binary_forced(ctxt, delta))
+		return 0;
 
 	if ((file->flags & KNOWN_BINARY_FLAGS) == 0) {
+		const git_buf search = { map->data, 0, min(map->len, 4000) };
+
 		/* TODO: provide encoding / binary detection callbacks that can
 		 * be UTF-8 aware, etc.  For now, instead of trying to be smart,
 		 * let's just use the simple NUL-byte detection that core git uses.
 		 */
+
 		/* previously was: if (git_buf_text_is_binary(&search)) */
 		if (git_buf_text_contains_nul(&search))
 			file->flags |= GIT_DIFF_FILE_BINARY;
@@ -1263,14 +1280,15 @@ static void set_data_from_buffer(
 {
 	file->size = (git_off_t)buffer_len;
 	file->mode = 0644;
-
-	if (!buffer)
-		file->flags |= GIT_DIFF_FILE_NO_DATA;
-	else
-		git_odb_hash(&file->oid, buffer, buffer_len, GIT_OBJ_BLOB);
-
 	map->len   = buffer_len;
-	map->data  = (char *)buffer;
+
+	if (!buffer) {
+		file->flags |= GIT_DIFF_FILE_NO_DATA;
+		map->data = NULL;
+	} else {
+		map->data = (char *)buffer;
+		git_odb_hash(&file->oid, buffer, buffer_len, GIT_OBJ_BLOB);
+	}
 }
 
 typedef struct {
@@ -1501,6 +1519,39 @@ size_t git_diff_patch_num_hunks(git_diff_patch *patch)
 	return patch->hunks_size;
 }
 
+int git_diff_patch_line_stats(
+	size_t *total_ctxt,
+	size_t *total_adds,
+	size_t *total_dels,
+	const git_diff_patch *patch)
+{
+	size_t totals[3], idx;
+
+	memset(totals, 0, sizeof(totals));
+
+	for (idx = 0; idx < patch->lines_size; ++idx) {
+		switch (patch->lines[idx].origin) {
+		case GIT_DIFF_LINE_CONTEXT:  totals[0]++; break;
+		case GIT_DIFF_LINE_ADDITION: totals[1]++; break;
+		case GIT_DIFF_LINE_DELETION: totals[2]++; break;
+		default:
+			/* diff --stat and --numstat don't count EOFNL marks because
+			 * they will always be paired with a ADDITION or DELETION line.
+			 */
+			break;
+		}
+	}
+
+	if (total_ctxt)
+		*total_ctxt = totals[0];
+	if (total_adds)
+		*total_adds = totals[1];
+	if (total_dels)
+		*total_dels = totals[2];
+
+	return 0;
+}
+
 int git_diff_patch_get_hunk(
 	const git_diff_range **range,
 	const char **header,
@@ -1570,8 +1621,8 @@ int git_diff_patch_get_line_in_hunk(
 	if (line_origin) *line_origin = line->origin;
 	if (content) *content = line->ptr;
 	if (content_len) *content_len = line->len;
-	if (old_lineno) *old_lineno = line->oldno;
-	if (new_lineno) *new_lineno = line->newno;
+	if (old_lineno) *old_lineno = (int)line->oldno;
+	if (new_lineno) *new_lineno = (int)line->newno;
 
 	return 0;
 
@@ -1706,4 +1757,3 @@ int git_diff__paired_foreach(
 
 	return 0;
 }
-

@@ -15,7 +15,7 @@ lookup(class, name, repo)
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ_DOUBLE(RETVAL, class, ref, repo);
+		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), ref, SvRV(repo));
 
 	OUTPUT: RETVAL
 
@@ -74,52 +74,49 @@ owner(self)
 	OUTPUT: RETVAL
 
 SV *
-target(self, ...)
-	Reference self
+target(self)
+	SV *self
 
-	PROTOTYPE: $;$
+	PROTOTYPE: $
 	CODE:
 		int rc;
-		SV *result;
+		Reference ref = GIT_SV_TO_PTR(Reference, self);
 
-		if (items > 1)
-			warn("Second argument (former repo) is ignored. In future versions this will be fatal error");
-
-		switch (git_reference_type(self)) {
+		switch (git_reference_type(ref)) {
 			case GIT_REF_OID: {
 				git_object *obj;
 				const git_oid *oid;
 
-				oid = git_reference_target(self);
+				oid = git_reference_target(ref);
 
 				rc = git_object_lookup(
-					&obj, git_reference_owner(self), oid, GIT_OBJ_ANY
+					&obj, git_reference_owner(ref),
+					oid, GIT_OBJ_ANY
 				);
 				git_check_error(rc);
 
-				result = git_obj_to_sv(obj);
+				RETVAL = git_obj_to_sv(obj, self);
 				break;
 			}
 
 			case GIT_REF_SYMBOLIC: {
 				Reference ref;
 				const char *target;
+				SV *repo = GIT_SV_TO_REPO(self);
 
-				target = git_reference_symbolic_target(self);
+				target = git_reference_symbolic_target(ref);
 
-				rc = git_reference_lookup(&ref, git_reference_owner(self), target);
+				rc = git_reference_lookup(&ref, git_reference_owner(ref), target);
 				git_check_error(rc);
 
-				result = sv_setref_pv(
-					newSV(0), "Git::Raw::Reference", ref
+				GIT_NEW_OBJ(
+					RETVAL, "Git::Raw::Reference", ref, repo
 				);
 				break;
 			}
 
 			default: Perl_croak(aTHX_ "Invalid reference type");
 		}
-
-		RETVAL = result;
 
 	OUTPUT: RETVAL
 

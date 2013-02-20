@@ -1,6 +1,6 @@
 package Git::Raw::Tree;
 {
-  $Git::Raw::Tree::VERSION = '0.20';
+  $Git::Raw::Tree::VERSION = '0.21';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.20
+version 0.21
 
 =head1 DESCRIPTION
 
@@ -38,15 +38,15 @@ Retrieve the id of the tree, as string.
 
 Retrieve a list of L<Git::Raw::TreeEntry> objects.
 
-=head2 entry_byname( name )
+=head2 entry_byname( $name )
 
 Retrieve a L<Git::Raw::TreeEntry> object by name.
 
-=head2 entry_bypath( path )
+=head2 entry_bypath( $path )
 
 Retrieve a L<Git::Raw::TreeEntry> object by path.
 
-=head2 diff( $repo [, $tree] )
+=head2 diff( [$tree] )
 
 Compute the L<Git::Raw::Diff> between two trees. If no C<$tree> is passed, the
 diff will be computed against the working directory.

@@ -23,7 +23,7 @@ create(class, repo, name, target)
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ_DOUBLE(RETVAL, class, ref, repo);
+		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), ref, SvRV(repo));
 
 	OUTPUT: RETVAL
 
@@ -47,7 +47,7 @@ lookup(class, repo, name, is_local)
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ_DOUBLE(RETVAL, class, branch, repo);
+		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), branch, SvRV(repo));
 
 	OUTPUT: RETVAL
 
@@ -64,17 +64,18 @@ move(self, name, force)
 void
 foreach(class, repo, cb)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *cb
 
 	CODE:
 		git_foreach_payload payload = {
-			.repo = repo,
-			.cb = cb
+			.repo     = repo,
+			.repo_ptr = GIT_SV_TO_PTR(Repository, repo),
+			.cb       = cb
 		};
 
 		int rc = git_branch_foreach(
-			repo, GIT_BRANCH_LOCAL|GIT_BRANCH_REMOTE,
+			payload.repo_ptr, GIT_BRANCH_LOCAL|GIT_BRANCH_REMOTE,
 			git_branch_foreach_cb, &payload
 		);
 

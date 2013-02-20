@@ -24,6 +24,9 @@ typedef git_tree * Tree;
 typedef git_tree_entry * TreeEntry;
 typedef git_revwalk * Walker;
 
+void xs_object_magic_attach_struct(pTHX_ SV *sv, void *ptr);
+void *xs_object_magic_get_struct(pTHX_ SV *sv);
+
 void git_check_error(int err) {
 	const git_error *error;
 
@@ -35,18 +38,36 @@ void git_check_error(int err) {
 	Perl_croak(aTHX_ "%s", error -> message);
 }
 
-SV *git_obj_to_sv(git_object *o) {
+SV *git_obj_to_sv(git_object *o, SV *repo_src) {
+	SV *res;
+	SV *repo;
+
 	switch (git_object_type(o)) {
 		case GIT_OBJ_BLOB:
-			return sv_setref_pv(newSV(0), "Git::Raw::Blob", o);
+			res = sv_setref_pv(newSV(0), "Git::Raw::Blob", o); break;
 		case GIT_OBJ_COMMIT:
-			return sv_setref_pv(newSV(0), "Git::Raw::Commit", o);
+			res = sv_setref_pv(newSV(0), "Git::Raw::Commit", o); break;
 		case GIT_OBJ_TAG:
-			return sv_setref_pv(newSV(0), "Git::Raw::Tag", o);
+			res = sv_setref_pv(newSV(0), "Git::Raw::Tag", o); break;
 		case GIT_OBJ_TREE:
-			return sv_setref_pv(newSV(0), "Git::Raw::Tree", o);
+			res = sv_setref_pv(newSV(0), "Git::Raw::Tree", o); break;
 		default: Perl_croak(aTHX_ "Invalid object type");
 	}
+
+	if (sv_isobject(repo_src) &&
+	    sv_derived_from(repo_src, "Git::Raw::Repository"))
+		repo = SvRV(repo_src);
+	else if (sv_isobject(repo_src))
+		repo = xs_object_magic_get_struct(aTHX_ SvRV(repo_src));
+	else
+		Perl_croak(aTHX_ "Invalid repository source");
+
+	if (!repo)
+		Perl_croak(aTHX_ "Invalid repository source");
+
+	xs_object_magic_attach_struct(aTHX_ SvRV(res), SvREFCNT_inc_NN(repo));
+
+	return res;
 }
 
 git_object *git_sv_to_obj(SV *sv) {
@@ -185,18 +206,19 @@ int git_diff_cb(const git_diff_delta *delta, const git_diff_range *range,
 }
 
 typedef struct {
-	Repository repo;
+	Repository repo_ptr;
+	SV* repo;
 	SV* cb;
 } git_foreach_payload;
 
 int git_branch_foreach_cb(const char *name, git_branch_t type, void *payload) {
 	dSP;
 	int rv;
-	SV *cb_arg;
+	SV *repo, *cb_arg;
 	Branch branch;
 
 	int rc = git_branch_lookup(
-		&branch, ((git_foreach_payload *) payload) -> repo,
+		&branch, ((git_foreach_payload *) payload) -> repo_ptr,
 		name, type
 	);
 	git_check_error(rc);
@@ -204,8 +226,12 @@ int git_branch_foreach_cb(const char *name, git_branch_t type, void *payload) {
 	ENTER;
 	SAVETMPS;
 
+	repo = SvRV(((git_foreach_payload *) payload) -> repo);
+
 	cb_arg = sv_newmortal();
+
 	sv_setref_pv(cb_arg, "Git::Raw::Branch", (void *) branch);
+	xs_object_magic_attach_struct(aTHX_ SvRV(cb_arg), SvREFCNT_inc_NN(repo));
 
 	PUSHMARK(SP);
 	PUSHs(cb_arg);
@@ -277,18 +303,21 @@ int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	dSP;
 	int rv;
 	Tag tag;
-	SV *cb_arg;
+	SV *repo, *cb_arg;
 
 	int rc = git_tag_lookup(
-		&tag, ((git_foreach_payload *) payload) -> repo, oid
+		&tag, ((git_foreach_payload *) payload) -> repo_ptr, oid
 	);
 	git_check_error(rc);
 
 	ENTER;
 	SAVETMPS;
 
+	repo = SvRV(((git_foreach_payload *) payload) -> repo);
+
 	cb_arg = sv_newmortal();
 	sv_setref_pv(cb_arg, "Git::Raw::Tag", (void *) tag);
+	xs_object_magic_attach_struct(aTHX_ SvRV(cb_arg), SvREFCNT_inc_NN(repo));
 
 	PUSHMARK(SP);
 	PUSHs(cb_arg);
@@ -307,7 +336,7 @@ int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 }
 
 int git_cred_acquire_cbb(git_cred **cred, const char *url,
-						unsigned int allow, void *cb) {
+		const char *usr_from_url, unsigned int allow, void *cb) {
 	dSP;
 	SV *creds;
 
@@ -373,12 +402,16 @@ void *xs_object_magic_get_struct(pTHX_ SV *sv) {
 	return (mg) ? mg -> mg_ptr : NULL;
 }
 
-#define GIT_NEW_OBJ_DOUBLE(rv, class, primary, secondary)	\
+#define GIT_SV_TO_REPO(SV) ({				\
+	xs_object_magic_get_struct(aTHX_ SvRV(SV));	\
+})
+
+#define GIT_NEW_OBJ(rv, class, sv, magic)			\
 	STMT_START {						\
-		(rv) = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), primary); \
+		(rv) = sv_setref_pv(newSV(0), class, sv);	\
+								\
 		xs_object_magic_attach_struct(			\
-			aTHX_ SvRV(rv),				\
-			SvREFCNT_inc_NN(SvRV(secondary))	\
+			aTHX_ SvRV(rv), SvREFCNT_inc_NN(magic)	\
 		);						\
 	} STMT_END
 
