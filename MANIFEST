@@ -44,6 +44,7 @@ t/10-clone.t
 t/11-stash.t
 t/12-blob.t
 t/13-checkout.t
+t/99-clean.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -366,6 +367,7 @@ xs/libgit2/tests-clar/README.md
 xs/libgit2/tests-clar/attr/attr_expect.h
 xs/libgit2/tests-clar/attr/file.c
 xs/libgit2/tests-clar/attr/flags.c
+xs/libgit2/tests-clar/attr/ignore.c
 xs/libgit2/tests-clar/attr/lookup.c
 xs/libgit2/tests-clar/attr/repo.c
 xs/libgit2/tests-clar/buf/basic.c

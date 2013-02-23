@@ -36,6 +36,7 @@ my %WriteMakefileArgs = (
     'File::Temp' => '0',
     'Test::More' => '0'
   },
+  'CCFLAGS' => '-Wall',
   'CONFIGURE_REQUIRES' => {
     'Devel::CheckLib' => '0',
     'ExtUtils::MakeMaker' => '6.30'
@@ -52,7 +53,7 @@ my %WriteMakefileArgs = (
     'strict' => '0',
     'warnings' => '0'
   },
-  'VERSION' => '0.21',
+  'VERSION' => '0.22',
   'test' => {
     'TESTS' => 't/*.t'
   }
