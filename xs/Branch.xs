@@ -53,12 +53,17 @@ lookup(class, repo, name, is_local)
 
 void
 move(self, name, force)
-	Branch self
+	SV *self
 	SV *name
 	bool force
 
 	CODE:
-		int rc = git_branch_move(self, SvPVbyte_nolen(name), force);
+		Branch old_branch = GIT_SV_TO_PTR(Branch, self),
+		       new_branch;
+
+		int rc = git_branch_move(
+			&new_branch, old_branch, SvPVbyte_nolen(name), force
+		);
 		git_check_error(rc);
 
 void
@@ -77,11 +82,25 @@ foreach(class, repo, cb)
 
 		int rc = git_branch_foreach(
 			payload.repo_ptr, GIT_BRANCH_LOCAL | GIT_BRANCH_REMOTE,
-			git_branch_foreach_cb, &payload
+			git_branch_foreach_cbb, &payload
 		);
 
 		if (rc != GIT_EUSER)
 			git_check_error(rc);
+
+Reference
+tracking(self)
+	Branch self
+
+	CODE:
+		Reference ref;
+
+		int rc = git_branch_tracking(&ref, self);
+		git_check_error(rc);
+
+		RETVAL = ref;
+
+	OUTPUT: RETVAL
 
 bool
 is_head(self)

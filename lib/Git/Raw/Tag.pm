@@ -1,6 +1,6 @@
 package Git::Raw::Tag;
 {
-  $Git::Raw::Tag::VERSION = '0.22';
+  $Git::Raw::Tag::VERSION = '0.23';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.22
+version 0.23
 
 =head1 SYNOPSIS
 

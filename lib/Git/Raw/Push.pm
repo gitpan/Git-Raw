@@ -1,6 +1,6 @@
 package Git::Raw::Push;
 {
-  $Git::Raw::Push::VERSION = '0.22';
+  $Git::Raw::Push::VERSION = '0.23';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Push - Git push class
 
 =head1 VERSION
 
-version 0.22
+version 0.23
 
 =head1 SYNOPSIS
 

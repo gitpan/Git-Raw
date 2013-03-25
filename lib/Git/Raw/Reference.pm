@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.22';
+  $Git::Raw::Reference::VERSION = '0.23';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.22
+version 0.23
 
 =head1 DESCRIPTION
 
@@ -55,10 +55,6 @@ Retrieve the L<Git::Raw::Repository> owning the reference.
 =head2 is_branch( )
 
 Check if the reference is a branch.
-
-=head2 is_packed( )
-
-Check if the reference is packed.
 
 =head2 is_remote( )
 
