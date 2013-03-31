@@ -691,6 +691,8 @@ xs/libgit2/tests-clar/resources/icase/k/B
 xs/libgit2/tests-clar/resources/icase/k/D
 xs/libgit2/tests-clar/resources/icase/k/a
 xs/libgit2/tests-clar/resources/icase/k/c
+xs/libgit2/tests-clar/resources/issue_1397/crlf_file.txt
+xs/libgit2/tests-clar/resources/issue_1397/some_other_crlf_file.txt
 xs/libgit2/tests-clar/resources/issue_592/a.txt
 xs/libgit2/tests-clar/resources/issue_592/c/a.txt
 xs/libgit2/tests-clar/resources/issue_592/l.txt

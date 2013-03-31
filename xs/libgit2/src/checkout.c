@@ -23,6 +23,7 @@
 #include "blob.h"
 #include "diff.h"
 #include "pathspec.h"
+#include "buf_text.h"
 
 /* See docs/checkout-internals.md for more information */
 
@@ -665,11 +666,11 @@ static int buffer_to_file(
 		giterr_set(GITERR_OS, "Could not write to '%s'", path);
 		(void)p_close(fd);
 	} else {
-		if ((error = p_fstat(fd, st)) < 0)
-			giterr_set(GITERR_OS, "Error while statting '%s'", path);
-
 		if ((error = p_close(fd)) < 0)
 			giterr_set(GITERR_OS, "Error while closing '%s'", path);
+
+		if ((error = p_stat(path, st)) < 0)
+			giterr_set(GITERR_OS, "Error while statting '%s'", path);
 	}
 
 	if (!error &&

@@ -1,11 +1,18 @@
 Revision history for Git-Raw
 
+0.24      2013-03-31 13:06:30 Europe/Rome
+
+ - Update libgit2 to d2a4a54
+ - Config -> bool()/int()/str() now return undef when a configuration variable
+   is not found, instead of segfaulting (GH#13)
+
 0.23      2013-03-25 14:09:09 Europe/Rome
 
  - Update libgit2 to 3f21a23
    + The Branch -> move() method does not modify the Branch object anymore, as
      per the new underlying libgit2 implementation. An additional lookup is
      needed in order to get the new object (incompatible change)
+   + Remove Reference -> is_packed() method since it disappeared from libgit2
  - Add Branch -> tracking() method
 
 0.22      2013-02-23 15:19:30 Europe/Rome
