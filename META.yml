@@ -29,7 +29,7 @@ resources:
   bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/ghedo/p5-Git-Raw.git
-version: 0.25
+version: 0.26
 x_Dist_Zilla:
   perl:
     version: 5.018001
