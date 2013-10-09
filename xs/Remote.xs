@@ -19,22 +19,38 @@ create(class, repo, name, url)
 
 	OUTPUT: RETVAL
 
+Remote
+load(class, repo, name)
+	SV *class
+	Repository repo
+	SV *name
+
+	CODE:
+		Remote remote;
+
+		int rc = git_remote_load(&remote, repo, SvPVbyte_nolen(name));
+		git_check_error(rc);
+
+		RETVAL = remote;
+
+	OUTPUT: RETVAL
+
 SV *
 name(self, ...)
 	Remote self
 
 	PROTOTYPE: $;$
 	CODE:
-		const char *name;
+		char *name;
 
 		if (items == 2) {
-			int rc = git_remote_rename(
-				self, SvPVbyte_nolen(ST(1)), NULL, NULL
-			);
+			name = SvPVbyte_nolen(ST(1));
+
+			int rc = git_remote_rename(self, name, NULL, NULL);
 			git_check_error(rc);
 		}
 
-		name = git_remote_name(self);
+		name = (char *) git_remote_name(self);
 
 		RETVAL = newSVpv(name, 0);
 
@@ -49,7 +65,12 @@ url(self, ...)
 		const char *url;
 
 		if (items == 2) {
-			int rc = git_remote_set_url(self, SvPVbyte_nolen(ST(1)));
+			url = SvPVbyte_nolen(ST(1));
+
+			int rc = git_remote_set_url(self, url);
+			git_check_error(rc);
+
+			rc = git_remote_save(self);
 			git_check_error(rc);
 		}
 
@@ -59,47 +80,23 @@ url(self, ...)
 
 	OUTPUT: RETVAL
 
-RefSpec
-fetchspec(self, ...)
+void
+add_fetch(self, spec)
 	Remote self
+	SV *spec
 
-	PROTOTYPE: $;$
 	CODE:
-		RefSpec spec;
+		int rc = git_remote_add_fetch(self, SvPVbyte_nolen(spec));
+		git_check_error(rc);
 
-		if (items == 2) {
-			int rc = git_remote_set_fetchspec(
-				self, SvPVbyte_nolen(ST(1))
-			);
-			git_check_error(rc);
-		}
-
-		spec = (RefSpec) git_remote_fetchspec(self);
-
-		RETVAL = spec;
-
-	OUTPUT: RETVAL
-
-RefSpec
-pushspec(self, ...)
+void
+add_push(self, spec)
 	Remote self
+	SV *spec
 
-	PROTOTYPE: $;$
 	CODE:
-		RefSpec spec;
-
-		if (items == 2) {
-			int rc = git_remote_set_pushspec(
-				self, SvPVbyte_nolen(ST(1))
-			);
-			git_check_error(rc);
-		}
-
-		spec = (RefSpec) git_remote_pushspec(self);
-
-		RETVAL = spec;
-
-	OUTPUT: RETVAL
+		int rc = git_remote_add_push(self, SvPVbyte_nolen(spec));
+		git_check_error(rc);
 
 void
 connect(self, direction)
@@ -132,7 +129,7 @@ download(self)
 	Remote self
 
 	CODE:
-		int rc = git_remote_download(self, NULL, NULL);
+		int rc = git_remote_download(self);
 		git_check_error(rc);
 
 void
@@ -152,13 +149,25 @@ update_tips(self)
 		git_check_error(rc);
 
 void
-cred_acquire(self, cb)
+callbacks(self, callbacks)
 	Remote self
-	SV *cb
+	HV *callbacks
 
 	CODE:
-		SvREFCNT_inc(cb);
-		git_remote_set_cred_acquire_cb(self, git_cred_acquire_cbb, cb);
+		SV **opt;
+		git_remote_callbacks rcallbacks = GIT_REMOTE_CALLBACKS_INIT;
+
+		/* TODO: support all callbacks */
+		if ((opt = hv_fetchs(callbacks, "credentials", 0))) {
+			SV *cb = *opt;
+
+			SvREFCNT_inc(cb);
+
+			rcallbacks.credentials = git_cred_acquire_cbb;
+			rcallbacks.payload     = cb;
+		}
+
+		git_remote_set_callbacks(self, &rcallbacks);
 
 bool
 is_connected(self)

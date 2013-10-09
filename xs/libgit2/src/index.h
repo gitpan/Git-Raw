@@ -33,6 +33,7 @@ struct git_index {
 
 	git_tree_cache *tree;
 
+	git_vector names;
 	git_vector reuc;
 
 	git_vector_cmp entries_cmp_path;
@@ -41,12 +42,21 @@ struct git_index {
 	git_vector_cmp reuc_search;
 };
 
-extern void git_index_entry__init_from_stat(git_index_entry *entry, struct stat *st);
+struct git_index_conflict_iterator {
+	git_index *index;
+	size_t cur;
+};
+
+extern void git_index_entry__init_from_stat(
+	git_index_entry *entry, struct stat *st);
 
 extern size_t git_index__prefix_position(git_index *index, const char *path);
 
 extern int git_index_entry__cmp(const void *a, const void *b);
 extern int git_index_entry__cmp_icase(const void *a, const void *b);
+
+extern int git_index__find(
+	size_t *at_pos, git_index *index, const char *path, int stage);
 
 extern void git_index__set_ignore_case(git_index *index, bool ignore_case);
 

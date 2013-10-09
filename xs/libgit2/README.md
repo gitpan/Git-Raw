@@ -11,19 +11,24 @@ libgit2 is licensed under a **very permissive license** (GPLv2 with a special Li
 This basically means that you can link it (unmodified) with any kind of software without having to
 release its source code.
 
-* Mailing list: ~~<libgit2@librelist.org>~~
-    The libgit2 mailing list has
-    traditionally been hosted in Librelist, but Librelist is and has always
-    been a shitshow. We encourage you to [open an issue](https://github.com/libgit2/libgit2/issues)
-    on GitHub instead for any questions regarding the library.
-    * Archives: <http://librelist.com/browser/libgit2/>
 * Website: <http://libgit2.github.com>
+* StackOverflow Tag: [libgit2](http://stackoverflow.com/questions/tagged/libgit2)
+* Issues: <https://github.com/libgit2/libgit2/issues>
 * API documentation: <http://libgit2.github.com/libgit2>
+* IRC: #libgit2 on irc.freenode.net.
+* Mailing list: The libgit2 mailing list was
+    traditionally hosted in Librelist but has been deprecated. We encourage you to 
+    [use StackOverflow](http://stackoverflow.com/questions/tagged/libgit2) instead for any questions regarding
+    the library, or [open an issue](https://github.com/libgit2/libgit2/issues) 
+    on GitHub for bug reports.  The mailing list archives are still available at 
+    <http://librelist.com/browser/libgit2/>.
+
 
 What It Can Do
 ==================================
 
-libgit2 is already very usable.
+libgit2 is already very usable and is being used in production for many applications including the GitHub.com site, in Plastic SCM 
+and also powering Microsoft's Visual Studio tools for Git.  The library provides:
 
 * SHA conversions, formatting and shortening
 * abstracted ODB backend system
@@ -103,6 +108,28 @@ See [the wiki]
 (https://github.com/libgit2/libgit2/wiki/Building-libgit2-on-Windows)
 for more detailed instructions.
 
+Android
+-------
+
+Extract toolchain from NDK using, `make-standalone-toolchain.sh` script.
+Optionaly, crosscompile and install OpenSSL inside of it. Then create CMake
+toolchain file that configures paths to your crosscompiler (substitude `{PATH}`
+with full path to the toolchain):
+
+	SET(CMAKE_SYSTEM_NAME Linux)
+	SET(CMAKE_SYSTEM_VERSION Android)
+	
+	SET(CMAKE_C_COMPILER   {PATH}/bin/arm-linux-androideabi-gcc)
+	SET(CMAKE_CXX_COMPILER {PATH}/bin/arm-linux-androideabi-g++)
+	SET(CMAKE_FIND_ROOT_PATH {PATH}/sysroot/)
+	
+	SET(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
+	SET(CMAKE_FIND_ROOT_PATH_MODE_LIBRARY ONLY)
+	SET(CMAKE_FIND_ROOT_PATH_MODE_INCLUDE ONLY)
+
+Add `-DCMAKE_TOOLCHAIN_FILE={pathToToolchainFile} -DANDROID=1` to cmake command
+when configuring.
+
 Language Bindings
 ==================================
 
@@ -117,18 +144,18 @@ Here are the bindings to libgit2 that are currently available:
 * Delphi
     * GitForDelphi <https://github.com/libgit2/GitForDelphi>
 * Erlang
-    * Geef <https://github.com/schacon/geef>
+    * Geef <https://github.com/carlosmn/geef>
 * Go
-    * go-git <https://github.com/str1ngs/go-git>
+    * git2go <https://github.com/libgit2/git2go>
 * GObject
     * libgit2-glib <https://live.gnome.org/Libgit2-glib>
 * Haskell
-    * hgit2 <https://github.com/norm2782/hgit2>
+    * hgit2 <https://github.com/fpco/gitlib>
 * Lua
     * luagit2 <https://github.com/libgit2/luagit2>
 * .NET
-    * libgit2net, low level bindings <https://github.com/txdv/libgit2net>
     * libgit2sharp <https://github.com/libgit2/libgit2sharp>
+    * libgit2net, low level bindings superceeded by libgit2sharp <https://github.com/txdv/libgit2net>
 * Node.js
     * node-gitteh <https://github.com/libgit2/node-gitteh>
     * nodegit <https://github.com/tbranyen/nodegit>
@@ -139,7 +166,7 @@ Here are the bindings to libgit2 that are currently available:
 * Parrot Virtual Machine
     * parrot-libgit2 <https://github.com/letolabs/parrot-libgit2>
 * Perl
-    * git-xs-pm <https://github.com/ingydotnet/git-xs-pm>
+    * Git-Raw <https://github.com/ghedo/p5-Git-Raw>
 * PHP
     * php-git <https://github.com/libgit2/php-git>
 * Python
@@ -155,15 +182,7 @@ we can add it to the list.
 How Can I Contribute?
 ==================================
 
-Fork libgit2/libgit2 on GitHub, add your improvement, push it to a branch
-in your fork named for the topic, send a pull request. If you change the
-API or make other large changes, make a note of it in docs/rel-notes/ in a
-file named after the next release.
-
-You can also file bugs or feature requests under the libgit2 project on
-GitHub, or join us on the mailing list by sending an email to:
-
-libgit2@librelist.com
+Check the [contribution guidelines](CONTRIBUTING.md).
 
 
 License

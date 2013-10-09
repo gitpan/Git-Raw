@@ -94,10 +94,14 @@ GIT_EXTERN(int) git_repository_discover(
  *   changes from the `stat` system call).  (E.g. Searching in a user's home
  *   directory "/home/user/source/" will not return "/.git/" as the found
  *   repo if "/" is a different filesystem than "/home".)
+ * * GIT_REPOSITORY_OPEN_BARE - Open repository as a bare repo regardless
+ *   of core.bare config, and defer loading config file for faster setup.
+ *   Unlike `git_repository_open_bare`, this can follow gitlinks.
  */
 typedef enum {
 	GIT_REPOSITORY_OPEN_NO_SEARCH = (1 << 0),
 	GIT_REPOSITORY_OPEN_CROSS_FS  = (1 << 1),
+	GIT_REPOSITORY_OPEN_BARE      = (1 << 2),
 } git_repository_open_flag_t;
 
 /**
@@ -122,6 +126,19 @@ GIT_EXTERN(int) git_repository_open_ext(
 	const char *path,
 	unsigned int flags,
 	const char *ceiling_dirs);
+
+/**
+ * Open a bare repository on the serverside.
+ *
+ * This is a fast open for bare repositories that will come in handy
+ * if you're e.g. hosting git repositories and need to access them
+ * efficiently
+ *
+ * @param out Pointer to the repo which will be opened.
+ * @param bare_path Direct path to the bare repository
+ * @return 0 on success, or an error code
+ */
+GIT_EXTERN(int) git_repository_open_bare(git_repository **out, const char *bare_path);
 
 /**
  * Free a previously allocated repository
@@ -165,7 +182,7 @@ GIT_EXTERN(int) git_repository_init(
  * when initializing a new repo.  Details of individual values are:
  *
  * * BARE   - Create a bare repository with no working directory.
- * * NO_REINIT - Return an EEXISTS error if the repo_path appears to
+ * * NO_REINIT - Return an GIT_EEXISTS error if the repo_path appears to
  *        already be an git repository.
  * * NO_DOTGIT_DIR - Normally a "/.git/" will be appended to the repo
  *        path for non-bare repos (if it is not already there), but
@@ -280,7 +297,7 @@ GIT_EXTERN(int) git_repository_init_ext(
  * @param out pointer to the reference which will be retrieved
  * @param repo a repository object
  *
- * @return 0 on success, GIT_EORPHANEDHEAD when HEAD points to a non existing
+ * @return 0 on success, GIT_EUNBORNBRANCH when HEAD points to a non existing
  * branch, GIT_ENOTFOUND when HEAD is missing; an error code otherwise
  */
 GIT_EXTERN(int) git_repository_head(git_reference **out, git_repository *repo);
@@ -298,16 +315,16 @@ GIT_EXTERN(int) git_repository_head(git_reference **out, git_repository *repo);
 GIT_EXTERN(int) git_repository_head_detached(git_repository *repo);
 
 /**
- * Check if the current branch is an orphan
+ * Check if the current branch is unborn
  *
- * An orphan branch is one named from HEAD but which doesn't exist in
+ * An unborn branch is one named from HEAD but which doesn't exist in
  * the refs namespace, because it doesn't have any commit to point to.
  *
  * @param repo Repo to test
- * @return 1 if the current branch is an orphan, 0 if it's not; error
+ * @return 1 if the current branch is unborn, 0 if it's not; error
  * code if there was an error
  */
-GIT_EXTERN(int) git_repository_head_orphan(git_repository *repo);
+GIT_EXTERN(int) git_repository_head_unborn(git_repository *repo);
 
 /**
  * Check if a repository is empty
@@ -388,21 +405,6 @@ GIT_EXTERN(int) git_repository_is_bare(git_repository *repo);
 GIT_EXTERN(int) git_repository_config(git_config **out, git_repository *repo);
 
 /**
- * Set the configuration file for this repository
- *
- * This configuration file will be used for all configuration
- * queries involving this repository.
- *
- * The repository will keep a reference to the config file;
- * the user must still free the config after setting it
- * to the repository, or it will leak.
- *
- * @param repo A repository object
- * @param config A Config object
- */
-GIT_EXTERN(void) git_repository_set_config(git_repository *repo, git_config *config);
-
-/**
  * Get the Object Database for this repository.
  *
  * If a custom ODB has not been set, the default
@@ -417,21 +419,6 @@ GIT_EXTERN(void) git_repository_set_config(git_repository *repo, git_config *con
  * @return 0, or an error code
  */
 GIT_EXTERN(int) git_repository_odb(git_odb **out, git_repository *repo);
-
-/**
- * Set the Object Database for this repository
- *
- * The ODB will be used for all object-related operations
- * involving this repository.
- *
- * The repository will keep a reference to the ODB; the user
- * must still free the ODB object after setting it to the
- * repository, or it will leak.
- *
- * @param repo A repository object
- * @param odb An ODB object
- */
-GIT_EXTERN(void) git_repository_set_odb(git_repository *repo, git_odb *odb);
 
 /**
  * Get the Reference Database Backend for this repository.
@@ -450,23 +437,6 @@ GIT_EXTERN(void) git_repository_set_odb(git_repository *repo, git_odb *odb);
 GIT_EXTERN(int) git_repository_refdb(git_refdb **out, git_repository *repo);
 
 /**
- * Set the Reference Database Backend for this repository
- *
- * The refdb will be used for all reference related operations
- * involving this repository.
- *
- * The repository will keep a reference to the refdb; the user
- * must still free the refdb object after setting it to the
- * repository, or it will leak.
- *
- * @param repo A repository object
- * @param refdb An refdb object
- */
-GIT_EXTERN(void) git_repository_set_refdb(
-	git_repository *repo,
-	git_refdb *refdb);
-
-/**
  * Get the Index file for this repository.
  *
  * If a custom index has not been set, the default
@@ -483,21 +453,6 @@ GIT_EXTERN(void) git_repository_set_refdb(
 GIT_EXTERN(int) git_repository_index(git_index **out, git_repository *repo);
 
 /**
- * Set the index file for this repository
- *
- * This index will be used for all index-related operations
- * involving this repository.
- *
- * The repository will keep a reference to the index file;
- * the user must still free the index after setting it
- * to the repository, or it will leak.
- *
- * @param repo A repository object
- * @param index An index object
- */
-GIT_EXTERN(void) git_repository_set_index(git_repository *repo, git_index *index);
-
-/**
  * Retrieve git's prepared message
  *
  * Operations such as git revert/cherry-pick/merge with the -n option
@@ -509,10 +464,19 @@ GIT_EXTERN(void) git_repository_set_index(git_repository *repo, git_index *index
  * Use this function to get the contents of this file. Don't forget to
  * remove the file after you create the commit.
  *
+ * If the repository message exists and there are no errors reading it, this
+ * returns the bytes needed to store the message in memory (i.e. message
+ * file size plus one terminating NUL byte).  That value is returned even if
+ * `out` is NULL or `len` is shorter than the necessary size.
+ *
+ * The `out` buffer will *always* be NUL terminated, even if truncation
+ * occurs.
+ *
  * @param out Buffer to write data into or NULL to just read required size
- * @param len Length of buffer in bytes
+ * @param len Length of `out` buffer in bytes
  * @param repo Repository to read prepared message from
- * @return Bytes written to buffer, GIT_ENOTFOUND if no message, or -1 on error
+ * @return GIT_ENOTFOUND if no message exists, other value < 0 for other
+ *         errors, or total bytes in message (may be > `len`) on success
  */
 GIT_EXTERN(int) git_repository_message(char *out, size_t len, git_repository *repo);
 
@@ -559,7 +523,7 @@ typedef int (*git_repository_mergehead_foreach_cb)(const git_oid *oid,
  *
  * @param repo A repository object
  * @param callback Callback function
- * @param apyload Pointer to callback data (optional)
+ * @param payload Pointer to callback data (optional)
  * @return 0 on success, GIT_ENOTFOUND, GIT_EUSER or error
  */
 GIT_EXTERN(int) git_repository_mergehead_foreach(git_repository *repo,
@@ -585,11 +549,11 @@ GIT_EXTERN(int) git_repository_mergehead_foreach(git_repository *repo,
  *             applied when calculating the hash.
  */
 GIT_EXTERN(int) git_repository_hashfile(
-    git_oid *out,
-    git_repository *repo,
-    const char *path,
-    git_otype type,
-    const char *as_path);
+	git_oid *out,
+	git_repository *repo,
+	const char *path,
+	git_otype type,
+	const char *as_path);
 
 /**
  * Make the repository HEAD point to the specified reference.
@@ -641,13 +605,13 @@ GIT_EXTERN(int) git_repository_set_head_detached(
  * If the HEAD is already detached and points to a Tag, the HEAD is
  * updated into making it point to the peeled Commit, and 0 is returned.
  *
- * If the HEAD is already detached and points to a non commitish, the HEAD is 
+ * If the HEAD is already detached and points to a non commitish, the HEAD is
  * unaltered, and -1 is returned.
  *
  * Otherwise, the HEAD will be detached and point to the peeled Commit.
  *
  * @param repo Repository pointer
- * @return 0 on success, GIT_EORPHANEDHEAD when HEAD points to a non existing
+ * @return 0 on success, GIT_EUNBORNBRANCH when HEAD points to a non existing
  * branch or an error code
  */
 GIT_EXTERN(int) git_repository_detach_head(
@@ -674,6 +638,37 @@ typedef enum {
  * @return The state of the repository
  */
 GIT_EXTERN(int) git_repository_state(git_repository *repo);
+
+/**
+ * Sets the active namespace for this Git Repository
+ *
+ * This namespace affects all reference operations for the repo.
+ * See `man gitnamespaces`
+ *
+ * @param repo The repo
+ * @param nmspace The namespace. This should not include the refs
+ *	folder, e.g. to namespace all references under `refs/namespaces/foo/`,
+ *	use `foo` as the namespace.
+ *	@return 0 on success, -1 on error
+ */
+GIT_EXTERN(int) git_repository_set_namespace(git_repository *repo, const char *nmspace);
+
+/**
+ * Get the currently active namespace for this repository
+ *
+ * @param repo The repo
+ * @return the active namespace, or NULL if there isn't one
+ */
+GIT_EXTERN(const char *) git_repository_get_namespace(git_repository *repo);
+
+
+/**
+ * Determine if the repository was a shallow clone
+ *
+ * @param repo The repository
+ * @return 1 if shallow, zero if not
+ */
+GIT_EXTERN(int) git_repository_is_shallow(git_repository *repo);
 
 /** @} */
 GIT_END_DECL

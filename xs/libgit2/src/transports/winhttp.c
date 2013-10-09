@@ -19,6 +19,8 @@
 #include <winhttp.h>
 #pragma comment(lib, "winhttp")
 
+#include <strsafe.h>
+
 /* For UuidCreate */
 #pragma comment(lib, "rpcrt4")
 
@@ -58,6 +60,7 @@ typedef struct {
 	const char *service_url;
 	const wchar_t *verb;
 	HINTERNET request;
+	wchar_t *request_uri;
 	char *chunk_buffer;
 	unsigned chunk_buffer_len;
 	HANDLE post_body;
@@ -70,17 +73,12 @@ typedef struct {
 typedef struct {
 	git_smart_subtransport parent;
 	transport_smart *owner;
-	const char *path;
-	char *host;
-	char *port;
-	char *user_from_url;
-	char *pass_from_url;
+	gitno_connection_data connection_data;
 	git_cred *cred;
 	git_cred *url_cred;
 	int auth_mechanism;
 	HINTERNET session;
 	HINTERNET connection;
-	unsigned use_ssl : 1;
 } winhttp_subtransport;
 
 static int apply_basic_credential(HINTERNET request, git_cred *cred)
@@ -145,28 +143,47 @@ static int winhttp_stream_connect(winhttp_stream *s)
 	winhttp_subtransport *t = OWNING_SUBTRANSPORT(s);
 	git_buf buf = GIT_BUF_INIT;
 	char *proxy_url = NULL;
-	wchar_t url[GIT_WIN_PATH], ct[MAX_CONTENT_TYPE_LEN];
+	wchar_t ct[MAX_CONTENT_TYPE_LEN];
 	wchar_t *types[] = { L"*/*", NULL };
 	BOOL peerdist = FALSE;
-	int error = -1;
+	int error = -1, wide_len;
+	unsigned long disable_redirects = WINHTTP_DISABLE_REDIRECTS;
 
 	/* Prepare URL */
-	git_buf_printf(&buf, "%s%s", t->path, s->service_url);
+	git_buf_printf(&buf, "%s%s", t->connection_data.path, s->service_url);
 
 	if (git_buf_oom(&buf))
 		return -1;
 
-	git__utf8_to_16(url, GIT_WIN_PATH, git_buf_cstr(&buf));
+	/* Convert URL to wide characters */
+	wide_len = MultiByteToWideChar(CP_UTF8,	MB_ERR_INVALID_CHARS,
+		git_buf_cstr(&buf),	-1, NULL, 0);
+
+	if (!wide_len) {
+		giterr_set(GITERR_OS, "Failed to measure string for wide conversion");
+		goto on_error;
+	}
+
+	s->request_uri = git__malloc(wide_len * sizeof(wchar_t));
+
+	if (!s->request_uri)
+		goto on_error;
+
+	if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+		git_buf_cstr(&buf), -1, s->request_uri, wide_len)) {
+		giterr_set(GITERR_OS, "Failed to convert string to wide form");
+		goto on_error;
+	}
 
 	/* Establish request */
 	s->request = WinHttpOpenRequest(
 			t->connection,
 			s->verb,
-			url,
+			s->request_uri,
 			NULL,
 			WINHTTP_NO_REFERER,
 			types,
-			t->use_ssl ? WINHTTP_FLAG_SECURE : 0);
+			t->connection_data.use_ssl ? WINHTTP_FLAG_SECURE : 0);
 
 	if (!s->request) {
 		giterr_set(GITERR_OS, "Failed to open request");
@@ -174,24 +191,41 @@ static int winhttp_stream_connect(winhttp_stream *s)
 	}
 
 	/* Set proxy if necessary */
-	if (git_remote__get_http_proxy(t->owner->owner, t->use_ssl, &proxy_url) < 0)
+	if (git_remote__get_http_proxy(t->owner->owner, !!t->connection_data.use_ssl, &proxy_url) < 0)
 		goto on_error;
 
 	if (proxy_url) {
 		WINHTTP_PROXY_INFO proxy_info;
-		size_t wide_len;
+		wchar_t *proxy_wide;
 
-		git__utf8_to_16(url, GIT_WIN_PATH, proxy_url);
+		/* Convert URL to wide characters */
+		wide_len = MultiByteToWideChar(CP_UTF8,	MB_ERR_INVALID_CHARS,
+			proxy_url, -1, NULL, 0);
 
-		wide_len = wcslen(url);
+		if (!wide_len) {
+			giterr_set(GITERR_OS, "Failed to measure string for wide conversion");
+			goto on_error;
+		}
+
+		proxy_wide = git__malloc(wide_len * sizeof(wchar_t));
+
+		if (!proxy_wide)
+			goto on_error;
+
+		if (!MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS,
+			proxy_url, -1, proxy_wide, wide_len)) {
+			giterr_set(GITERR_OS, "Failed to convert string to wide form");
+			git__free(proxy_wide);
+			goto on_error;
+		}
 
 		/* Strip any trailing forward slash on the proxy URL;
 		 * WinHTTP doesn't like it if one is present */
-		if (L'/' == url[wide_len - 1])
-			url[wide_len - 1] = L'\0';
+		if (wide_len > 1 && L'/' == proxy_wide[wide_len - 2])
+			proxy_wide[wide_len - 2] = L'\0';
 
 		proxy_info.dwAccessType = WINHTTP_ACCESS_TYPE_NAMED_PROXY;
-		proxy_info.lpszProxy = url;
+		proxy_info.lpszProxy = proxy_wide;
 		proxy_info.lpszProxyBypass = NULL;
 
 		if (!WinHttpSetOption(s->request,
@@ -199,8 +233,22 @@ static int winhttp_stream_connect(winhttp_stream *s)
 			&proxy_info,
 			sizeof(WINHTTP_PROXY_INFO))) {
 			giterr_set(GITERR_OS, "Failed to set proxy");
+			git__free(proxy_wide);
 			goto on_error;
 		}
+
+		git__free(proxy_wide);
+	}
+
+	/* Disable WinHTTP redirects so we can handle them manually. Why, you ask?
+	 * http://social.msdn.microsoft.com/Forums/windowsdesktop/en-US/b2ff8879-ab9f-4218-8f09-16d25dff87ae
+	 */
+	if (!WinHttpSetOption(s->request,
+		WINHTTP_OPTION_DISABLE_FEATURE,
+		&disable_redirects,
+		sizeof(disable_redirects))) {
+			giterr_set(GITERR_OS, "Failed to disable redirects");
+			goto on_error;
 	}
 
 	/* Strip unwanted headers (X-P2P-PeerDist, X-P2P-PeerDistEx) that WinHTTP
@@ -232,7 +280,7 @@ static int winhttp_stream_connect(winhttp_stream *s)
 	}
 
 	/* If requested, disable certificate validation */
-	if (t->use_ssl) {
+	if (t->connection_data.use_ssl) {
 		int flags;
 
 		if (t->owner->parent.read_flags(&t->owner->parent, &flags) < 0)
@@ -255,9 +303,9 @@ static int winhttp_stream_connect(winhttp_stream *s)
 
 	/* If no other credentials have been applied and the URL has username and
 	 * password, use those */
-	if (!t->cred && t->user_from_url && t->pass_from_url) {
+	if (!t->cred && t->connection_data.user && t->connection_data.pass) {
 		if (!t->url_cred &&
-			 git_cred_userpass_plaintext_new(&t->url_cred, t->user_from_url, t->pass_from_url) < 0)
+			git_cred_userpass_plaintext_new(&t->url_cred, t->connection_data.user, t->connection_data.pass) < 0)
 			goto on_error;
 		if (apply_basic_credential(s->request, t->url_cred) < 0)
 			goto on_error;
@@ -339,6 +387,50 @@ static int write_chunk(HINTERNET request, const char *buffer, size_t len)
 	return 0;
 }
 
+static int winhttp_connect(
+	winhttp_subtransport *t,
+	const char *url)
+{
+	wchar_t *ua = L"git/1.0 (libgit2 " WIDEN(LIBGIT2_VERSION) L")";
+	git_win32_path host;
+	int32_t port;
+	const char *default_port = "80";
+
+	/* Prepare port */
+	if (git__strtol32(&port, t->connection_data.port, NULL, 10) < 0)
+		return -1;
+
+	/* Prepare host */
+	git_win32_path_from_c(host, t->connection_data.host);
+
+	/* Establish session */
+	t->session = WinHttpOpen(
+		ua,
+		WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
+		WINHTTP_NO_PROXY_NAME,
+		WINHTTP_NO_PROXY_BYPASS,
+		0);
+
+	if (!t->session) {
+		giterr_set(GITERR_OS, "Failed to init WinHTTP");
+		return -1;
+	}
+
+	/* Establish connection */
+	t->connection = WinHttpConnect(
+		t->session,
+		host,
+		(INTERNET_PORT) port,
+		0);
+
+	if (!t->connection) {
+		giterr_set(GITERR_OS, "Failed to connect to host");
+		return -1;
+	}
+
+	return 0;
+}
+
 static int winhttp_stream_read(
 	git_smart_subtransport_stream *stream,
 	char *buffer,
@@ -348,8 +440,15 @@ static int winhttp_stream_read(
 	winhttp_stream *s = (winhttp_stream *)stream;
 	winhttp_subtransport *t = OWNING_SUBTRANSPORT(s);
 	DWORD dw_bytes_read;
+	char replay_count = 0;
 
 replay:
+	/* Enforce a reasonable cap on the number of replays */
+	if (++replay_count >= 7) {
+		giterr_set(GITERR_NET, "Too many redirects or authentication replays");
+		return -1;
+	}
+
 	/* Connect if necessary */
 	if (!s->request && winhttp_stream_connect(s) < 0)
 		return -1;
@@ -445,8 +544,71 @@ replay:
 			WINHTTP_HEADER_NAME_BY_INDEX,
 			&status_code, &status_code_length,
 			WINHTTP_NO_HEADER_INDEX)) {
-				giterr_set(GITERR_OS, "Failed to retreive status code");
+				giterr_set(GITERR_OS, "Failed to retrieve status code");
 				return -1;
+		}
+
+		/* The implementation of WinHTTP prior to Windows 7 will not
+		 * redirect to an identical URI. Some Git hosters use self-redirects
+		 * as part of their DoS mitigation strategy. Check first to see if we
+		 * have a redirect status code, and that we haven't already streamed
+		 * a post body. (We can't replay a streamed POST.) */
+		if (!s->chunked &&
+			(HTTP_STATUS_MOVED == status_code ||
+			 HTTP_STATUS_REDIRECT == status_code ||
+			 (HTTP_STATUS_REDIRECT_METHOD == status_code &&
+			  get_verb == s->verb) ||
+			 HTTP_STATUS_REDIRECT_KEEP_VERB == status_code)) {
+
+			/* Check for Windows 7. This workaround is only necessary on
+			 * Windows Vista and earlier. Windows 7 is version 6.1. */
+			wchar_t *location;
+			DWORD location_length;
+			char *location8;
+
+			/* OK, fetch the Location header from the redirect. */
+			if (WinHttpQueryHeaders(s->request,
+				WINHTTP_QUERY_LOCATION,
+				WINHTTP_HEADER_NAME_BY_INDEX,
+				WINHTTP_NO_OUTPUT_BUFFER,
+				&location_length,
+				WINHTTP_NO_HEADER_INDEX) ||
+				GetLastError() != ERROR_INSUFFICIENT_BUFFER) {
+				giterr_set(GITERR_OS, "Failed to read Location header");
+				return -1;
+			}
+
+			location = git__malloc(location_length);
+			location8 = git__malloc(location_length);
+			GITERR_CHECK_ALLOC(location);
+
+			if (!WinHttpQueryHeaders(s->request,
+				WINHTTP_QUERY_LOCATION,
+				WINHTTP_HEADER_NAME_BY_INDEX,
+				location,
+				&location_length,
+				WINHTTP_NO_HEADER_INDEX)) {
+				giterr_set(GITERR_OS, "Failed to read Location header");
+				git__free(location);
+				return -1;
+			}
+			git__utf16_to_8(location8, location_length, location);
+			git__free(location);
+
+			/* Replay the request */
+			WinHttpCloseHandle(s->request);
+			s->request = NULL;
+			s->sent_request = 0;
+
+			if (!git__prefixcmp_icase(location8, prefix_https)) {
+				/* Upgrade to secure connection; disconnect and start over */
+				if (gitno_connection_data_from_url(&t->connection_data, location8, s->service_url) < 0)
+					return -1;
+				winhttp_connect(t, location8);
+			}
+
+			git__free(location8);
+			goto replay;
 		}
 
 		/* Handle authentication failures */
@@ -460,7 +622,8 @@ replay:
 			if (allowed_types &&
 				(!t->cred || 0 == (t->cred->credtype & allowed_types))) {
 
-				if (t->owner->cred_acquire_cb(&t->cred, t->owner->url, t->user_from_url, allowed_types, t->owner->cred_acquire_payload) < 0)
+				if (t->owner->cred_acquire_cb(&t->cred, t->owner->url, t->connection_data.user, allowed_types, 
+								t->owner->cred_acquire_payload) < 0)
 					return -1;
 
 				assert(t->cred);
@@ -747,6 +910,11 @@ static void winhttp_stream_free(git_smart_subtransport_stream *stream)
 		s->post_body = NULL;
 	}
 
+	if (s->request_uri) {
+		git__free(s->request_uri);
+		s->request_uri = NULL;
+	}
+
 	if (s->request) {
 		WinHttpCloseHandle(s->request);
 		s->request = NULL;
@@ -771,68 +939,6 @@ static int winhttp_stream_alloc(winhttp_subtransport *t, winhttp_stream **stream
 	s->parent.free = winhttp_stream_free;
 
 	*stream = s;
-
-	return 0;
-}
-
-static int winhttp_connect(
-	winhttp_subtransport *t,
-	const char *url)
-{
-	wchar_t *ua = L"git/1.0 (libgit2 " WIDEN(LIBGIT2_VERSION) L")";
-	wchar_t host[GIT_WIN_PATH];
-	int32_t port;
-	const char *default_port;
-	int ret;
-
-	if (!git__prefixcmp(url, prefix_http)) {
-		url = url + strlen(prefix_http);
-		default_port = "80";
-	}
-
-	if (!git__prefixcmp(url, prefix_https)) {
-		url += strlen(prefix_https);
-		default_port = "443";
-		t->use_ssl = 1;
-	}
-
-	if ((ret = gitno_extract_url_parts(&t->host, &t->port, &t->user_from_url,
-					&t->pass_from_url, url, default_port)) < 0)
-		return ret;
-
-	t->path = strchr(url, '/');
-
-	/* Prepare port */
-	if (git__strtol32(&port, t->port, NULL, 10) < 0)
-		return -1;
-
-	/* Prepare host */
-	git__utf8_to_16(host, GIT_WIN_PATH, t->host);
-
-	/* Establish session */
-	t->session = WinHttpOpen(
-			ua,
-			WINHTTP_ACCESS_TYPE_DEFAULT_PROXY,
-			WINHTTP_NO_PROXY_NAME,
-			WINHTTP_NO_PROXY_BYPASS,
-			0);
-
-	if (!t->session) {
-		giterr_set(GITERR_OS, "Failed to init WinHTTP");
-		return -1;
-	}
-	
-	/* Establish connection */
-	t->connection = WinHttpConnect(
-			t->session,
-			host,
-			port,
-			0);
-
-	if (!t->connection) {
-		giterr_set(GITERR_OS, "Failed to connect to host");
-		return -1;
-	}
 
 	return 0;
 }
@@ -876,7 +982,7 @@ static int winhttp_receivepack(
 {
 	/* WinHTTP only supports Transfer-Encoding: chunked
 	 * on Windows Vista (NT 6.0) and higher. */
-	s->chunked = LOBYTE(LOWORD(GetVersion())) >= 6;
+	s->chunked = git_has_win32_version(6, 0, 0);
 
 	if (s->chunked)
 		s->parent.write = winhttp_stream_write_chunked;
@@ -900,9 +1006,10 @@ static int winhttp_action(
 	winhttp_stream *s;
 	int ret = -1;
 
-	if (!t->connection &&
-		winhttp_connect(t, url) < 0)
-		return -1;
+	if (!t->connection)
+		if (gitno_connection_data_from_url(&t->connection_data, url, NULL) < 0 ||
+			 winhttp_connect(t, url) < 0)
+			return -1;
 
 	if (winhttp_stream_alloc(t, &s) < 0)
 		return -1;
@@ -943,25 +1050,7 @@ static int winhttp_close(git_smart_subtransport *subtransport)
 	winhttp_subtransport *t = (winhttp_subtransport *)subtransport;
 	int ret = 0;
 
-	if (t->host) {
-		git__free(t->host);
-		t->host = NULL;
-	}
-
-	if (t->port) {
-		git__free(t->port);
-		t->port = NULL;
-	}
-
-	if (t->user_from_url) {
-		git__free(t->user_from_url);
-		t->user_from_url = NULL;
-	}
-
-	if (t->pass_from_url) {
-		git__free(t->pass_from_url);
-		t->pass_from_url = NULL;
-	}
+	gitno_connection_data_free_ptrs(&t->connection_data);
 
 	if (t->cred) {
 		t->cred->free(t->cred);

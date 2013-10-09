@@ -28,7 +28,15 @@ int diff_file_cb(
 {
 	diff_expects *e = payload;
 
-	GIT_UNUSED(progress);
+	if (e->debug)
+		fprintf(stderr, "%c %s (%.3f)\n",
+			git_diff_status_char(delta->status),
+			delta->old_file.path, progress);
+
+	if (e->names)
+		cl_assert_equal_s(e->names[e->files], delta->old_file.path);
+	if (e->statuses)
+		cl_assert_equal_i(e->statuses[e->files], (int)delta->status);
 
 	e->files++;
 
@@ -42,6 +50,16 @@ int diff_file_cb(
 	return 0;
 }
 
+int diff_print_file_cb(
+	const git_diff_delta *delta,
+	float progress,
+	void *payload)
+{
+	fprintf(stderr, "%c %s\n",
+		git_diff_status_char(delta->status), delta->old_file.path);
+	return diff_file_cb(delta, progress, payload);
+}
+
 int diff_hunk_cb(
 	const git_diff_delta *delta,
 	const git_diff_range *range,
@@ -52,8 +70,9 @@ int diff_hunk_cb(
 	diff_expects *e = payload;
 
 	GIT_UNUSED(delta);
-	GIT_UNUSED(header);
-	GIT_UNUSED(header_len);
+
+	/* confirm no NUL bytes in header text */
+	while (header_len--) cl_assert('\0' != *header++);
 
 	e->hunks++;
 	e->hunk_old_lines += range->old_lines;
@@ -79,20 +98,15 @@ int diff_line_cb(
 	e->lines++;
 	switch (line_origin) {
 	case GIT_DIFF_LINE_CONTEXT:
+	case GIT_DIFF_LINE_CONTEXT_EOFNL: /* techically not a line */
 		e->line_ctxt++;
 		break;
 	case GIT_DIFF_LINE_ADDITION:
-		e->line_adds++;
-		break;
-	case GIT_DIFF_LINE_ADD_EOFNL:
-		/* technically not a line add, but we'll count it as such */
+	case GIT_DIFF_LINE_ADD_EOFNL: /* technically not a line add */
 		e->line_adds++;
 		break;
 	case GIT_DIFF_LINE_DELETION:
-		e->line_dels++;
-		break;
-	case GIT_DIFF_LINE_DEL_EOFNL:
-		/* technically not a line delete, but we'll count it as such */
+	case GIT_DIFF_LINE_DEL_EOFNL: /* technically not a line delete */
 		e->line_dels++;
 		break;
 	default:
@@ -199,4 +213,9 @@ static int diff_print_cb(
 void diff_print(FILE *fp, git_diff_list *diff)
 {
 	cl_git_pass(git_diff_print_patch(diff, diff_print_cb, fp ? fp : stderr));
+}
+
+void diff_print_raw(FILE *fp, git_diff_list *diff)
+{
+	cl_git_pass(git_diff_print_raw(diff, diff_print_cb, fp ? fp : stderr));
 }

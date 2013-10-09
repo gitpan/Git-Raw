@@ -25,13 +25,6 @@
 GIT_BEGIN_DECL
 
 typedef int (*git_remote_rename_problem_cb)(const char *problematic_refspec, void *payload);
-/*
- * TODO: This functions still need to be implemented:
- * - _listcb/_foreach
- * - _add
- * - _rename
- * - _del (needs support from config)
- */
 
 /**
  * Add a remote with the default fetch refspec to the repository's configuration.  This
@@ -96,6 +89,14 @@ GIT_EXTERN(int) git_remote_load(git_remote **out, git_repository *repo, const ch
 GIT_EXTERN(int) git_remote_save(const git_remote *remote);
 
 /**
+ * Get the remote's repository
+ *
+ * @param remote the remote
+ * @return a pointer to the repository
+ */
+GIT_EXTERN(git_repository *) git_remote_owner(const git_remote *remote);
+
+/**
  * Get the remote's name
  *
  * @param remote the remote
@@ -142,39 +143,79 @@ GIT_EXTERN(int) git_remote_set_url(git_remote *remote, const char* url);
 GIT_EXTERN(int) git_remote_set_pushurl(git_remote *remote, const char* url);
 
 /**
- * Set the remote's fetch refspec
+ * Add a fetch refspec to the remote
  *
  * @param remote the remote
- * @apram spec the new fetch refspec
+ * @apram refspec the new fetch refspec
  * @return 0 or an error value
  */
-GIT_EXTERN(int) git_remote_set_fetchspec(git_remote *remote, const char *spec);
+GIT_EXTERN(int) git_remote_add_fetch(git_remote *remote, const char *refspec);
 
 /**
- * Get the fetch refspec
+ * Get the remote's list of fetch refspecs
  *
- * @param remote the remote
- * @return a pointer to the fetch refspec or NULL if it doesn't exist
+ * The memory is owned by the user and should be freed with
+ * `git_strarray_free`.
+ *
+ * @param array pointer to the array in which to store the strings
+ * @param remote the remote to query
  */
-GIT_EXTERN(const git_refspec *) git_remote_fetchspec(const git_remote *remote);
+GIT_EXTERN(int) git_remote_get_fetch_refspecs(git_strarray *array, git_remote *remote);
 
 /**
- * Set the remote's push refspec
+ * Add a push refspec to the remote
  *
  * @param remote the remote
- * @param spec the new push refspec
+ * @param refspec the new push refspec
  * @return 0 or an error value
  */
-GIT_EXTERN(int) git_remote_set_pushspec(git_remote *remote, const char *spec);
+GIT_EXTERN(int) git_remote_add_push(git_remote *remote, const char *refspec);
 
 /**
- * Get the push refspec
+ * Get the remote's list of push refspecs
+ *
+ * The memory is owned by the user and should be freed with
+ * `git_strarray_free`.
+ *
+ * @param array pointer to the array in which to store the strings
+ * @param remote the remote to query
+ */
+GIT_EXTERN(int) git_remote_get_push_refspecs(git_strarray *array, git_remote *remote);
+
+/**
+ * Clear the refspecs
+ *
+ * Remove all configured fetch and push refspecs from the remote.
  *
  * @param remote the remote
- * @return a pointer to the push refspec or NULL if it doesn't exist
  */
+GIT_EXTERN(void) git_remote_clear_refspecs(git_remote *remote);
 
-GIT_EXTERN(const git_refspec *) git_remote_pushspec(const git_remote *remote);
+/**
+ * Get the number of refspecs for a remote
+ *
+ * @param remote the remote
+ * @return the amount of refspecs configured in this remote
+ */
+GIT_EXTERN(size_t) git_remote_refspec_count(git_remote *remote);
+
+/**
+ * Get a refspec from the remote
+ *
+ * @param remote the remote to query
+ * @param n the refspec to get
+ * @return the nth refspec
+ */
+GIT_EXTERN(const git_refspec *)git_remote_get_refspec(git_remote *remote, size_t n);
+
+/**
+ * Remove a refspec from the remote
+ *
+ * @param remote the remote to query
+ * @param n the refspec to remove
+ * @return 0 or GIT_ENOTFOUND
+ */
+GIT_EXTERN(int) git_remote_remove_refspec(git_remote *remote, size_t n);
 
 /**
  * Open a connection to a remote
@@ -184,7 +225,8 @@ GIT_EXTERN(const git_refspec *) git_remote_pushspec(const git_remote *remote);
  * starts up a specific binary which can only do the one or the other.
  *
  * @param remote the remote to connect to
- * @param direction whether you want to receive or send data
+ * @param direction GIT_DIRECTION_FETCH if you want to fetch or
+ * GIT_DIRECTION_PUSH if you want to push
  * @return 0 or an error code
  */
 GIT_EXTERN(int) git_remote_connect(git_remote *remote, git_direction direction);
@@ -206,25 +248,18 @@ GIT_EXTERN(int) git_remote_connect(git_remote *remote, git_direction direction);
 GIT_EXTERN(int) git_remote_ls(git_remote *remote, git_headlist_cb list_cb, void *payload);
 
 /**
- * Download the packfile
+ * Download and index the packfile
  *
- * Negotiate what objects should be downloaded and download the
- * packfile with those objects. The packfile is downloaded with a
- * temporary filename, as it's final name is not known yet. If there
- * was no packfile needed (all the objects were available locally),
- * filename will be NULL and the function will return success.
+ * Connect to the remote if it hasn't been done yet, negotiate with
+ * the remote git which objects are missing, download and index the
+ * packfile.
  *
- * @param remote the remote to download from
- * @param progress_cb function to call with progress information.  Be aware that
- * this is called inline with network and indexing operations, so performance
- * may be affected.
- * @param progress_payload payload for the progress callback
+ * The .idx file will be created and both it and the packfile with be
+ * renamed to their final name.
+ *
  * @return 0 or an error code
  */
-GIT_EXTERN(int) git_remote_download(
-		git_remote *remote,
-		git_transfer_progress_callback progress_cb,
-		void *payload);
+GIT_EXTERN(int) git_remote_download(git_remote *remote);
 
 /**
  * Check whether the remote is connected
@@ -276,10 +311,21 @@ GIT_EXTERN(void) git_remote_free(git_remote *remote);
 GIT_EXTERN(int) git_remote_update_tips(git_remote *remote);
 
 /**
+ * Download new data and update tips
+ *
+ * Convenience function to connect to a remote, download the data,
+ * disconnect and update the remote-tracking branches.
+ *
+ * @param remote the remote to fetch from
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_remote_fetch(git_remote *remote);
+
+/**
  * Return whether a string is a valid remote URL
  *
  * @param url the url to check
- * @param 1 if the url is valid, 0 otherwise
+ * @return 1 if the url is valid, 0 otherwise
  */
 GIT_EXTERN(int) git_remote_valid_url(const char *url);
 
@@ -354,13 +400,47 @@ typedef enum git_remote_completion_type {
 /**
  * The callback settings structure
  *
- * Set the calbacks to be called by the remote.
+ * Set the callbacks to be called by the remote when informing the user
+ * about the progress of the network operations.
  */
 struct git_remote_callbacks {
 	unsigned int version;
+	/**
+	 * Textual progress from the remote. Text send over the
+	 * progress side-band will be passed to this function (this is
+	 * the 'counting objects' output.
+	 */
 	void (*progress)(const char *str, int len, void *data);
+
+	/**
+	 * Completion is called when different parts of the download
+	 * process are done (currently unused).
+	 */
 	int (*completion)(git_remote_completion_type type, void *data);
+
+	/**
+	 * This will be called if the remote host requires
+	 * authentication in order to connect to it.
+	 */
+	int (*credentials)(git_cred **cred, const char *url, const char *username_from_url, unsigned int allowed_types,	void *data);
+
+	/**
+	 * During the download of new data, this will be regularly
+	 * called with the current count of progress done by the
+	 * indexer.
+	 */
+	int (*transfer_progress)(const git_transfer_progress *stats, void *data);
+
+	/**
+	 * Each time a reference is updated locally, this function
+	 * will be called with information about it.
+	 */
 	int (*update_tips)(const char *refname, const git_oid *a, const git_oid *b, void *data);
+
+	/**
+	 * This will be passed to each of the callbacks in this struct
+	 * as the last parameter.
+	 */
 	void *payload;
 };
 
@@ -377,7 +457,7 @@ struct git_remote_callbacks {
  * @param callbacks a pointer to the user's callback settings
  * @return 0 or an error code
  */
-GIT_EXTERN(int) git_remote_set_callbacks(git_remote *remote, git_remote_callbacks *callbacks);
+GIT_EXTERN(int) git_remote_set_callbacks(git_remote *remote, const git_remote_callbacks *callbacks);
 
 /**
  * Get the statistics structure that is filled in by the fetch operation.
@@ -385,10 +465,9 @@ GIT_EXTERN(int) git_remote_set_callbacks(git_remote *remote, git_remote_callback
 GIT_EXTERN(const git_transfer_progress *) git_remote_stats(git_remote *remote);
 
 typedef enum {
-	GIT_REMOTE_DOWNLOAD_TAGS_UNSET,
-	GIT_REMOTE_DOWNLOAD_TAGS_NONE,
-	GIT_REMOTE_DOWNLOAD_TAGS_AUTO,
-	GIT_REMOTE_DOWNLOAD_TAGS_ALL
+	GIT_REMOTE_DOWNLOAD_TAGS_AUTO = 0,
+	GIT_REMOTE_DOWNLOAD_TAGS_NONE = 1,
+	GIT_REMOTE_DOWNLOAD_TAGS_ALL = 2
 } git_remote_autotag_option_t;
 
 /**

@@ -5,10 +5,14 @@
  * a Linking Exception. For full terms see the included COPYING file.
  */
 #include "common.h"
-#include "diff.h"
+
 #include "git2/config.h"
 #include "git2/blob.h"
+
+#include "diff.h"
 #include "hashsig.h"
+#include "path.h"
+#include "fileops.h"
 
 static git_diff_delta *diff_delta__dup(
 	const git_diff_delta *d, git_pool *pool)
@@ -18,12 +22,15 @@ static git_diff_delta *diff_delta__dup(
 		return NULL;
 
 	memcpy(delta, d, sizeof(git_diff_delta));
+	GIT_DIFF_FLAG__CLEAR_INTERNAL(delta->flags);
 
-	delta->old_file.path = git_pool_strdup(pool, d->old_file.path);
-	if (delta->old_file.path == NULL)
-		goto fail;
+	if (d->old_file.path != NULL) {
+		delta->old_file.path = git_pool_strdup(pool, d->old_file.path);
+		if (delta->old_file.path == NULL)
+			goto fail;
+	}
 
-	if (d->new_file.path != d->old_file.path) {
+	if (d->new_file.path != d->old_file.path && d->new_file.path != NULL) {
 		delta->new_file.path = git_pool_strdup(pool, d->new_file.path);
 		if (delta->new_file.path == NULL)
 			goto fail;
@@ -170,7 +177,7 @@ int git_diff_merge(
 	return error;
 }
 
-static int find_similar__hashsig_for_file(
+int git_diff_find_similar__hashsig_for_file(
 	void **out, const git_diff_file *f, const char *path, void *p)
 {
 	git_hashsig_option_t opt = (git_hashsig_option_t)p;
@@ -178,7 +185,7 @@ static int find_similar__hashsig_for_file(
 
 	GIT_UNUSED(f);
 	error = git_hashsig_create_fromfile((git_hashsig **)out, path, opt);
-	
+
 	if (error == GIT_EBUFS) {
 		error = 0;
 		giterr_clear();
@@ -187,15 +194,15 @@ static int find_similar__hashsig_for_file(
 	return error;
 }
 
-static int find_similar__hashsig_for_buf(
+int git_diff_find_similar__hashsig_for_buf(
 	void **out, const git_diff_file *f, const char *buf, size_t len, void *p)
 {
 	git_hashsig_option_t opt = (git_hashsig_option_t)p;
 	int error = 0;
-	
+
 	GIT_UNUSED(f);
 	error = git_hashsig_create((git_hashsig **)out, buf, len, opt);
-	
+
 	if (error == GIT_EBUFS) {
 		error = 0;
 		giterr_clear();
@@ -204,13 +211,13 @@ static int find_similar__hashsig_for_buf(
 	return error;
 }
 
-static void find_similar__hashsig_free(void *sig, void *payload)
+void git_diff_find_similar__hashsig_free(void *sig, void *payload)
 {
 	GIT_UNUSED(payload);
 	git_hashsig_free(sig);
 }
 
-static int find_similar__calc_similarity(
+int git_diff_find_similar__calc_similarity(
 	int *score, void *siga, void *sigb, void *payload)
 {
 	GIT_UNUSED(payload);
@@ -220,7 +227,7 @@ static int find_similar__calc_similarity(
 
 #define DEFAULT_THRESHOLD 50
 #define DEFAULT_BREAK_REWRITE_THRESHOLD 60
-#define DEFAULT_TARGET_LIMIT 200
+#define DEFAULT_RENAME_LIMIT 200
 
 static int normalize_find_opts(
 	git_diff_list *diff,
@@ -253,11 +260,24 @@ static int normalize_find_opts(
 
 	/* some flags imply others */
 
+	if (opts->flags & GIT_DIFF_FIND_EXACT_MATCH_ONLY) {
+		/* if we are only looking for exact matches, then don't turn
+		 * MODIFIED items into ADD/DELETE pairs because it's too picky
+		 */
+		opts->flags &= ~(GIT_DIFF_FIND_REWRITES | GIT_DIFF_BREAK_REWRITES);
+
+		/* similarly, don't look for self-rewrites to split */
+		opts->flags &= ~GIT_DIFF_FIND_RENAMES_FROM_REWRITES;
+	}
+
 	if (opts->flags & GIT_DIFF_FIND_RENAMES_FROM_REWRITES)
 		opts->flags |= GIT_DIFF_FIND_RENAMES;
 
 	if (opts->flags & GIT_DIFF_FIND_COPIES_FROM_UNMODIFIED)
 		opts->flags |= GIT_DIFF_FIND_COPIES;
+
+	if (opts->flags & GIT_DIFF_BREAK_REWRITES)
+		opts->flags |= GIT_DIFF_FIND_REWRITES;
 
 #define USE_DEFAULT(X) ((X) == 0 || (X) > 100)
 
@@ -275,15 +295,15 @@ static int normalize_find_opts(
 
 #undef USE_DEFAULT
 
-	if (!opts->target_limit) {
+	if (!opts->rename_limit) {
 		int32_t limit = 0;
 
-		opts->target_limit = DEFAULT_TARGET_LIMIT;
+		opts->rename_limit = DEFAULT_RENAME_LIMIT;
 
 		if (git_config_get_int32(&limit, cfg, "diff.renameLimit") < 0)
 			giterr_clear();
 		else if (limit > 0)
-			opts->target_limit = limit;
+			opts->rename_limit = limit;
 	}
 
 	/* assign the internal metric with whitespace flag as payload */
@@ -291,10 +311,10 @@ static int normalize_find_opts(
 		opts->metric = git__malloc(sizeof(git_diff_similarity_metric));
 		GITERR_CHECK_ALLOC(opts->metric);
 
-		opts->metric->file_signature = find_similar__hashsig_for_file;
-		opts->metric->buffer_signature = find_similar__hashsig_for_buf;
-		opts->metric->free_signature = find_similar__hashsig_free;
-		opts->metric->similarity = find_similar__calc_similarity;
+		opts->metric->file_signature = git_diff_find_similar__hashsig_for_file;
+		opts->metric->buffer_signature = git_diff_find_similar__hashsig_for_buf;
+		opts->metric->free_signature = git_diff_find_similar__hashsig_free;
+		opts->metric->similarity = git_diff_find_similar__calc_similarity;
 
 		if (opts->flags & GIT_DIFF_FIND_IGNORE_WHITESPACE)
 			opts->metric->payload = (void *)GIT_HASHSIG_IGNORE_WHITESPACE;
@@ -307,11 +327,12 @@ static int normalize_find_opts(
 	return 0;
 }
 
-static int apply_splits_and_deletes(git_diff_list *diff, size_t expected_size)
+static int apply_splits_and_deletes(
+	git_diff_list *diff, size_t expected_size, bool actually_split)
 {
 	git_vector onto = GIT_VECTOR_INIT;
 	size_t i;
-	git_diff_delta *delta;
+	git_diff_delta *delta, *deleted;
 
 	if (git_vector_init(&onto, expected_size, git_diff_delta__cmp) < 0)
 		return -1;
@@ -321,9 +342,11 @@ static int apply_splits_and_deletes(git_diff_list *diff, size_t expected_size)
 		if ((delta->flags & GIT_DIFF_FLAG__TO_DELETE) != 0)
 			continue;
 
-		if ((delta->flags & GIT_DIFF_FLAG__TO_SPLIT) != 0) {
-			git_diff_delta *deleted = diff_delta__dup(delta, &diff->pool);
-			if (!deleted)
+		if ((delta->flags & GIT_DIFF_FLAG__TO_SPLIT) != 0 && actually_split) {
+			delta->similarity = 0;
+
+			/* make new record for DELETED side of split */
+			if (!(deleted = diff_delta__dup(delta, &diff->pool)))
 				goto on_error;
 
 			deleted->status = GIT_DELTA_DELETED;
@@ -334,32 +357,46 @@ static int apply_splits_and_deletes(git_diff_list *diff, size_t expected_size)
 			if (git_vector_insert(&onto, deleted) < 0)
 				goto on_error;
 
-			delta->status = GIT_DELTA_ADDED;
+			if (diff->new_src == GIT_ITERATOR_TYPE_WORKDIR)
+				delta->status = GIT_DELTA_UNTRACKED;
+			else
+				delta->status = GIT_DELTA_ADDED;
 			memset(&delta->old_file, 0, sizeof(delta->old_file));
 			delta->old_file.path = delta->new_file.path;
 			delta->old_file.flags |= GIT_DIFF_FLAG_VALID_OID;
 		}
 
+		/* clean up delta before inserting into new list */
+		GIT_DIFF_FLAG__CLEAR_INTERNAL(delta->flags);
+
+		if (delta->status != GIT_DELTA_COPIED &&
+			delta->status != GIT_DELTA_RENAMED &&
+			(delta->status != GIT_DELTA_MODIFIED || actually_split))
+			delta->similarity = 0;
+
+		/* insert into new list */
 		if (git_vector_insert(&onto, delta) < 0)
 			goto on_error;
 	}
 
 	/* cannot return an error past this point */
-	git_vector_foreach(&diff->deltas, i, delta)
+
+	/* free deltas from old list that didn't make it to the new one */
+	git_vector_foreach(&diff->deltas, i, delta) {
 		if ((delta->flags & GIT_DIFF_FLAG__TO_DELETE) != 0)
 			git__free(delta);
+	}
 
 	/* swap new delta list into place */
-	git_vector_sort(&onto);
 	git_vector_swap(&diff->deltas, &onto);
 	git_vector_free(&onto);
+	git_vector_sort(&diff->deltas);
 
 	return 0;
 
 on_error:
 	git_vector_foreach(&onto, i, delta)
 		git__free(delta);
-
 	git_vector_free(&onto);
 
 	return -1;
@@ -371,307 +408,650 @@ GIT_INLINE(git_diff_file *) similarity_get_file(git_diff_list *diff, size_t idx)
 	return (idx & 1) ? &delta->new_file : &delta->old_file;
 }
 
-static int similarity_calc(
-	git_diff_list *diff,
-	git_diff_find_options *opts,
-	size_t file_idx,
+typedef struct {
+	size_t idx;
+	git_iterator_type_t src;
+	git_repository *repo;
+	git_diff_file *file;
+	git_buf data;
+	git_odb_object *odb_obj;
+	git_blob *blob;
+} similarity_info;
+
+static int similarity_init(
+	similarity_info *info, git_diff_list *diff, size_t file_idx)
+{
+	info->idx  = file_idx;
+	info->src  = (file_idx & 1) ? diff->new_src : diff->old_src;
+	info->repo = diff->repo;
+	info->file = similarity_get_file(diff, file_idx);
+	info->odb_obj = NULL;
+	info->blob = NULL;
+	git_buf_init(&info->data, 0);
+
+	if (info->file->size > 0)
+		return 0;
+
+	return git_diff_file__resolve_zero_size(
+		info->file, &info->odb_obj, info->repo);
+}
+
+static int similarity_sig(
+	similarity_info *info,
+	const git_diff_find_options *opts,
 	void **cache)
 {
 	int error = 0;
-	git_diff_file *file = similarity_get_file(diff, file_idx);
-	git_iterator_type_t src = (file_idx & 1) ? diff->old_src : diff->new_src;
+	git_diff_file *file = info->file;
 
-	if (src == GIT_ITERATOR_TYPE_WORKDIR) { /* compute hashsig from file */
-		git_buf path = GIT_BUF_INIT;
+	if (info->src == GIT_ITERATOR_TYPE_WORKDIR) {
+		if ((error = git_buf_joinpath(
+			&info->data, git_repository_workdir(info->repo), file->path)) < 0)
+			return error;
+
+		/* if path is not a regular file, just skip this item */
+		if (!git_path_isfile(info->data.ptr))
+			return 0;
 
 		/* TODO: apply wd-to-odb filters to file data if necessary */
 
-		if (!(error = git_buf_joinpath(
-				&path, git_repository_workdir(diff->repo), file->path)))
-			error = opts->metric->file_signature(
-				&cache[file_idx], file, path.ptr, opts->metric->payload);
+		error = opts->metric->file_signature(
+			&cache[info->idx], info->file,
+			info->data.ptr, opts->metric->payload);
+	} else {
+		/* if we didn't initially know the size, we might have an odb_obj
+		 * around from earlier, so convert that, otherwise load the blob now
+		 */
+		if (info->odb_obj != NULL)
+			error = git_object__from_odb_object(
+				(git_object **)&info->blob, info->repo,
+				info->odb_obj, GIT_OBJ_BLOB);
+		else
+			error = git_blob_lookup(&info->blob, info->repo, &file->oid);
 
-		git_buf_free(&path);
-	} else { /* compute hashsig from blob buffer */
-		git_blob *blob = NULL;
+		if (error < 0) {
+			/* if lookup fails, just skip this item in similarity calc */
+			giterr_clear();
+		} else {
+			size_t sz;
 
-		/* TODO: add max size threshold a la diff? */
+			/* index size may not be actual blob size if filtered */
+			if (file->size != git_blob_rawsize(info->blob))
+				file->size = git_blob_rawsize(info->blob);
 
-		if ((error = git_blob_lookup(&blob, diff->repo, &file->oid)) < 0)
-			return error;
+			sz = (size_t)(git__is_sizet(file->size) ? file->size : -1);
 
-		error = opts->metric->buffer_signature(
-			&cache[file_idx], file, git_blob_rawcontent(blob),
-			git_blob_rawsize(blob), opts->metric->payload);
-
-		git_blob_free(blob);
+			error = opts->metric->buffer_signature(
+				&cache[info->idx], info->file,
+				git_blob_rawcontent(info->blob), sz, opts->metric->payload);
+		}
 	}
 
 	return error;
 }
 
+static void similarity_unload(similarity_info *info)
+{
+	if (info->odb_obj)
+		git_odb_object_free(info->odb_obj);
+
+	if (info->blob)
+		git_blob_free(info->blob);
+	else
+		git_buf_free(&info->data);
+}
+
+#define FLAG_SET(opts,flag_name) (((opts)->flags & flag_name) != 0)
+
+/* - score < 0 means files cannot be compared
+ * - score >= 100 means files are exact match
+ * - score == 0 means files are completely different
+ */
 static int similarity_measure(
+	int *score,
 	git_diff_list *diff,
-	git_diff_find_options *opts,
+	const git_diff_find_options *opts,
 	void **cache,
 	size_t a_idx,
 	size_t b_idx)
 {
-	int score = 0;
 	git_diff_file *a_file = similarity_get_file(diff, a_idx);
 	git_diff_file *b_file = similarity_get_file(diff, b_idx);
+	bool exact_match = FLAG_SET(opts, GIT_DIFF_FIND_EXACT_MATCH_ONLY);
+	int error = 0;
+	similarity_info a_info, b_info;
 
+	*score = -1;
+
+	/* don't try to compare files of different types */
 	if (GIT_MODE_TYPE(a_file->mode) != GIT_MODE_TYPE(b_file->mode))
 		return 0;
 
-	if (git_oid_cmp(&a_file->oid, &b_file->oid) == 0)
-		return 100;
+	/* if exact match is requested, force calculation of missing OIDs now */
+	if (exact_match) {
+		if (git_oid_iszero(&a_file->oid) &&
+			diff->old_src == GIT_ITERATOR_TYPE_WORKDIR &&
+			!git_diff__oid_for_file(diff->repo, a_file->path,
+				a_file->mode, a_file->size, &a_file->oid))
+			a_file->flags |= GIT_DIFF_FLAG_VALID_OID;
+
+		if (git_oid_iszero(&b_file->oid) &&
+			diff->new_src == GIT_ITERATOR_TYPE_WORKDIR &&
+			!git_diff__oid_for_file(diff->repo, b_file->path,
+				b_file->mode, b_file->size, &b_file->oid))
+			b_file->flags |= GIT_DIFF_FLAG_VALID_OID;
+	}
+
+	/* check OID match as a quick test */
+	if (git_oid__cmp(&a_file->oid, &b_file->oid) == 0) {
+		*score = 100;
+		return 0;
+	}
+
+	/* don't calculate signatures if we are doing exact match */
+	if (exact_match) {
+		*score = 0;
+		return 0;
+	}
+
+	memset(&a_info, 0, sizeof(a_info));
+	memset(&b_info, 0, sizeof(b_info));
+
+	/* set up similarity data (will try to update missing file sizes) */
+	if (!cache[a_idx] && (error = similarity_init(&a_info, diff, a_idx)) < 0)
+		return error;
+	if (!cache[b_idx] && (error = similarity_init(&b_info, diff, b_idx)) < 0)
+		goto cleanup;
+
+	/* check if file sizes are nowhere near each other */
+	if (a_file->size > 127 &&
+		b_file->size > 127 &&
+		(a_file->size > (b_file->size << 3) ||
+		 b_file->size > (a_file->size << 3)))
+		goto cleanup;
 
 	/* update signature cache if needed */
-	if (!cache[a_idx] && similarity_calc(diff, opts, a_idx, cache) < 0)
-		return -1;
-	if (!cache[b_idx] && similarity_calc(diff, opts, b_idx, cache) < 0)
-		return -1;
-	
-	/* some metrics may not wish to process this file (too big / too small) */
-	if (!cache[a_idx] || !cache[b_idx])
-		return 0;
+	if (!cache[a_idx]) {
+		if ((error = similarity_sig(&a_info, opts, cache)) < 0)
+			goto cleanup;
+	}
+	if (!cache[b_idx]) {
+		if ((error = similarity_sig(&b_info, opts, cache)) < 0)
+			goto cleanup;
+	}
 
-	/* compare signatures */
-	if (opts->metric->similarity(
-			&score, cache[a_idx], cache[b_idx], opts->metric->payload) < 0)
-		return -1;
+	/* calculate similarity provided that the metric choose to process
+	 * both the a and b files (some may not if file is too big, etc).
+	 */
+	if (cache[a_idx] && cache[b_idx])
+		error = opts->metric->similarity(
+			score, cache[a_idx], cache[b_idx], opts->metric->payload);
 
-	/* clip score */
-	if (score < 0)
-		score = 0;
-	else if (score > 100)
-		score = 100;
+cleanup:
+	similarity_unload(&a_info);
+	similarity_unload(&b_info);
 
-	return score;
+	return error;
 }
 
-#define FLAG_SET(opts,flag_name) ((opts.flags & flag_name) != 0)
+static int calc_self_similarity(
+	git_diff_list *diff,
+	const git_diff_find_options *opts,
+	size_t delta_idx,
+	void **cache)
+{
+	int error, similarity = -1;
+	git_diff_delta *delta = GIT_VECTOR_GET(&diff->deltas, delta_idx);
+
+	if ((delta->flags & GIT_DIFF_FLAG__HAS_SELF_SIMILARITY) != 0)
+		return 0;
+
+	error = similarity_measure(
+		&similarity, diff, opts, cache, 2 * delta_idx, 2 * delta_idx + 1);
+	if (error < 0)
+		return error;
+
+	if (similarity >= 0) {
+		delta->similarity = (uint32_t)similarity;
+		delta->flags |= GIT_DIFF_FLAG__HAS_SELF_SIMILARITY;
+	}
+
+	return 0;
+}
+
+static bool is_rename_target(
+	git_diff_list *diff,
+	const git_diff_find_options *opts,
+	size_t delta_idx,
+	void **cache)
+{
+	git_diff_delta *delta = GIT_VECTOR_GET(&diff->deltas, delta_idx);
+
+	/* skip things that aren't plain blobs */
+	if (!GIT_MODE_ISBLOB(delta->new_file.mode))
+		return false;
+
+	/* only consider ADDED, RENAMED, COPIED, and split MODIFIED as
+	 * targets; maybe include UNTRACKED and IGNORED if requested.
+	 */
+	switch (delta->status) {
+	case GIT_DELTA_UNMODIFIED:
+	case GIT_DELTA_DELETED:
+		return false;
+
+	case GIT_DELTA_MODIFIED:
+		if (!FLAG_SET(opts, GIT_DIFF_FIND_REWRITES) &&
+			!FLAG_SET(opts, GIT_DIFF_FIND_RENAMES_FROM_REWRITES))
+			return false;
+
+		if (calc_self_similarity(diff, opts, delta_idx, cache) < 0)
+			return false;
+
+		if (FLAG_SET(opts, GIT_DIFF_BREAK_REWRITES) &&
+			delta->similarity < opts->break_rewrite_threshold) {
+			delta->flags |= GIT_DIFF_FLAG__TO_SPLIT;
+			break;
+		}
+		if (FLAG_SET(opts, GIT_DIFF_FIND_RENAMES_FROM_REWRITES) &&
+			delta->similarity < opts->rename_from_rewrite_threshold)
+			break;
+
+		return false;
+
+	case GIT_DELTA_UNTRACKED:
+		if (!FLAG_SET(opts, GIT_DIFF_FIND_FOR_UNTRACKED))
+			return false;
+		break;
+
+	case GIT_DELTA_IGNORED:
+		return false;
+
+	default: /* all other status values should be checked */
+		break;
+	}
+
+	delta->flags |= GIT_DIFF_FLAG__IS_RENAME_TARGET;
+	return true;
+}
+
+static bool is_rename_source(
+	git_diff_list *diff,
+	const git_diff_find_options *opts,
+	size_t delta_idx,
+	void **cache)
+{
+	git_diff_delta *delta = GIT_VECTOR_GET(&diff->deltas, delta_idx);
+
+	/* skip things that aren't blobs */
+	if (!GIT_MODE_ISBLOB(delta->old_file.mode))
+		return false;
+
+	switch (delta->status) {
+	case GIT_DELTA_ADDED:
+	case GIT_DELTA_UNTRACKED:
+	case GIT_DELTA_IGNORED:
+		return false;
+
+	case GIT_DELTA_DELETED:
+	case GIT_DELTA_TYPECHANGE:
+		break;
+
+	case GIT_DELTA_UNMODIFIED:
+		if (!FLAG_SET(opts, GIT_DIFF_FIND_COPIES_FROM_UNMODIFIED))
+			return false;
+		break;
+
+	default: /* MODIFIED, RENAMED, COPIED */
+		/* if we're finding copies, this could be a source */
+		if (FLAG_SET(opts, GIT_DIFF_FIND_COPIES))
+			break;
+
+		/* otherwise, this is only a source if we can split it */
+		if (!FLAG_SET(opts, GIT_DIFF_FIND_REWRITES) &&
+			!FLAG_SET(opts, GIT_DIFF_FIND_RENAMES_FROM_REWRITES))
+			return false;
+
+		if (calc_self_similarity(diff, opts, delta_idx, cache) < 0)
+			return false;
+
+		if (FLAG_SET(opts, GIT_DIFF_BREAK_REWRITES) &&
+			delta->similarity < opts->break_rewrite_threshold) {
+			delta->flags |= GIT_DIFF_FLAG__TO_SPLIT;
+			break;
+		}
+
+		if (FLAG_SET(opts, GIT_DIFF_FIND_RENAMES_FROM_REWRITES) &&
+			delta->similarity < opts->rename_from_rewrite_threshold)
+			break;
+
+		return false;
+	}
+
+	delta->flags |= GIT_DIFF_FLAG__IS_RENAME_SOURCE;
+	return true;
+}
+
+GIT_INLINE(bool) delta_is_split(git_diff_delta *delta)
+{
+	return (delta->status == GIT_DELTA_TYPECHANGE ||
+			(delta->flags & GIT_DIFF_FLAG__TO_SPLIT) != 0);
+}
+
+GIT_INLINE(bool) delta_is_new_only(git_diff_delta *delta)
+{
+	return (delta->status == GIT_DELTA_ADDED ||
+			delta->status == GIT_DELTA_UNTRACKED ||
+			delta->status == GIT_DELTA_IGNORED);
+}
+
+GIT_INLINE(void) delta_make_rename(
+	git_diff_delta *to, const git_diff_delta *from, uint32_t similarity)
+{
+	to->status     = GIT_DELTA_RENAMED;
+	to->similarity = similarity;
+	memcpy(&to->old_file, &from->old_file, sizeof(to->old_file));
+	to->flags &= ~GIT_DIFF_FLAG__TO_SPLIT;
+}
+
+typedef struct {
+	uint32_t idx;
+	uint32_t similarity;
+} diff_find_match;
 
 int git_diff_find_similar(
 	git_diff_list *diff,
 	git_diff_find_options *given_opts)
 {
-	size_t i, j, cache_size, *matches;
+	size_t s, t;
 	int error = 0, similarity;
-	git_diff_delta *from, *to;
+	git_diff_delta *src, *tgt;
 	git_diff_find_options opts;
-	size_t tried_targets, num_rewrites = 0;
-	void **cache;
+	size_t num_deltas, num_srcs = 0, num_tgts = 0;
+	size_t tried_srcs = 0, tried_tgts = 0;
+	size_t num_rewrites = 0, num_updates = 0, num_bumped = 0;
+	void **sigcache; /* cache of similarity metric file signatures */
+	diff_find_match *tgt2src = NULL;
+	diff_find_match *src2tgt = NULL;
+	diff_find_match *tgt2src_copy = NULL;
+	diff_find_match *best_match;
+	git_diff_file swap;
 
 	if ((error = normalize_find_opts(diff, &opts, given_opts)) < 0)
 		return error;
 
-	/* TODO: maybe abort if deltas.length > target_limit ??? */
+	num_deltas = diff->deltas.length;
 
-	cache_size = diff->deltas.length * 2; /* must store b/c length may change */
-	cache = git__calloc(cache_size, sizeof(void *));
-	GITERR_CHECK_ALLOC(cache);
+	/* TODO: maybe abort if deltas.length > rename_limit ??? */
+	if (!git__is_uint32(num_deltas))
+		return 0;
 
-	matches = git__calloc(diff->deltas.length, sizeof(size_t));
-	GITERR_CHECK_ALLOC(matches);
+	sigcache = git__calloc(num_deltas * 2, sizeof(void *));
+	GITERR_CHECK_ALLOC(sigcache);
 
-	/* first break MODIFIED records that are too different (if requested) */
+	/* Label rename sources and targets
+	 *
+	 * This will also set self-similarity scores for MODIFIED files and
+	 * mark them for splitting if break-rewrites is enabled
+	 */
+	git_vector_foreach(&diff->deltas, t, tgt) {
+		if (is_rename_source(diff, &opts, t, sigcache))
+			++num_srcs;
 
-	if (FLAG_SET(opts, GIT_DIFF_FIND_AND_BREAK_REWRITES)) {
-		git_vector_foreach(&diff->deltas, i, from) {
-			if (from->status != GIT_DELTA_MODIFIED)
-				continue;
+		if (is_rename_target(diff, &opts, t, sigcache))
+			++num_tgts;
 
-			similarity = similarity_measure(
-				diff, &opts, cache, 2 * i, 2 * i + 1);
-
-			if (similarity < 0) {
-				error = similarity;
-				goto cleanup;
-			}
-
-			if ((unsigned int)similarity < opts.break_rewrite_threshold) {
-				from->flags |= GIT_DIFF_FLAG__TO_SPLIT;
-				num_rewrites++;
-			}
-		}
+		if ((tgt->flags & GIT_DIFF_FLAG__TO_SPLIT) != 0)
+			num_rewrites++;
 	}
 
-	/* next find the most similar delta for each rename / copy candidate */
+	/* if there are no candidate srcs or tgts, we're done */
+	if (!num_srcs || !num_tgts)
+		goto cleanup;
 
-	git_vector_foreach(&diff->deltas, i, from) {
-		tried_targets = 0;
+	src2tgt = git__calloc(num_deltas, sizeof(diff_find_match));
+	GITERR_CHECK_ALLOC(src2tgt);
+	tgt2src = git__calloc(num_deltas, sizeof(diff_find_match));
+	GITERR_CHECK_ALLOC(tgt2src);
 
-		/* skip things that aren't blobs */
-		if (GIT_MODE_TYPE(from->old_file.mode) !=
-			GIT_MODE_TYPE(GIT_FILEMODE_BLOB))
-			continue;
-
-		/* don't check UNMODIFIED files as source unless given option */
-		if (from->status == GIT_DELTA_UNMODIFIED &&
-			!FLAG_SET(opts, GIT_DIFF_FIND_COPIES_FROM_UNMODIFIED))
-			continue;
-
-		/* skip all but DELETED files unless copy detection is on */
-		if (!FLAG_SET(opts, GIT_DIFF_FIND_COPIES) &&
-			from->status != GIT_DELTA_DELETED &&
-			(from->flags & GIT_DIFF_FLAG__TO_SPLIT) == 0)
-			continue;
-
-		git_vector_foreach(&diff->deltas, j, to) {
-			if (i == j)
-				continue;
-
-			/* skip things that aren't blobs */
-			if (GIT_MODE_TYPE(to->new_file.mode) !=
-				GIT_MODE_TYPE(GIT_FILEMODE_BLOB))
-				continue;
-
-			switch (to->status) {
-			case GIT_DELTA_ADDED:
-			case GIT_DELTA_UNTRACKED:
-			case GIT_DELTA_RENAMED:
-			case GIT_DELTA_COPIED:
-				break;
-			case GIT_DELTA_MODIFIED:
-				if ((to->flags & GIT_DIFF_FLAG__TO_SPLIT) == 0)
-					continue;
-				break;
-			default:
-				/* only the above status values should be checked */
-				continue;
-			}
-
-			/* cap on maximum files we'll examine (per "from" file) */
-			if (++tried_targets > opts.target_limit)
-				break;
-
-			/* calculate similarity and see if this pair beats the
-			 * similarity score of the current best pair.
-			 */
-			similarity = similarity_measure(
-				diff, &opts, cache, 2 * i, 2 * j + 1);
-
-			if (similarity < 0) {
-				error = similarity;
-				goto cleanup;
-			}
-
-			if (to->similarity < (unsigned int)similarity) {
-				to->similarity = (unsigned int)similarity;
-				matches[j] = i + 1;
-			}
-		}
+	if (FLAG_SET(&opts, GIT_DIFF_FIND_COPIES)) {
+		tgt2src_copy = git__calloc(num_deltas, sizeof(diff_find_match));
+		GITERR_CHECK_ALLOC(tgt2src_copy);
 	}
 
-	/* next rewrite the diffs with renames / copies */
+	/*
+	 * Find best-fit matches for rename / copy candidates
+	 */
 
-	git_vector_foreach(&diff->deltas, j, to) {
-		if (!matches[j]) {
-			assert(to->similarity == 0);
+find_best_matches:
+	tried_tgts = num_bumped = 0;
+
+	git_vector_foreach(&diff->deltas, t, tgt) {
+		/* skip things that are not rename targets */
+		if ((tgt->flags & GIT_DIFF_FLAG__IS_RENAME_TARGET) == 0)
 			continue;
+
+		tried_srcs = 0;
+
+		git_vector_foreach(&diff->deltas, s, src) {
+			/* skip things that are not rename sources */
+			if ((src->flags & GIT_DIFF_FLAG__IS_RENAME_SOURCE) == 0)
+				continue;
+
+			/* calculate similarity for this pair and find best match */
+			if (s == t)
+				similarity = -1; /* don't measure self-similarity here */
+			else if ((error = similarity_measure(
+				&similarity, diff, &opts, sigcache, 2 * s, 2 * t + 1)) < 0)
+				goto cleanup;
+
+			if (similarity < 0)
+				continue;
+
+			/* is this a better rename? */
+			if (tgt2src[t].similarity < (uint32_t)similarity &&
+				src2tgt[s].similarity < (uint32_t)similarity)
+			{
+				/* eject old mapping */
+				if (src2tgt[s].similarity > 0) {
+					tgt2src[src2tgt[s].idx].similarity = 0;
+					num_bumped++;
+				}
+				if (tgt2src[t].similarity > 0) {
+					src2tgt[tgt2src[t].idx].similarity = 0;
+					num_bumped++;
+				}
+
+				/* write new mapping */
+				tgt2src[t].idx = (uint32_t)s;
+				tgt2src[t].similarity = (uint32_t)similarity;
+				src2tgt[s].idx = (uint32_t)t;
+				src2tgt[s].similarity = (uint32_t)similarity;
+			}
+
+			/* keep best absolute match for copies */
+			if (tgt2src_copy != NULL &&
+				tgt2src_copy[t].similarity < (uint32_t)similarity)
+			{
+				tgt2src_copy[t].idx = (uint32_t)s;
+				tgt2src_copy[t].similarity = (uint32_t)similarity;
+			}
+
+			if (++tried_srcs >= num_srcs)
+				break;
+
+			/* cap on maximum targets we'll examine (per "tgt" file) */
+			if (tried_srcs > opts.rename_limit)
+				break;
 		}
 
-		i = matches[j] - 1;
-		from = GIT_VECTOR_GET(&diff->deltas, i);
-		assert(from);
+		if (++tried_tgts >= num_tgts)
+			break;
+	}
 
-		/* four possible outcomes here:
-		 * 1. old DELETED and if over rename threshold,
-		 *    new becomes RENAMED and old goes away
-		 * 2. old SPLIT and if over rename threshold,
-		 *    new becomes RENAMED and old becomes ADDED (clear SPLIT)
-		 * 3. old was MODIFIED but FIND_RENAMES_FROM_REWRITES is on and
-		 *    old is more similar to new than it is to itself, in which
-		 *    case, new becomes RENAMED and old becomed ADDED
-		 * 4. otherwise if over copy threshold, new becomes COPIED
+	if (num_bumped > 0) /* try again if we bumped some items */
+		goto find_best_matches;
+
+	/*
+	 * Rewrite the diffs with renames / copies
+	 */
+
+	tried_tgts = 0;
+
+	git_vector_foreach(&diff->deltas, t, tgt) {
+		/* skip things that are not rename targets */
+		if ((tgt->flags & GIT_DIFF_FLAG__IS_RENAME_TARGET) == 0)
+			continue;
+
+		/* check if this delta was the target of a similarity */
+		if (tgt2src[t].similarity)
+			best_match = &tgt2src[t];
+		else if (tgt2src_copy && tgt2src_copy[t].similarity)
+			best_match = &tgt2src_copy[t];
+		else
+			continue;
+
+		s = best_match->idx;
+		src = GIT_VECTOR_GET(&diff->deltas, s);
+
+		/* possible scenarios:
+		 * 1. from DELETE to ADD/UNTRACK/IGNORE = RENAME
+		 * 2. from DELETE to SPLIT/TYPECHANGE = RENAME + DELETE
+		 * 3. from SPLIT/TYPECHANGE to ADD/UNTRACK/IGNORE = ADD + RENAME
+		 * 4. from SPLIT/TYPECHANGE to SPLIT/TYPECHANGE = RENAME + SPLIT
+		 * 5. from OTHER to ADD/UNTRACK/IGNORE = OTHER + COPY
 		 */
 
-		if (from->status == GIT_DELTA_DELETED) {
-			if (to->similarity < opts.rename_threshold) {
-				to->similarity = 0;
+		if (src->status == GIT_DELTA_DELETED) {
+
+			if (delta_is_new_only(tgt)) {
+
+				if (best_match->similarity < opts.rename_threshold)
+					continue;
+
+				delta_make_rename(tgt, src, best_match->similarity);
+
+				src->flags |= GIT_DIFF_FLAG__TO_DELETE;
+				num_rewrites++;
+			} else {
+				assert(delta_is_split(tgt));
+
+				if (best_match->similarity < opts.rename_from_rewrite_threshold)
+					continue;
+
+				memcpy(&swap, &tgt->old_file, sizeof(swap));
+
+				delta_make_rename(tgt, src, best_match->similarity);
+				num_rewrites--;
+
+				src->status = GIT_DELTA_DELETED;
+				memcpy(&src->old_file, &swap, sizeof(src->old_file));
+				memset(&src->new_file, 0, sizeof(src->new_file));
+				src->new_file.path = src->old_file.path;
+				src->new_file.flags |= GIT_DIFF_FLAG_VALID_OID;
+
+				num_updates++;
+
+				if (src2tgt[t].similarity > 0 && src2tgt[t].idx > t) {
+					/* what used to be at src t is now at src s */
+					tgt2src[src2tgt[t].idx].idx = (uint32_t)s;
+				}
+			}
+		}
+
+		else if (delta_is_split(src)) {
+
+			if (delta_is_new_only(tgt)) {
+
+				if (best_match->similarity < opts.rename_threshold)
+					continue;
+
+				delta_make_rename(tgt, src, best_match->similarity);
+
+				src->status = (diff->new_src == GIT_ITERATOR_TYPE_WORKDIR) ?
+					GIT_DELTA_UNTRACKED : GIT_DELTA_ADDED;
+				memset(&src->old_file, 0, sizeof(src->old_file));
+				src->old_file.path = src->new_file.path;
+				src->old_file.flags |= GIT_DIFF_FLAG_VALID_OID;
+
+				src->flags &= ~GIT_DIFF_FLAG__TO_SPLIT;
+				num_rewrites--;
+
+				num_updates++;
+			} else {
+				assert(delta_is_split(src));
+
+				if (best_match->similarity < opts.rename_from_rewrite_threshold)
+					continue;
+
+				memcpy(&swap, &tgt->old_file, sizeof(swap));
+
+				delta_make_rename(tgt, src, best_match->similarity);
+				num_rewrites--;
+				num_updates++;
+
+				memcpy(&src->old_file, &swap, sizeof(src->old_file));
+
+				/* if we've just swapped the new element into the correct
+				 * place, clear the SPLIT flag
+				 */
+				if (tgt2src[s].idx == t &&
+					tgt2src[s].similarity >
+					opts.rename_from_rewrite_threshold) {
+					src->status     = GIT_DELTA_RENAMED;
+					src->similarity = tgt2src[s].similarity;
+					tgt2src[s].similarity = 0;
+					src->flags &= ~GIT_DIFF_FLAG__TO_SPLIT;
+					num_rewrites--;
+				}
+				/* otherwise, if we just overwrote a source, update mapping */
+				else if (src2tgt[t].similarity > 0 && src2tgt[t].idx > t) {
+					/* what used to be at src t is now at src s */
+					tgt2src[src2tgt[t].idx].idx = (uint32_t)s;
+				}
+
+				num_updates++;
+			}
+		}
+
+		else if (delta_is_new_only(tgt)) {
+			if (!FLAG_SET(&opts, GIT_DIFF_FIND_COPIES))
 				continue;
-			}
 
-			to->status = GIT_DELTA_RENAMED;
-			memcpy(&to->old_file, &from->old_file, sizeof(to->old_file));
-
-			from->flags |= GIT_DIFF_FLAG__TO_DELETE;
-			num_rewrites++;
-
-			continue;
-		}
-
-		if (from->status == GIT_DELTA_MODIFIED &&
-			(from->flags & GIT_DIFF_FLAG__TO_SPLIT) != 0)
-		{
-			if (to->similarity < opts.rename_threshold) {
-				to->similarity = 0;
+			if (tgt2src_copy[t].similarity < opts.copy_threshold)
 				continue;
-			}
 
-			to->status = GIT_DELTA_RENAMED;
-			memcpy(&to->old_file, &from->old_file, sizeof(to->old_file));
+			/* always use best possible source for copy */
+			best_match = &tgt2src_copy[t];
+			src = GIT_VECTOR_GET(&diff->deltas, best_match->idx);
 
-			from->status = GIT_DELTA_ADDED;
-			from->flags &= ~GIT_DIFF_FLAG__TO_SPLIT;
-			memset(&from->old_file, 0, sizeof(from->old_file));
-			num_rewrites--;
+			tgt->status     = GIT_DELTA_COPIED;
+			tgt->similarity = best_match->similarity;
+			memcpy(&tgt->old_file, &src->old_file, sizeof(tgt->old_file));
 
-			continue;
+			num_updates++;
 		}
-
-		if (from->status == GIT_DELTA_MODIFIED &&
-			FLAG_SET(opts, GIT_DIFF_FIND_RENAMES_FROM_REWRITES) &&
-			to->similarity > opts.rename_threshold)
-		{
-			similarity = similarity_measure(
-				diff, &opts, cache, 2 * i, 2 * i + 1);
-
-			if (similarity < 0) {
-				error = similarity;
-				goto cleanup;
-			}
-
-			if ((unsigned int)similarity < opts.rename_from_rewrite_threshold) {
-				to->status = GIT_DELTA_RENAMED;
-				memcpy(&to->old_file, &from->old_file, sizeof(to->old_file));
-
-				from->status = GIT_DELTA_ADDED;
-				memset(&from->old_file, 0, sizeof(from->old_file));
-				from->old_file.path = to->old_file.path;
-				from->old_file.flags |= GIT_DIFF_FLAG_VALID_OID;
-
-				continue;
-			}
-		}
-
-		if (to->similarity < opts.copy_threshold) {
-			to->similarity = 0;
-			continue;
-		}
-
-		/* convert "to" to a COPIED record */
-		to->status = GIT_DELTA_COPIED;
-		memcpy(&to->old_file, &from->old_file, sizeof(to->old_file));
 	}
 
-	if (num_rewrites > 0) {
-		assert(num_rewrites < diff->deltas.length);
+	/*
+	 * Actually split and delete entries as needed
+	 */
 
+	if (num_rewrites > 0 || num_updates > 0)
 		error = apply_splits_and_deletes(
-			diff, diff->deltas.length - num_rewrites);
-	}
+			diff, diff->deltas.length - num_rewrites,
+			FLAG_SET(&opts, GIT_DIFF_BREAK_REWRITES) &&
+			!FLAG_SET(&opts, GIT_DIFF_BREAK_REWRITES_FOR_RENAMES_ONLY));
 
 cleanup:
-	git__free(matches);
+	git__free(tgt2src);
+	git__free(src2tgt);
+	git__free(tgt2src_copy);
 
-	for (i = 0; i < cache_size; ++i) {
-		if (cache[i] != NULL)
-			opts.metric->free_signature(cache[i], opts.metric->payload);
+	for (t = 0; t < num_deltas * 2; ++t) {
+		if (sigcache[t] != NULL)
+			opts.metric->free_signature(sigcache[t], opts.metric->payload);
 	}
-	git__free(cache);
+	git__free(sigcache);
 
 	if (!given_opts || !given_opts->metric)
 		git__free(opts.metric);

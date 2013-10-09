@@ -25,6 +25,7 @@ int git_refspec__parse(git_refspec *refspec, const char *input, bool is_fetch)
 	assert(refspec && input);
 
 	memset(refspec, 0x0, sizeof(git_refspec));
+	refspec->push = !is_fetch;
 
 	lhs = input;
 	if (*lhs == '+') {
@@ -59,7 +60,7 @@ int git_refspec__parse(git_refspec *refspec, const char *input, bool is_fetch)
 
 	refspec->pattern = is_glob;
 	refspec->src = git__strndup(lhs, llen);
-	flags = GIT_REF_FORMAT_ALLOW_ONELEVEL
+	flags = GIT_REF_FORMAT_ALLOW_ONELEVEL | GIT_REF_FORMAT_REFSPEC_SHORTHAND
 		| (is_glob ? GIT_REF_FORMAT_REFSPEC_PATTERN : 0);
 
 	if (is_fetch) {
@@ -119,6 +120,9 @@ int git_refspec__parse(git_refspec *refspec, const char *input, bool is_fetch)
 		}
 	}
 
+	refspec->string = git__strdup(input);
+	GITERR_CHECK_ALLOC(refspec->string);
+
 	return 0;
 
  invalid:
@@ -132,6 +136,7 @@ void git_refspec__free(git_refspec *refspec)
 
 	git__free(refspec->src);
 	git__free(refspec->dst);
+	git__free(refspec->string);
 }
 
 const char *git_refspec_src(const git_refspec *refspec)
@@ -142,6 +147,11 @@ const char *git_refspec_src(const git_refspec *refspec)
 const char *git_refspec_dst(const git_refspec *refspec)
 {
 	return refspec == NULL ? NULL : refspec->dst;
+}
+
+const char *git_refspec_string(const git_refspec *refspec)
+{
+	return refspec == NULL ? NULL : refspec->string;
 }
 
 int git_refspec_force(const git_refspec *refspec)
@@ -215,25 +225,31 @@ int git_refspec_rtransform(char *out, size_t outlen, const git_refspec *spec, co
 	return refspec_transform_internal(out, outlen, spec->dst, spec->src, name);
 }
 
-static int refspec_transform(git_buf *out, const char *from, const char *to, const char *name)
+static int refspec_transform(
+	git_buf *out, const char *from, const char *to, const char *name)
 {
-	if (git_buf_sets(out, to) < 0)
+	size_t to_len   = to   ? strlen(to)   : 0;
+	size_t from_len = from ? strlen(from) : 0;
+	size_t name_len = name ? strlen(name) : 0;
+
+	if (git_buf_set(out, to, to_len) < 0)
 		return -1;
 
-	/*
-	 * No '*' at the end means that it's mapped to one specific
-	 * branch, so no actual transformation is needed.
-	 */
-	if (git_buf_len(out) > 0 && out->ptr[git_buf_len(out) - 1] != '*')
-		return 0;
+	if (to_len > 0) {
+		/* No '*' at the end of 'to' means that refspec is mapped to one
+		 * specific branch, so no actual transformation is needed.
+		 */
+		if (out->ptr[to_len - 1] != '*')
+			return 0;
+		git_buf_shorten(out, 1); /* remove trailing '*' copied from 'to' */
+	}
 
-	git_buf_truncate(out, git_buf_len(out) - 1); /* remove trailing '*' */
-	git_buf_puts(out, name + strlen(from) - 1);
+	if (from_len > 0) /* ignore trailing '*' from 'from' */
+		from_len--;
+	if (from_len > name_len)
+		from_len = name_len;
 
-	if (git_buf_oom(out))
-		return -1;
-
-	return 0;
+	return git_buf_put(out, name + from_len, name_len - from_len);
 }
 
 int git_refspec_transform_r(git_buf *out, const git_refspec *spec, const char *name)
@@ -263,4 +279,11 @@ int git_refspec_is_wildcard(const git_refspec *spec)
 	assert(spec && spec->src);
 
 	return (spec->src[strlen(spec->src) - 1] == '*');
+}
+
+git_direction git_refspec_direction(const git_refspec *spec)
+{
+	assert(spec);
+
+	return spec->push;
 }

@@ -14,6 +14,7 @@
 #include "git2/stash.h"
 #include "git2/status.h"
 #include "git2/checkout.h"
+#include "git2/index.h"
 #include "signature.h"
 
 static int create_error(int error, const char *msg)
@@ -26,7 +27,7 @@ static int retrieve_head(git_reference **out, git_repository *repo)
 {
 	int error = git_repository_head(out, repo);
 
-	if (error == GIT_EORPHANEDHEAD)
+	if (error == GIT_EUNBORNBRANCH)
 		return create_error(error, "You do not have the initial commit yet.");
 
 	return error;
@@ -116,7 +117,7 @@ static int build_tree_from_index(git_tree **out, git_index *index)
 static int commit_index(
 	git_commit **i_commit,
 	git_index *index,
-	git_signature *stasher,
+	const git_signature *stasher,
 	const char *message,
 	const git_commit *parent)
 {
@@ -266,7 +267,7 @@ cleanup:
 static int commit_untracked(
 	git_commit **u_commit,
 	git_index *index,
-	git_signature *stasher,
+	const git_signature *stasher,
 	const char *message,
 	git_commit *i_commit,
 	uint32_t flags)
@@ -315,6 +316,8 @@ static int build_workdir_tree(
 	struct cb_data data = {0};
 	int error;
 
+	opts.flags = GIT_DIFF_IGNORE_SUBMODULES;
+
 	if ((error = git_commit_tree(&b_tree, b_commit)) < 0)
 		goto cleanup;
 
@@ -353,7 +356,7 @@ cleanup:
 static int commit_worktree(
 	git_oid *w_commit_oid,
 	git_index *index,
-	git_signature *stasher,
+	const git_signature *stasher,
 	const char *message,
 	git_commit *i_commit,
 	git_commit *b_commit,
@@ -430,7 +433,7 @@ cleanup:
 static int update_reflog(
 	git_oid *w_commit_oid,
 	git_repository *repo,
-	git_signature *stasher,
+	const git_signature *stasher,
 	const char *message)
 {
 	git_reference *stash = NULL;
@@ -473,12 +476,14 @@ static int ensure_there_are_changes_to_stash(
 	git_status_options opts = GIT_STATUS_OPTIONS_INIT;
 
 	opts.show  = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+	opts.flags = GIT_STATUS_OPT_EXCLUDE_SUBMODULES;
+
 	if (include_untracked_files)
-		opts.flags = GIT_STATUS_OPT_INCLUDE_UNTRACKED |
+		opts.flags |= GIT_STATUS_OPT_INCLUDE_UNTRACKED |
 		GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
 
 	if (include_ignored_files)
-		opts.flags = GIT_STATUS_OPT_INCLUDE_IGNORED;
+		opts.flags |= GIT_STATUS_OPT_INCLUDE_IGNORED;
 
 	error = git_status_foreach_ext(repo, &opts, is_dirty_cb, NULL);
 
@@ -509,7 +514,7 @@ static int reset_index_and_workdir(
 int git_stash_save(
 	git_oid *out,
 	git_repository *repo,
-	git_signature *stasher,
+	const git_signature *stasher,
 	const char *message,
 	uint32_t flags)
 {
@@ -587,8 +592,10 @@ int git_stash_foreach(
 	const git_reflog_entry *entry;
 
 	error = git_reference_lookup(&stash, repo, GIT_REFS_STASH_FILE);
-	if (error == GIT_ENOTFOUND)
+	if (error == GIT_ENOTFOUND) {
+		giterr_clear();
 		return 0;
+	}
 	if (error < 0)
 		goto cleanup;
 
@@ -651,7 +658,7 @@ int git_stash_drop(
 		const git_reflog_entry *entry;
 
 		entry = git_reflog_entry_byindex(reflog, 0);
-		
+
 		git_reference_free(stash);
 		error = git_reference_create(&stash, repo, GIT_REFS_STASH_FILE, &entry->oid_cur, 1);
 	}

@@ -9,7 +9,6 @@
 
 #include "git2/indexer.h"
 #include "git2/object.h"
-#include "git2/oid.h"
 
 #include "common.h"
 #include "pack.h"
@@ -17,6 +16,7 @@
 #include "posix.h"
 #include "pack.h"
 #include "filebuf.h"
+#include "oid.h"
 #include "oidmap.h"
 
 #define UINT31_MAX (0x7FFFFFFF)
@@ -47,6 +47,11 @@ struct git_indexer_stream {
 	git_transfer_progress_callback progress_cb;
 	void *progress_payload;
 	char objbuf[8*1024];
+
+	/* Fields for calculating the packfile trailer (hash of everything before it) */
+	char inbuf[GIT_OID_RAWSZ];
+	int inbuf_len;
+	git_hash_ctx trailer;
 };
 
 struct delta_info {
@@ -60,36 +65,19 @@ const git_oid *git_indexer_stream_hash(const git_indexer_stream *idx)
 
 static int open_pack(struct git_pack_file **out, const char *filename)
 {
-	size_t namelen;
 	struct git_pack_file *pack;
-	struct stat st;
-	int fd;
 
-	namelen = strlen(filename);
-	pack = git__calloc(1, sizeof(struct git_pack_file) + namelen + 1);
-	GITERR_CHECK_ALLOC(pack);
+	if (git_packfile_alloc(&pack, filename) < 0)
+		return -1;
 
-	memcpy(pack->pack_name, filename, namelen + 1);
-
-	if (p_stat(filename, &st) < 0) {
-		giterr_set(GITERR_OS, "Failed to stat packfile.");
-		goto cleanup;
-	}
-
-	if ((fd = p_open(pack->pack_name, O_RDONLY)) < 0) {
+	if ((pack->mwf.fd = p_open(pack->pack_name, O_RDONLY)) < 0) {
 		giterr_set(GITERR_OS, "Failed to open packfile.");
-		goto cleanup;
+		git_packfile_free(pack);
+		return -1;
 	}
-
-	pack->mwf.fd = fd;
-	pack->mwf.size = (git_off_t)st.st_size;
 
 	*out = pack;
 	return 0;
-
-cleanup:
-	git__free(pack);
-	return -1;
 }
 
 static int parse_header(struct git_pack_header *hdr, struct git_pack_file *pack)
@@ -120,7 +108,7 @@ static int objects_cmp(const void *a, const void *b)
 	const struct entry *entrya = a;
 	const struct entry *entryb = b;
 
-	return git_oid_cmp(&entrya->oid, &entryb->oid);
+	return git_oid__cmp(&entrya->oid, &entryb->oid);
 }
 
 int git_indexer_stream_new(
@@ -138,6 +126,7 @@ int git_indexer_stream_new(
 	GITERR_CHECK_ALLOC(idx);
 	idx->progress_cb = progress_cb;
 	idx->progress_payload = progress_payload;
+	git_hash_ctx_init(&idx->trailer);
 
 	error = git_buf_joinpath(&path, prefix, suff);
 	if (error < 0)
@@ -276,7 +265,7 @@ static int store_object(git_indexer_stream *idx)
 	entry = git__calloc(1, sizeof(*entry));
 	GITERR_CHECK_ALLOC(entry);
 
-	pentry = git__malloc(sizeof(struct git_pack_entry));
+	pentry = git__calloc(1, sizeof(struct git_pack_entry));
 	GITERR_CHECK_ALLOC(pentry);
 
 	git_hash_final(&oid, ctx);
@@ -339,13 +328,12 @@ static int hash_and_save(git_indexer_stream *idx, git_rawobj *obj, git_off_t ent
 		entry->offset = (uint32_t)entry_start;
 	}
 
-	/* FIXME: Parse the object instead of hashing it */
 	if (git_odb__hashobj(&oid, obj) < 0) {
 		giterr_set(GITERR_INDEXER, "Failed to hash object");
-		return -1;
+		goto on_error;
 	}
 
-	pentry = git__malloc(sizeof(struct git_pack_entry));
+	pentry = git__calloc(1, sizeof(struct git_pack_entry));
 	GITERR_CHECK_ALLOC(pentry);
 
 	git_oid_cpy(&pentry->sha1, &oid);
@@ -387,11 +375,48 @@ static int do_progress_callback(git_indexer_stream *idx, git_transfer_progress *
 	return idx->progress_cb(stats, idx->progress_payload);
 }
 
+/* Hash everything but the last 20B of input */
+static void hash_partially(git_indexer_stream *idx, const uint8_t *data, size_t size)
+{
+	int to_expell, to_keep;
+
+	if (size == 0)
+		return;
+
+	/* Easy case, dump the buffer and the data minus the last 20 bytes */
+	if (size >= 20) {
+		git_hash_update(&idx->trailer, idx->inbuf, idx->inbuf_len);
+		git_hash_update(&idx->trailer, data, size - GIT_OID_RAWSZ);
+
+		data += size - GIT_OID_RAWSZ;
+		memcpy(idx->inbuf, data, GIT_OID_RAWSZ);
+		idx->inbuf_len = GIT_OID_RAWSZ;
+		return;
+	}
+
+	/* We can just append */
+	if (idx->inbuf_len + size <= GIT_OID_RAWSZ) {
+		memcpy(idx->inbuf + idx->inbuf_len, data, size);
+		idx->inbuf_len += size;
+		return;
+	}
+
+	/* We need to partially drain the buffer and then append */
+	to_expell = abs(size - (GIT_OID_RAWSZ - idx->inbuf_len));
+	to_keep = abs(idx->inbuf_len - to_expell);
+
+	git_hash_update(&idx->trailer, idx->inbuf, to_expell);
+
+	memmove(idx->inbuf, idx->inbuf + to_expell, to_keep);
+	memcpy(idx->inbuf + to_keep, data, size);
+	idx->inbuf_len += size - to_expell;
+}
+
 int git_indexer_stream_add(git_indexer_stream *idx, const void *data, size_t size, git_transfer_progress *stats)
 {
 	int error = -1;
 	struct git_pack_header hdr;
-	size_t processed; 
+	size_t processed;
 	git_mwindow_file *mwf = &idx->pack->mwf;
 
 	assert(idx && data && stats);
@@ -401,10 +426,11 @@ int git_indexer_stream_add(git_indexer_stream *idx, const void *data, size_t siz
 	if (git_filebuf_write(&idx->pack_file, data, size) < 0)
 		return -1;
 
+	hash_partially(idx, data, (int)size);
+
 	/* Make sure we set the new size of the pack */
 	if (idx->opened_pack) {
 		idx->pack->mwf.size += size;
-		//printf("\nadding %zu for %zu\n", size, idx->pack->mwf.size);
 	} else {
 		if (open_pack(&idx->pack, idx->pack_file.path_lock) < 0)
 			return -1;
@@ -530,6 +556,7 @@ int git_indexer_stream_add(git_indexer_stream *idx, const void *data, size_t siz
 		stats->received_objects++;
 
 		if (do_progress_callback(idx, stats) != 0) {
+			giterr_clear();
 			error = GIT_EUSER;
 			goto on_error;
 		}
@@ -594,17 +621,33 @@ int git_indexer_stream_finalize(git_indexer_stream *idx, git_transfer_progress *
 	struct git_pack_idx_header hdr;
 	git_buf filename = GIT_BUF_INIT;
 	struct entry *entry;
-	void *packfile_hash;
-	git_oid file_hash;
+	git_oid trailer_hash, file_hash;
 	git_hash_ctx ctx;
 	git_filebuf index_file = {0};
+	void *packfile_trailer;
 
 	if (git_hash_ctx_init(&ctx) < 0)
 		return -1;
 
 	/* Test for this before resolve_deltas(), as it plays with idx->off */
-	if (idx->off < idx->pack->mwf.size - GIT_OID_RAWSZ) {
-		giterr_set(GITERR_INDEXER, "Indexing error: unexpected data at the end of the pack");
+	if (idx->off < idx->pack->mwf.size - 20) {
+		giterr_set(GITERR_INDEXER, "unexpected data at the end of the pack");
+		return -1;
+	}
+
+	packfile_trailer = git_mwindow_open(&idx->pack->mwf, &w, idx->pack->mwf.size - GIT_OID_RAWSZ, GIT_OID_RAWSZ, &left);
+	if (packfile_trailer == NULL) {
+		git_mwindow_close(&w);
+		goto on_error;
+	}
+
+	/* Compare the packfile trailer as it was sent to us and what we calculated */
+	git_oid_fromraw(&file_hash, packfile_trailer);
+	git_mwindow_close(&w);
+
+	git_hash_final(&trailer_hash, &idx->trailer);
+	if (git_oid_cmp(&file_hash, &trailer_hash)) {
+		giterr_set(GITERR_INDEXER, "packfile trailer mismatch");
 		return -1;
 	}
 
@@ -613,14 +656,14 @@ int git_indexer_stream_finalize(git_indexer_stream *idx, git_transfer_progress *
 			return -1;
 
 	if (stats->indexed_objects != stats->total_objects) {
-		giterr_set(GITERR_INDEXER, "Indexing error: early EOF");
+		giterr_set(GITERR_INDEXER, "early EOF");
 		return -1;
 	}
 
 	git_vector_sort(&idx->objects);
 
 	git_buf_sets(&filename, idx->pack->pack_name);
-	git_buf_truncate(&filename, filename.size - strlen("pack"));
+	git_buf_shorten(&filename, strlen("pack"));
 	git_buf_puts(&filename, "idx");
 	if (git_buf_oom(&filename))
 		return -1;
@@ -676,23 +719,15 @@ int git_indexer_stream_finalize(git_indexer_stream *idx, git_transfer_progress *
 		git_filebuf_write(&index_file, &split, sizeof(uint32_t) * 2);
 	}
 
-	/* Write out the packfile trailer */
-	packfile_hash = git_mwindow_open(&idx->pack->mwf, &w, idx->pack->mwf.size - GIT_OID_RAWSZ, GIT_OID_RAWSZ, &left);
-	if (packfile_hash == NULL) {
-		git_mwindow_close(&w);
-		goto on_error;
-	}
-
-	memcpy(&file_hash, packfile_hash, GIT_OID_RAWSZ);
-	git_mwindow_close(&w);
-
-	git_filebuf_write(&index_file, &file_hash, sizeof(git_oid));
-
-	/* Write out the packfile trailer to the idx file as well */
-	if (git_filebuf_hash(&file_hash, &index_file) < 0)
+	/* Write out the packfile trailer to the index */
+	if (git_filebuf_write(&index_file, &trailer_hash, GIT_OID_RAWSZ) < 0)
 		goto on_error;
 
-	git_filebuf_write(&index_file, &file_hash, sizeof(git_oid));
+	/* Write out the hash of the idx */
+	if (git_filebuf_hash(&trailer_hash, &index_file) < 0)
+		goto on_error;
+
+	git_filebuf_write(&index_file, &trailer_hash, sizeof(git_oid));
 
 	/* Figure out what the final name should be */
 	if (index_path_stream(&filename, idx, ".idx") < 0)

@@ -10,6 +10,13 @@ if (check_lib(lib => 'ssl')) {
 	print "SSL support enabled\n";
 }
 
+if (check_lib(lib => 'ssh2')) {
+	$def .= ' -DGIT_SSH';
+	$lib .= ' -lssh2';
+
+	print "SSH support enabled\n";
+}
+
 sub MY::c_o {
 	return <<'EOS'
 .c$(OBJ_EXT):
@@ -25,37 +32,39 @@ use warnings;
 use ExtUtils::MakeMaker 6.30;
 
 my %WriteMakefileArgs = (
-  'ABSTRACT' => 'Perl bindings to the Git linkable library (libgit2)',
-  'AUTHOR' => 'Alessandro Ghedini <alexbio@cpan.org>',
-  'BUILD_REQUIRES' => {
-    'Capture::Tiny' => '0',
-    'Cwd' => '0',
-    'File::Find' => '0',
-    'File::Path' => '2.07',
-    'File::Slurp' => '0',
-    'File::Temp' => '0',
-    'Test::More' => '0'
+  "ABSTRACT" => "Perl bindings to the Git linkable library (libgit2)",
+  "AUTHOR" => "Alessandro Ghedini <alexbio\@cpan.org>",
+  "BUILD_REQUIRES" => {},
+  "CCFLAGS" => "-Wall -Wno-unused-variable",
+  "CONFIGURE_REQUIRES" => {
+    "Devel::CheckLib" => 0,
+    "ExtUtils::MakeMaker" => "6.30"
   },
-  'CCFLAGS' => '-Wall',
-  'CONFIGURE_REQUIRES' => {
-    'Devel::CheckLib' => '0',
-    'ExtUtils::MakeMaker' => '6.30'
+  "DEFINE" => "-DNO_VIZ -DSTDC -DNO_GZIP -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE",
+  "DISTNAME" => "Git-Raw",
+  "EXE_FILES" => [],
+  "INC" => "-I. -Ixs/libgit2 -Ixs/libgit2/src -Ixs/libgit2/include -Ixs/libgit2/deps/http-parser -Ixs/libgit2/deps/zlib",
+  "LICENSE" => "perl",
+  "NAME" => "Git::Raw",
+  "OBJECT" => "xs/libgit2/deps/http-parser/http_parser.o xs/libgit2/deps/zlib/adler32.o xs/libgit2/deps/zlib/crc32.o xs/libgit2/deps/zlib/deflate.o xs/libgit2/deps/zlib/inffast.o xs/libgit2/deps/zlib/inflate.o xs/libgit2/deps/zlib/inftrees.o xs/libgit2/deps/zlib/trees.o xs/libgit2/deps/zlib/zutil.o xs/libgit2/src/attr.o xs/libgit2/src/attr_file.o xs/libgit2/src/blob.o xs/libgit2/src/branch.o xs/libgit2/src/buf_text.o xs/libgit2/src/buffer.o xs/libgit2/src/cache.o xs/libgit2/src/checkout.o xs/libgit2/src/clone.o xs/libgit2/src/commit.o xs/libgit2/src/commit_list.o xs/libgit2/src/compress.o xs/libgit2/src/config.o xs/libgit2/src/config_cache.o xs/libgit2/src/config_file.o xs/libgit2/src/crlf.o xs/libgit2/src/date.o xs/libgit2/src/delta-apply.o xs/libgit2/src/delta.o xs/libgit2/src/diff.o xs/libgit2/src/diff_driver.o xs/libgit2/src/diff_file.o xs/libgit2/src/diff_patch.o xs/libgit2/src/diff_print.o xs/libgit2/src/diff_tform.o xs/libgit2/src/diff_xdiff.o xs/libgit2/src/errors.o xs/libgit2/src/fetch.o xs/libgit2/src/fetchhead.o xs/libgit2/src/filebuf.o xs/libgit2/src/fileops.o xs/libgit2/src/filter.o xs/libgit2/src/fnmatch.o xs/libgit2/src/global.o xs/libgit2/src/graph.o xs/libgit2/src/hash.o xs/libgit2/src/hashsig.o xs/libgit2/src/ident.o xs/libgit2/src/ignore.o xs/libgit2/src/index.o xs/libgit2/src/indexer.o xs/libgit2/src/iterator.o xs/libgit2/src/merge.o xs/libgit2/src/merge_file.o xs/libgit2/src/message.o xs/libgit2/src/mwindow.o xs/libgit2/src/netops.o xs/libgit2/src/notes.o xs/libgit2/src/object.o xs/libgit2/src/object_api.o xs/libgit2/src/odb.o xs/libgit2/src/odb_loose.o xs/libgit2/src/odb_pack.o xs/libgit2/src/oid.o xs/libgit2/src/pack-objects.o xs/libgit2/src/pack.o xs/libgit2/src/path.o xs/libgit2/src/pathspec.o xs/libgit2/src/pool.o xs/libgit2/src/posix.o xs/libgit2/src/pqueue.o xs/libgit2/src/push.o xs/libgit2/src/refdb.o xs/libgit2/src/refdb_fs.o xs/libgit2/src/reflog.o xs/libgit2/src/refs.o xs/libgit2/src/refspec.o xs/libgit2/src/remote.o xs/libgit2/src/repository.o xs/libgit2/src/reset.o xs/libgit2/src/revparse.o xs/libgit2/src/revwalk.o xs/libgit2/src/sha1_lookup.o xs/libgit2/src/signature.o xs/libgit2/src/sortedcache.o xs/libgit2/src/stash.o xs/libgit2/src/status.o xs/libgit2/src/strmap.o xs/libgit2/src/submodule.o xs/libgit2/src/tag.o xs/libgit2/src/thread-utils.o xs/libgit2/src/trace.o xs/libgit2/src/transport.o xs/libgit2/src/tree-cache.o xs/libgit2/src/tree.o xs/libgit2/src/tsort.o xs/libgit2/src/util.o xs/libgit2/src/vector.o xs/libgit2/src/transports/cred.o xs/libgit2/src/transports/cred_helpers.o xs/libgit2/src/transports/git.o xs/libgit2/src/transports/http.o xs/libgit2/src/transports/local.o xs/libgit2/src/transports/smart.o xs/libgit2/src/transports/smart_pkt.o xs/libgit2/src/transports/smart_protocol.o xs/libgit2/src/transports/ssh.o xs/libgit2/src/transports/winhttp.o xs/libgit2/src/unix/map.o xs/libgit2/src/unix/realpath.o xs/libgit2/src/xdiff/xdiffi.o xs/libgit2/src/xdiff/xemit.o xs/libgit2/src/xdiff/xhistogram.o xs/libgit2/src/xdiff/xmerge.o xs/libgit2/src/xdiff/xpatience.o xs/libgit2/src/xdiff/xprepare.o xs/libgit2/src/xdiff/xutils.o xs/libgit2/src/hash/hash_generic.o \$(O_FILES)",
+  "PREREQ_PM" => {
+    "XSLoader" => 0,
+    "strict" => 0,
+    "warnings" => 0
   },
-  'DEFINE' => '-DNO_VIZ -DSTDC -DNO_GZIP -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE',
-  'DISTNAME' => 'Git-Raw',
-  'EXE_FILES' => [],
-  'INC' => '-I. -Ixs/libgit2 -Ixs/libgit2/src -Ixs/libgit2/include -Ixs/libgit2/deps/http-parser -Ixs/libgit2/deps/zlib',
-  'LICENSE' => 'perl',
-  'NAME' => 'Git::Raw',
-  'OBJECT' => 'xs/libgit2/deps/http-parser/http_parser.o xs/libgit2/deps/zlib/adler32.o xs/libgit2/deps/zlib/crc32.o xs/libgit2/deps/zlib/deflate.o xs/libgit2/deps/zlib/inffast.o xs/libgit2/deps/zlib/inflate.o xs/libgit2/deps/zlib/inftrees.o xs/libgit2/deps/zlib/trees.o xs/libgit2/deps/zlib/zutil.o xs/libgit2/src/attr.o xs/libgit2/src/attr_file.o xs/libgit2/src/blob.o xs/libgit2/src/branch.o xs/libgit2/src/buf_text.o xs/libgit2/src/buffer.o xs/libgit2/src/cache.o xs/libgit2/src/checkout.o xs/libgit2/src/clone.o xs/libgit2/src/commit.o xs/libgit2/src/commit_list.o xs/libgit2/src/compress.o xs/libgit2/src/config.o xs/libgit2/src/config_cache.o xs/libgit2/src/config_file.o xs/libgit2/src/crlf.o xs/libgit2/src/date.o xs/libgit2/src/delta-apply.o xs/libgit2/src/delta.o xs/libgit2/src/diff.o xs/libgit2/src/diff_output.o xs/libgit2/src/diff_tform.o xs/libgit2/src/errors.o xs/libgit2/src/fetch.o xs/libgit2/src/fetchhead.o xs/libgit2/src/filebuf.o xs/libgit2/src/fileops.o xs/libgit2/src/filter.o xs/libgit2/src/fnmatch.o xs/libgit2/src/global.o xs/libgit2/src/graph.o xs/libgit2/src/hash.o xs/libgit2/src/hashsig.o xs/libgit2/src/ignore.o xs/libgit2/src/index.o xs/libgit2/src/indexer.o xs/libgit2/src/iterator.o xs/libgit2/src/merge.o xs/libgit2/src/message.o xs/libgit2/src/mwindow.o xs/libgit2/src/netops.o xs/libgit2/src/notes.o xs/libgit2/src/object.o xs/libgit2/src/odb.o xs/libgit2/src/odb_loose.o xs/libgit2/src/odb_pack.o xs/libgit2/src/oid.o xs/libgit2/src/pack-objects.o xs/libgit2/src/pack.o xs/libgit2/src/path.o xs/libgit2/src/pathspec.o xs/libgit2/src/pool.o xs/libgit2/src/posix.o xs/libgit2/src/pqueue.o xs/libgit2/src/push.o xs/libgit2/src/refdb.o xs/libgit2/src/refdb_fs.o xs/libgit2/src/reflog.o xs/libgit2/src/refs.o xs/libgit2/src/refspec.o xs/libgit2/src/remote.o xs/libgit2/src/repository.o xs/libgit2/src/reset.o xs/libgit2/src/revparse.o xs/libgit2/src/revwalk.o xs/libgit2/src/sha1_lookup.o xs/libgit2/src/signature.o xs/libgit2/src/stash.o xs/libgit2/src/status.o xs/libgit2/src/submodule.o xs/libgit2/src/tag.o xs/libgit2/src/thread-utils.o xs/libgit2/src/trace.o xs/libgit2/src/transport.o xs/libgit2/src/tree-cache.o xs/libgit2/src/tree.o xs/libgit2/src/tsort.o xs/libgit2/src/util.o xs/libgit2/src/vector.o xs/libgit2/src/transports/cred.o xs/libgit2/src/transports/cred_helpers.o xs/libgit2/src/transports/git.o xs/libgit2/src/transports/http.o xs/libgit2/src/transports/local.o xs/libgit2/src/transports/smart.o xs/libgit2/src/transports/smart_pkt.o xs/libgit2/src/transports/smart_protocol.o xs/libgit2/src/transports/winhttp.o xs/libgit2/src/unix/map.o xs/libgit2/src/unix/realpath.o xs/libgit2/src/xdiff/xdiffi.o xs/libgit2/src/xdiff/xemit.o xs/libgit2/src/xdiff/xhistogram.o xs/libgit2/src/xdiff/xmerge.o xs/libgit2/src/xdiff/xpatience.o xs/libgit2/src/xdiff/xprepare.o xs/libgit2/src/xdiff/xutils.o xs/libgit2/src/hash/hash_generic.o $(O_FILES)',
-  'PREREQ_PM' => {
-    'XSLoader' => '0',
-    'strict' => '0',
-    'warnings' => '0'
+  "TEST_REQUIRES" => {
+    "Capture::Tiny" => 0,
+    "Cwd" => 0,
+    "File::Path" => "2.07",
+    "File::Slurp" => 0,
+    "File::Spec" => 0,
+    "IO::Handle" => 0,
+    "IPC::Open3" => 0,
+    "Test::More" => 0
   },
-  'VERSION' => '0.24',
-  'test' => {
-    'TESTS' => 't/*.t'
+  "VERSION" => "0.25",
+  "test" => {
+    "TESTS" => "t/*.t"
   }
 );
 

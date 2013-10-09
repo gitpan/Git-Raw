@@ -123,6 +123,18 @@ void test_revwalk_mergebase__no_common_ancestor_returns_ENOTFOUND(void)
 	cl_assert_equal_sz(4, behind);
 }
 
+void test_revwalk_mergebase__prefer_youngest_merge_base(void)
+{
+	git_oid result, one, two, expected;
+
+	cl_git_pass(git_oid_fromstr(&one, "a4a7dce85cf63874e984719f4fdd239f5145052f "));
+	cl_git_pass(git_oid_fromstr(&two, "be3563ae3f795b2b4353bcce3a527ad0a4f7f644"));
+	cl_git_pass(git_oid_fromstr(&expected, "c47800c7266a2be04c571c04d5a6614691ea99bd"));
+
+	cl_git_pass(git_merge_base(&result, _repo, &one, &two));
+	cl_assert(git_oid_cmp(&result, &expected) == 0);
+}
+
 void test_revwalk_mergebase__no_off_by_one_missing(void)
 {
 	git_oid result, one, two;
@@ -160,9 +172,9 @@ static void assert_mergebase_many(const char *expected_sha, int count, ...)
 	va_end(ap);
 
 	if (expected_sha == NULL)
-		cl_assert_equal_i(GIT_ENOTFOUND, git_merge_base_many(&oid, _repo, oids, count));
+		cl_assert_equal_i(GIT_ENOTFOUND, git_merge_base_many(&oid, _repo, count, oids));
 	else {
-		cl_git_pass(git_merge_base_many(&oid, _repo, oids, count));
+		cl_git_pass(git_merge_base_many(&oid, _repo, count, oids));
 		cl_git_pass(git_oid_fromstr(&expected, expected_sha));
 
 		cl_assert(git_oid_cmp(&expected, &oid) == 0);

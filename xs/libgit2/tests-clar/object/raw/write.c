@@ -1,5 +1,6 @@
-
 #include "clar_libgit2.h"
+#include "git2/odb_backend.h"
+
 #include "fileops.h"
 #include "odb.h"
 
@@ -30,9 +31,9 @@ static void streaming_write(git_oid *oid, git_odb *odb, git_rawobj *raw)
    int error;
 
    cl_git_pass(git_odb_open_wstream(&stream, odb, raw->len, raw->type));
-   stream->write(stream, raw->data, raw->len);
-   error = stream->finalize_write(oid, stream);
-   stream->free(stream);
+   git_odb_stream_write(stream, raw->data, raw->len);
+   error = git_odb_stream_finalize_write(oid, stream);
+   git_odb_stream_free(stream);
    cl_git_pass(error);
 }
 
@@ -62,6 +63,7 @@ void test_body(object_data *d, git_rawobj *o)
    git_odb *db;
    git_oid id1, id2;
    git_odb_object *obj;
+   git_rawobj tmp;
 
    make_odb_dir();
    cl_git_pass(git_odb_open(&db, odb_dir));
@@ -72,7 +74,12 @@ void test_body(object_data *d, git_rawobj *o)
    check_object_files(d);
 
    cl_git_pass(git_odb_read(&obj, db, &id1));
-   cmp_objects(&obj->raw, o);
+
+   tmp.data = obj->buffer;
+   tmp.len = obj->cached.size;
+   tmp.type = obj->cached.type;
+
+   cmp_objects(&tmp, o);
 
    git_odb_object_free(obj);
    git_odb_free(db);

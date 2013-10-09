@@ -14,6 +14,7 @@
 #include "pack.h"
 #include "thread-utils.h"
 #include "tree.h"
+#include "util.h"
 
 #include "git2/pack.h"
 #include "git2/commit.h"
@@ -31,6 +32,11 @@ struct unpacked {
 struct tree_walk_context {
 	git_packbuilder *pb;
 	git_buf buf;
+};
+
+struct pack_write_context {
+	git_indexer_stream *indexer;
+	git_transfer_progress *stats;
 };
 
 #ifdef GIT_THREADS
@@ -51,6 +57,9 @@ struct tree_walk_context {
 #define git_packbuilder__cache_unlock(pb) GIT_PACKBUILDER__MUTEX_OP(pb, cache_mutex, unlock)
 #define git_packbuilder__progress_lock(pb) GIT_PACKBUILDER__MUTEX_OP(pb, progress_mutex, lock)
 #define git_packbuilder__progress_unlock(pb) GIT_PACKBUILDER__MUTEX_OP(pb, progress_mutex, unlock)
+
+/* The minimal interval between progress updates (in seconds). */
+#define MIN_PROGRESS_UPDATE_INTERVAL 0.5
 
 static unsigned name_hash(const char *name)
 {
@@ -127,7 +136,10 @@ int git_packbuilder_new(git_packbuilder **out, git_repository *repo)
 	if (git_mutex_init(&pb->cache_mutex) ||
 		git_mutex_init(&pb->progress_mutex) ||
 		git_cond_init(&pb->progress_cond))
+	{
+		giterr_set(GITERR_OS, "Failed to initialize packbuilder mutex");
 		goto on_error;
+	}
 
 #endif
 
@@ -205,6 +217,18 @@ int git_packbuilder_insert(git_packbuilder *pb, const git_oid *oid,
 	kh_value(pb->object_ix, pos) = po;
 
 	pb->done = false;
+
+	if (pb->progress_cb) {
+		double current_time = git__timer();
+		if ((current_time - pb->last_progress_report_time) >= MIN_PROGRESS_UPDATE_INTERVAL) {
+			pb->last_progress_report_time = current_time;
+			if (pb->progress_cb(GIT_PACKBUILDER_ADDING_OBJECTS, pb->nr_objects, 0, pb->progress_cb_payload)) {
+				giterr_clear();
+				return GIT_EUSER;
+			}
+		}
+	}
+
 	return 0;
 }
 
@@ -497,8 +521,10 @@ static git_pobject **compute_write_order(git_packbuilder *pb)
 	/*
 	 * Mark objects that are at the tip of tags.
 	 */
-	if (git_tag_foreach(pb->repo, &cb_tag_foreach, pb) < 0)
+	if (git_tag_foreach(pb->repo, &cb_tag_foreach, pb) < 0) {
+		git__free(wo);
 		return NULL;
+	}
 
 	/*
 	 * Give the objects in the original recency order until
@@ -569,75 +595,56 @@ static int write_pack(git_packbuilder *pb,
 	enum write_one_status status;
 	struct git_pack_header ph;
 	unsigned int i = 0;
+	int error = 0;
 
 	write_order = compute_write_order(pb);
-	if (write_order == NULL)
-		goto on_error;
+	if (write_order == NULL) {
+		error = -1;
+		goto done;
+	}
 
 	/* Write pack header */
 	ph.hdr_signature = htonl(PACK_SIGNATURE);
 	ph.hdr_version = htonl(PACK_VERSION);
 	ph.hdr_entries = htonl(pb->nr_objects);
 
-	if (cb(&ph, sizeof(ph), data) < 0)
-		goto on_error;
+	if ((error = cb(&ph, sizeof(ph), data)) < 0)
+		goto done;
 
-	if (git_hash_update(&pb->ctx, &ph, sizeof(ph)) < 0)
-		goto on_error;
+	if ((error = git_hash_update(&pb->ctx, &ph, sizeof(ph))) < 0)
+		goto done;
 
 	pb->nr_remaining = pb->nr_objects;
 	do {
 		pb->nr_written = 0;
 		for ( ; i < pb->nr_objects; ++i) {
 			po = write_order[i];
-			if (write_one(&buf, pb, po, &status) < 0)
-				goto on_error;
-			if (cb(buf.ptr, buf.size, data) < 0)
-				goto on_error;
+			if ((error = write_one(&buf, pb, po, &status)) < 0)
+				goto done;
+			if ((error = cb(buf.ptr, buf.size, data)) < 0)
+				goto done;
 			git_buf_clear(&buf);
 		}
 
 		pb->nr_remaining -= pb->nr_written;
 	} while (pb->nr_remaining && i < pb->nr_objects);
 
+
+	if ((error = git_hash_final(&pb->pack_oid, &pb->ctx)) < 0)
+		goto done;
+
+	error = cb(pb->pack_oid.id, GIT_OID_RAWSZ, data);
+
+done:
 	git__free(write_order);
 	git_buf_free(&buf);
-
-	if (git_hash_final(&pb->pack_oid, &pb->ctx) < 0)
-		goto on_error;
-
-	return cb(pb->pack_oid.id, GIT_OID_RAWSZ, data);
-
-on_error:
-	git__free(write_order);
-	git_buf_free(&buf);
-	return -1;
+	return error;
 }
 
 static int write_pack_buf(void *buf, size_t size, void *data)
 {
 	git_buf *b = (git_buf *)data;
 	return git_buf_put(b, buf, size);
-}
-
-static int write_pack_to_file(void *buf, size_t size, void *data)
-{
-	git_filebuf *file = (git_filebuf *)data;
-	return git_filebuf_write(file, buf, size);
-}
-
-static int write_pack_file(git_packbuilder *pb, const char *path)
-{
-	git_filebuf file = GIT_FILEBUF_INIT;
-
-	if (git_filebuf_open(&file, path, 0) < 0 ||
-	    write_pack(pb, &write_pack_to_file, &file) < 0 ||
-	    git_filebuf_commit(&file, GIT_PACK_FILE_MODE) < 0) {
-		git_filebuf_cleanup(&file);
-		return -1;
-	}
-
-	return 0;
 }
 
 static int type_size_sort(const void *_a, const void *_b)
@@ -1217,6 +1224,13 @@ static int prepare_pack(git_packbuilder *pb)
 	if (pb->nr_objects == 0 || pb->done)
 		return 0; /* nothing to do */
 
+	/*
+	 * Although we do not report progress during deltafication, we
+	 * at least report that we are in the deltafication stage
+	 */
+	if (pb->progress_cb)
+			pb->progress_cb(GIT_PACKBUILDER_DELTAFICATION, 0, pb->nr_objects, pb->progress_cb_payload);
+
 	delta_list = git__malloc(pb->nr_objects * sizeof(*delta_list));
 	GITERR_CHECK_ALLOC(delta_list);
 
@@ -1259,10 +1273,39 @@ int git_packbuilder_write_buf(git_buf *buf, git_packbuilder *pb)
 	return write_pack(pb, &write_pack_buf, buf);
 }
 
-int git_packbuilder_write(git_packbuilder *pb, const char *path)
+static int write_cb(void *buf, size_t len, void *payload)
 {
+	struct pack_write_context *ctx = payload;
+	return git_indexer_stream_add(ctx->indexer, buf, len, ctx->stats);
+}
+
+int git_packbuilder_write(
+	git_packbuilder *pb,
+	const char *path,
+	git_transfer_progress_callback progress_cb,
+	void *progress_cb_payload)
+{
+	git_indexer_stream *indexer;
+	git_transfer_progress stats;
+	struct pack_write_context ctx;
+
 	PREPARE_PACK;
-	return write_pack_file(pb, path);
+
+	if (git_indexer_stream_new(
+		&indexer, path, progress_cb, progress_cb_payload) < 0)
+		return -1;
+
+	ctx.indexer = indexer;
+	ctx.stats = &stats;
+
+	if (git_packbuilder_foreach(pb, write_cb, &ctx) < 0 ||
+		git_indexer_stream_finalize(indexer, &stats) < 0) {
+		git_indexer_stream_free(indexer);
+		return -1;
+	}
+
+	git_indexer_stream_free(indexer);
+	return 0;
 }
 
 #undef PREPARE_PACK
@@ -1282,6 +1325,21 @@ static int cb_tree_walk(const char *root, const git_tree_entry *entry, void *pay
 	return git_packbuilder_insert(ctx->pb,
 		git_tree_entry_id(entry),
 		git_buf_cstr(&ctx->buf));
+}
+
+int git_packbuilder_insert_commit(git_packbuilder *pb, const git_oid *oid)
+{
+	git_commit *commit;
+
+	if (git_commit_lookup(&commit, pb->repo, oid) < 0 ||
+		git_packbuilder_insert(pb, oid, NULL) < 0)
+		return -1;
+
+	if (git_packbuilder_insert_tree(pb, git_commit_tree_id(commit)) < 0)
+		return -1;
+
+	git_commit_free(commit);
+	return 0;
 }
 
 int git_packbuilder_insert_tree(git_packbuilder *pb, const git_oid *oid)
@@ -1312,6 +1370,17 @@ uint32_t git_packbuilder_object_count(git_packbuilder *pb)
 uint32_t git_packbuilder_written(git_packbuilder *pb)
 {
 	return pb->nr_written;
+}
+
+int git_packbuilder_set_callbacks(git_packbuilder *pb, git_packbuilder_progress progress_cb, void *progress_cb_payload)
+{
+	if (!pb)
+		return -1;
+
+	pb->progress_cb = progress_cb;
+	pb->progress_cb_payload = progress_cb_payload;
+
+	return 0;
 }
 
 void git_packbuilder_free(git_packbuilder *pb)

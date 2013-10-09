@@ -13,6 +13,7 @@
 #include "git2/refdb.h"
 #include "strmap.h"
 #include "buffer.h"
+#include "oid.h"
 
 #define GIT_REFS_DIR "refs/"
 #define GIT_REFS_HEADS_DIR GIT_REFS_DIR "heads/"
@@ -25,7 +26,7 @@
 
 #define GIT_SYMREF "ref: "
 #define GIT_PACKEDREFS_FILE "packed-refs"
-#define GIT_PACKEDREFS_HEADER "# pack-refs with: peeled "
+#define GIT_PACKEDREFS_HEADER "# pack-refs with: peeled fully-peeled "
 #define GIT_PACKEDREFS_FILE_MODE 0666
 
 #define GIT_HEAD_FILE "HEAD"
@@ -49,16 +50,18 @@
 
 struct git_reference {
 	git_refdb *db;
-
 	git_ref_t type;
 
 	union {
 		git_oid oid;
 		char *symbolic;
 	} target;
-	
+
+	git_oid peel;
 	char name[0];
 };
+
+git_reference *git_reference__set_name(git_reference *ref, const char *name);
 
 int git_reference__normalize_name_lax(char *buffer_out, size_t out_size, const char *name);
 int git_reference__normalize_name(git_buf *buf, const char *name, unsigned int flags);
@@ -66,6 +69,7 @@ int git_reference__update_terminal(git_repository *repo, const char *ref_name, c
 int git_reference__is_valid_name(const char *refname, unsigned int flags);
 int git_reference__is_branch(const char *ref_name);
 int git_reference__is_remote(const char *ref_name);
+int git_reference__is_tag(const char *ref_name);
 
 /**
  * Lookup a reference by name and try to resolve to an OID.

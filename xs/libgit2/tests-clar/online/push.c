@@ -9,12 +9,17 @@
 
 static git_repository *_repo;
 
+static char *_remote_ssh_key;
+static char *_remote_ssh_pubkey;
+static char *_remote_ssh_passphrase;
+
 static char *_remote_url;
 static char *_remote_user;
 static char *_remote_pass;
 
+static int cred_acquire_cb(git_cred **,	const char *, const char *, unsigned int, void *);
+
 static git_remote *_remote;
-static bool _cred_acquire_called;
 static record_callbacks_data _record_cbs_data = {{ 0 }};
 static git_remote_callbacks _record_cbs = RECORD_CALLBACKS_INIT(&_record_cbs_data);
 
@@ -29,6 +34,7 @@ static git_oid _tag_commit;
 static git_oid _tag_tree;
 static git_oid _tag_blob;
 static git_oid _tag_lightweight;
+static git_oid _tag_tag;
 
 static int cred_acquire_cb(
 		git_cred **cred,
@@ -40,7 +46,8 @@ static int cred_acquire_cb(
 	GIT_UNUSED(url);
 	GIT_UNUSED(user_from_url);
 
-	*((bool*)payload) = true;
+	if (GIT_CREDTYPE_SSH_PUBLICKEY & allowed_types)
+		return git_cred_ssh_keyfile_passphrase_new(cred, _remote_user, _remote_ssh_pubkey, _remote_ssh_key, _remote_ssh_passphrase);
 
 	if ((GIT_CREDTYPE_USERPASS_PLAINTEXT & allowed_types) == 0 ||
 		git_cred_userpass_plaintext_new(cred, _remote_user, _remote_pass) < 0)
@@ -160,7 +167,7 @@ static int tracking_branch_list_cb(const char *branch_name, git_branch_t branch_
  */
 static void verify_tracking_branches(git_remote *remote, expected_ref expected_refs[], size_t expected_refs_len)
 {
-	git_refspec *fetch_spec = &remote->fetch;
+	git_refspec *fetch_spec;
 	size_t i, j;
 	git_buf msg = GIT_BUF_INIT;
 	git_buf ref_name = GIT_BUF_INIT;
@@ -179,7 +186,8 @@ static void verify_tracking_branches(git_remote *remote, expected_ref expected_r
 		/* Convert remote reference name into tracking branch name.
 		 * If the spec is not under refs/heads/, then skip.
 		 */
-		if (!git_refspec_src_matches(fetch_spec, expected_refs[i].name))
+		fetch_spec = git_remote__matching_refspec(remote, expected_refs[i].name);
+		if (!fetch_spec)
 			continue;
 
 		cl_git_pass(git_refspec_transform_r(&ref_name, fetch_spec, expected_refs[i].name));
@@ -240,7 +248,6 @@ void test_online_push__initialize(void)
 	git_vector delete_specs = GIT_VECTOR_INIT;
 	size_t i;
 	char *curr_del_spec;
-	_cred_acquire_called = false;
 
 	_repo = cl_git_sandbox_init("push_src");
 
@@ -271,17 +278,20 @@ void test_online_push__initialize(void)
 	git_oid_fromstr(&_tag_tree, "ff83aa4c5e5d28e3bcba2f5c6e2adc61286a4e5e");
 	git_oid_fromstr(&_tag_blob, "b483ae7ba66decee9aee971f501221dea84b1498");
 	git_oid_fromstr(&_tag_lightweight, "951bbbb90e2259a4c8950db78946784fb53fcbce");
+	git_oid_fromstr(&_tag_tag, "eea4f2705eeec2db3813f2430829afce99cd00b5");
 
 	/* Remote URL environment variable must be set.  User and password are optional.  */
 	_remote_url = cl_getenv("GITTEST_REMOTE_URL");
 	_remote_user = cl_getenv("GITTEST_REMOTE_USER");
 	_remote_pass = cl_getenv("GITTEST_REMOTE_PASS");
+	_remote_ssh_key = cl_getenv("GITTEST_REMOTE_SSH_KEY");
+	_remote_ssh_pubkey = cl_getenv("GITTEST_REMOTE_SSH_PUBKEY");
+	_remote_ssh_passphrase = cl_getenv("GITTEST_REMOTE_SSH_PASSPHRASE");
 	_remote = NULL;
 
 	if (_remote_url) {
 		cl_git_pass(git_remote_create(&_remote, _repo, "test", _remote_url));
 
-		git_remote_set_cred_acquire_cb(_remote, cred_acquire_cb, &_cred_acquire_called);
 		record_callbacks_data_clear(&_record_cbs_data);
 		git_remote_set_callbacks(_remote, &_record_cbs);
 
@@ -313,7 +323,7 @@ void test_online_push__initialize(void)
 
 		/* Now that we've deleted everything, fetch from the remote */
 		cl_git_pass(git_remote_connect(_remote, GIT_DIRECTION_FETCH));
-		cl_git_pass(git_remote_download(_remote, NULL, NULL));
+		cl_git_pass(git_remote_download(_remote));
 		cl_git_pass(git_remote_update_tips(_remote));
 		git_remote_disconnect(_remote);
 	} else
@@ -335,6 +345,22 @@ void test_online_push__cleanup(void)
 	cl_git_sandbox_cleanup();
 }
 
+static int push_pack_progress_cb(int stage, unsigned int current, unsigned int total, void* payload)
+{
+	int *was_called = (int *) payload;
+	GIT_UNUSED(stage); GIT_UNUSED(current); GIT_UNUSED(total);
+	*was_called = 1;
+	return 0;
+}
+
+static int push_transfer_progress_cb(unsigned int current, unsigned int total, size_t bytes, void* payload)
+{
+	int *was_called = (int *) payload;
+	GIT_UNUSED(current); GIT_UNUSED(total); GIT_UNUSED(bytes); 
+	*was_called = 1;
+	return 0;
+}
+
 /**
  * Calls push and relists refs on remote to verify success.
  *
@@ -343,15 +369,17 @@ void test_online_push__cleanup(void)
  * @param expected_refs expected remote refs after push
  * @param expected_refs_len length of expected_refs
  * @param expected_ret expected return value from git_push_finish()
+ * @param check_progress_cb Check that the push progress callbacks are called
  */
 static void do_push(const char *refspecs[], size_t refspecs_len,
 	push_status expected_statuses[], size_t expected_statuses_len,
-	expected_ref expected_refs[], size_t expected_refs_len, int expected_ret)
+	expected_ref expected_refs[], size_t expected_refs_len, int expected_ret, int check_progress_cb)
 {
 	git_push *push;
 	git_push_options opts = GIT_PUSH_OPTIONS_INIT;
 	size_t i;
 	int ret;
+	int pack_progress_called = 0, transfer_progress_called = 0;
 
 	if (_remote) {
 		/* Auto-detect the number of threads to use */
@@ -361,6 +389,9 @@ static void do_push(const char *refspecs[], size_t refspecs_len,
 
 		cl_git_pass(git_push_new(&push, _remote));
 		cl_git_pass(git_push_set_options(push, &opts));
+
+		if (check_progress_cb)
+			cl_git_pass(git_push_set_callbacks(push, push_pack_progress_cb, &pack_progress_called, push_transfer_progress_cb, &transfer_progress_called));
 
 		for (i = 0; i < refspecs_len; i++)
 			cl_git_pass(git_push_add_refspec(push, refspecs[i]));
@@ -372,6 +403,11 @@ static void do_push(const char *refspecs[], size_t refspecs_len,
 		else {
 			cl_git_pass(ret = git_push_finish(push));
 			cl_assert_equal_i(1, git_push_unpack_ok(push));
+		}
+
+		if (check_progress_cb) {
+			cl_assert_equal_i(1, pack_progress_called);
+			cl_assert_equal_i(1, transfer_progress_called);
 		}
 
 		do_verify_push_status(push, expected_statuses, expected_statuses_len);
@@ -392,7 +428,7 @@ static void do_push(const char *refspecs[], size_t refspecs_len,
 /* Call push_finish() without ever calling git_push_add_refspec() */
 void test_online_push__noop(void)
 {
-	do_push(NULL, 0, NULL, 0, NULL, 0, 0);
+	do_push(NULL, 0, NULL, 0, NULL, 0, 0, 0);
 }
 
 void test_online_push__b1(void)
@@ -402,7 +438,7 @@ void test_online_push__b1(void)
 	expected_ref exp_refs[] = { { "refs/heads/b1", &_oid_b1 } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__b2(void)
@@ -412,7 +448,7 @@ void test_online_push__b2(void)
 	expected_ref exp_refs[] = { { "refs/heads/b2", &_oid_b2 } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__b3(void)
@@ -422,7 +458,7 @@ void test_online_push__b3(void)
 	expected_ref exp_refs[] = { { "refs/heads/b3", &_oid_b3 } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__b4(void)
@@ -432,7 +468,7 @@ void test_online_push__b4(void)
 	expected_ref exp_refs[] = { { "refs/heads/b4", &_oid_b4 } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__b5(void)
@@ -442,7 +478,7 @@ void test_online_push__b5(void)
 	expected_ref exp_refs[] = { { "refs/heads/b5", &_oid_b5 } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__multi(void)
@@ -470,7 +506,7 @@ void test_online_push__multi(void)
 	};
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__implicit_tgt(void)
@@ -488,10 +524,10 @@ void test_online_push__implicit_tgt(void)
 
 	do_push(specs1, ARRAY_SIZE(specs1),
 		exp_stats1, ARRAY_SIZE(exp_stats1),
-		exp_refs1, ARRAY_SIZE(exp_refs1), 0);
+		exp_refs1, ARRAY_SIZE(exp_refs1), 0, 1);
 	do_push(specs2, ARRAY_SIZE(specs2),
 		exp_stats2, ARRAY_SIZE(exp_stats2),
-		exp_refs2, ARRAY_SIZE(exp_refs2), 0);
+		exp_refs2, ARRAY_SIZE(exp_refs2), 0, 0);
 }
 
 void test_online_push__fast_fwd(void)
@@ -513,19 +549,19 @@ void test_online_push__fast_fwd(void)
 
 	do_push(specs_init, ARRAY_SIZE(specs_init),
 		exp_stats_init, ARRAY_SIZE(exp_stats_init),
-		exp_refs_init, ARRAY_SIZE(exp_refs_init), 0);
+		exp_refs_init, ARRAY_SIZE(exp_refs_init), 0, 1);
 
 	do_push(specs_ff, ARRAY_SIZE(specs_ff),
 		exp_stats_ff, ARRAY_SIZE(exp_stats_ff),
-		exp_refs_ff, ARRAY_SIZE(exp_refs_ff), 0);
+		exp_refs_ff, ARRAY_SIZE(exp_refs_ff), 0, 0);
 
 	do_push(specs_reset, ARRAY_SIZE(specs_reset),
 		exp_stats_init, ARRAY_SIZE(exp_stats_init),
-		exp_refs_init, ARRAY_SIZE(exp_refs_init), 0);
+		exp_refs_init, ARRAY_SIZE(exp_refs_init), 0, 0);
 
 	do_push(specs_ff_force, ARRAY_SIZE(specs_ff_force),
 		exp_stats_ff, ARRAY_SIZE(exp_stats_ff),
-		exp_refs_ff, ARRAY_SIZE(exp_refs_ff), 0);
+		exp_refs_ff, ARRAY_SIZE(exp_refs_ff), 0, 0);
 }
 
 void test_online_push__tag_commit(void)
@@ -535,7 +571,7 @@ void test_online_push__tag_commit(void)
 	expected_ref exp_refs[] = { { "refs/tags/tag-commit", &_tag_commit } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__tag_tree(void)
@@ -545,7 +581,7 @@ void test_online_push__tag_tree(void)
 	expected_ref exp_refs[] = { { "refs/tags/tag-tree", &_tag_tree } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__tag_blob(void)
@@ -555,7 +591,7 @@ void test_online_push__tag_blob(void)
 	expected_ref exp_refs[] = { { "refs/tags/tag-blob", &_tag_blob } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 }
 
 void test_online_push__tag_lightweight(void)
@@ -565,7 +601,17 @@ void test_online_push__tag_lightweight(void)
 	expected_ref exp_refs[] = { { "refs/tags/tag-lightweight", &_tag_lightweight } };
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
+}
+
+void test_online_push__tag_to_tag(void)
+{
+	const char *specs[] = { "refs/tags/tag-tag:refs/tags/tag-tag" };
+	push_status exp_stats[] = { { "refs/tags/tag-tag", NULL } };
+	expected_ref exp_refs[] = { { "refs/tags/tag-tag", &_tag_tag } };
+	do_push(specs, ARRAY_SIZE(specs),
+		exp_stats, ARRAY_SIZE(exp_stats),
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 0);
 }
 
 void test_online_push__force(void)
@@ -582,16 +628,16 @@ void test_online_push__force(void)
 
 	do_push(specs1, ARRAY_SIZE(specs1),
 		exp_stats1, ARRAY_SIZE(exp_stats1),
-		exp_refs1, ARRAY_SIZE(exp_refs1), 0);
+		exp_refs1, ARRAY_SIZE(exp_refs1), 0, 1);
 
 	do_push(specs2, ARRAY_SIZE(specs2),
 		NULL, 0,
-		exp_refs1, ARRAY_SIZE(exp_refs1), GIT_ENONFASTFORWARD);
+		exp_refs1, ARRAY_SIZE(exp_refs1), GIT_ENONFASTFORWARD, 0);
 
 	/* Non-fast-forward update with force should pass. */
 	do_push(specs2_force, ARRAY_SIZE(specs2_force),
 		exp_stats2_force, ARRAY_SIZE(exp_stats2_force),
-		exp_refs2_force, ARRAY_SIZE(exp_refs2_force), 0);
+		exp_refs2_force, ARRAY_SIZE(exp_refs2_force), 0, 1);
 }
 
 void test_online_push__delete(void)
@@ -622,7 +668,7 @@ void test_online_push__delete(void)
 
 	do_push(specs1, ARRAY_SIZE(specs1),
 		exp_stats1, ARRAY_SIZE(exp_stats1),
-		exp_refs1, ARRAY_SIZE(exp_refs1), 0);
+		exp_refs1, ARRAY_SIZE(exp_refs1), 0, 1);
 
 	/* When deleting a non-existent branch, the git client sends zero for both
 	 * the old and new commit id.  This should succeed on the server with the
@@ -632,23 +678,23 @@ void test_online_push__delete(void)
 	 */
 	do_push(specs_del_fake, ARRAY_SIZE(specs_del_fake),
 		exp_stats_fake, 1,
-		exp_refs1, ARRAY_SIZE(exp_refs1), 0);
+		exp_refs1, ARRAY_SIZE(exp_refs1), 0, 0);
 	do_push(specs_del_fake_force, ARRAY_SIZE(specs_del_fake_force),
 		exp_stats_fake, 1,
-		exp_refs1, ARRAY_SIZE(exp_refs1), 0);
+		exp_refs1, ARRAY_SIZE(exp_refs1), 0, 0);
 
 	/* Delete one of the pushed branches. */
 	do_push(specs_delete, ARRAY_SIZE(specs_delete),
 		exp_stats_delete, ARRAY_SIZE(exp_stats_delete),
-		exp_refs_delete, ARRAY_SIZE(exp_refs_delete), 0);
+		exp_refs_delete, ARRAY_SIZE(exp_refs_delete), 0, 0);
 
 	/* Re-push branches and retry delete with force. */
 	do_push(specs1, ARRAY_SIZE(specs1),
 		exp_stats1, ARRAY_SIZE(exp_stats1),
-		exp_refs1, ARRAY_SIZE(exp_refs1), 0);
+		exp_refs1, ARRAY_SIZE(exp_refs1), 0, 0);
 	do_push(specs_delete_force, ARRAY_SIZE(specs_delete_force),
 		exp_stats_delete, ARRAY_SIZE(exp_stats_delete),
-		exp_refs_delete, ARRAY_SIZE(exp_refs_delete), 0);
+		exp_refs_delete, ARRAY_SIZE(exp_refs_delete), 0, 0);
 }
 
 void test_online_push__bad_refspecs(void)
@@ -680,11 +726,11 @@ void test_online_push__expressions(void)
 	/* TODO: Find a more precise way of checking errors than a exit code of -1. */
 	do_push(specs_left_expr, ARRAY_SIZE(specs_left_expr),
 		NULL, 0,
-		NULL, 0, -1);
+		NULL, 0, -1, 0);
 
 	do_push(specs_right_expr, ARRAY_SIZE(specs_right_expr),
 		exp_stats_right_expr, ARRAY_SIZE(exp_stats_right_expr),
-		NULL, 0, 0);
+		NULL, 0, 0, 1);
 }
 
 void test_online_push__notes(void)
@@ -704,7 +750,7 @@ void test_online_push__notes(void)
 
 	do_push(specs, ARRAY_SIZE(specs),
 		exp_stats, ARRAY_SIZE(exp_stats),
-		exp_refs, ARRAY_SIZE(exp_refs), 0);
+		exp_refs, ARRAY_SIZE(exp_refs), 0, 1);
 
 	git_signature_free(signature);
 }

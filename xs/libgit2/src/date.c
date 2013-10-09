@@ -681,8 +681,8 @@ static const char *approxidate_alpha(const char *date, struct tm *tm, struct tm 
 	const char *end = date;
 	int i;
 
-	while (isalpha(*++end));
-		;
+	while (isalpha(*++end))
+		/* scan to non-alpha */;
 
 	for (i = 0; i < 12; i++) {
 		size_t match = match_string(date, month_names[i]);
@@ -823,15 +823,13 @@ static void pending_number(struct tm *tm, int *num)
 }
 
 static git_time_t approxidate_str(const char *date,
-                                  const struct timeval *tv,
-                                  int *error_ret)
+	time_t time_sec,
+	int *error_ret)
 {
 	int number = 0;
 	int touched = 0;
 	struct tm tm = {0}, now;
-	time_t time_sec;
 
-	time_sec = tv->tv_sec;
 	p_localtime_r(&time_sec, &tm);
 	now = tm;
 
@@ -861,16 +859,18 @@ static git_time_t approxidate_str(const char *date,
 
 int git__date_parse(git_time_t *out, const char *date)
 {
-	struct timeval tv;
+	time_t time_sec;
 	git_time_t timestamp;
 	int offset, error_ret=0;
 
 	if (!parse_date_basic(date, &timestamp, &offset)) {
-      *out = timestamp;
+		*out = timestamp;
 		return 0;
 	}
 
-	p_gettimeofday(&tv, NULL);
-	*out = approxidate_str(date, &tv, &error_ret);
+	if (time(&time_sec) == -1)
+		return -1;
+
+	*out = approxidate_str(date, time_sec, &error_ret);
    return error_ret;
 }

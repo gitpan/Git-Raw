@@ -1,6 +1,6 @@
 package Git::Raw::Remote;
 {
-  $Git::Raw::Remote::VERSION = '0.24';
+  $Git::Raw::Remote::VERSION = '0.25'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.24
+version 0.25
 
 =head1 SYNOPSIS
 
@@ -27,7 +27,9 @@ version 0.24
     my $remote = Git::Raw::Remote -> create($repo, 'origin', $url);
 
     # set the acquire credentials callback
-    $remote -> cred_acquire(sub { Git::Raw::Cred -> plaintext($usr, $pwd) });
+    $remote -> callbacks({
+      credentials => sub { Git::Raw::Cred -> plaintext($usr, $pwd) }
+    });
 
     # connect the remote
     $remote -> connect('fetch');
@@ -53,6 +55,10 @@ B<WARNING>: The API of this module is unstable and may change without warning
 Create a remote with the default fetch refspec and add it to the repository's
 configuration.
 
+=head2 load( $repo, $name )
+
+Load an existing remote.
+
 =head2 name( [ $name ] )
 
 Retrieve the name of the remote. If C<$name> is passed, the remote's name will
@@ -63,21 +69,42 @@ be updated and returned.
 Retrieve the URL of the remote. If C<$url> is passed, the remote's URL will be
 updated and returned.
 
-=head2 fetchspec( [ $spec ] )
+=head2 add_fetch( $spec )
 
-Retrieve the fetchspec of the remote. If C<$spec> is passed, the remote's
-fetchspec will be updated and returned.
+Add a fetch spec to the remote.
 
-=head2 pushspec( [ $spec ] )
+=head2 add_push( $spec )
 
-Retrieve the pushspec of the remote. If C<$spec> is passed, the remote's
-pushspec will be updated and returned.
+Add a push spec to the remote.
+
+=head2 callbacks( \%callbacks )
+
+=over 4
+
+=item * "credentials"
+
+The callback to be called any time authentication is required to connect to the
+remote repository. The callback receives a string containing the URL of the
+remote, and it must return a L<Git::Raw::Cred> object.
+
+=back
 
 =head2 cred_acquire( $callback )
 
 Run $callback any time authentication is required to connect to the remote
 repository. The callback receives a string containing the URL of the remote, and
 it must return a L<Git::Raw::Cred> object.
+
+Note that this method is deprecated in favor of C<callbacks()>
+
+=cut
+
+sub cred_acquire {
+	my ($self, $cb) = @_;
+
+	my %callbacks = { 'credentials' => $cb };
+	$self -> callbacks(\%callbacks);
+}
 
 =head2 connect( $direction )
 

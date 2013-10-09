@@ -18,7 +18,7 @@
 GIT_BEGIN_DECL
 
 /** Generic return codes */
-enum {
+typedef enum {
 	GIT_OK = 0,
 	GIT_ERROR = -1,
 	GIT_ENOTFOUND = -3,
@@ -27,15 +27,16 @@ enum {
 	GIT_EBUFS = -6,
 	GIT_EUSER = -7,
 	GIT_EBAREREPO = -8,
-	GIT_EORPHANEDHEAD = -9,
+	GIT_EUNBORNBRANCH = -9,
 	GIT_EUNMERGED = -10,
 	GIT_ENONFASTFORWARD = -11,
 	GIT_EINVALIDSPEC = -12,
 	GIT_EMERGECONFLICT = -13,
+	GIT_ELOCKED = -14,
 
 	GIT_PASSTHROUGH = -30,
 	GIT_ITEROVER = -31,
-};
+} git_error_code;
 
 typedef struct {
 	char *message;
@@ -66,6 +67,8 @@ typedef enum {
 	GITERR_CHECKOUT,
 	GITERR_FETCHHEAD,
 	GITERR_MERGE,
+	GITERR_SSH,
+	GITERR_FILTER,
 } git_error_t;
 
 /**
@@ -100,7 +103,7 @@ GIT_EXTERN(void) giterr_clear(void);
  *
  * @param error_class One of the `git_error_t` enum above describing the
  *                    general subsystem that is responsible for the error.
- * @param message The formatted error message to keep
+ * @param string The formatted error message to keep
  */
 GIT_EXTERN(void) giterr_set_str(int error_class, const char *string);
 

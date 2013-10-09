@@ -3,6 +3,11 @@
 #include "posix.h"
 #include "loose_data.h"
 
+#ifdef __ANDROID_API__
+# define S_IREAD        S_IRUSR
+# define S_IWRITE       S_IWUSR
+#endif
+
 static void write_object_files(object_data *d)
 {
 	int fd;
@@ -30,6 +35,7 @@ static void test_read_object(object_data *data)
     git_oid id;
     git_odb_object *obj;
 	git_odb *odb;
+	git_rawobj tmp;
 
     write_object_files(data);
 
@@ -37,7 +43,11 @@ static void test_read_object(object_data *data)
     cl_git_pass(git_oid_fromstr(&id, data->id));
     cl_git_pass(git_odb_read(&obj, odb, &id));
 
-    cmp_objects((git_rawobj *)&obj->raw, data);
+	tmp.data = obj->buffer;
+	tmp.len = obj->cached.size;
+	tmp.type = obj->cached.type;
+
+    cmp_objects(&tmp, data);
 
     git_odb_object_free(obj);
 	git_odb_free(odb);

@@ -10,12 +10,14 @@ static git_repository *g_repo_cloned;
 void test_clone_empty__initialize(void)
 {
 	git_repository *sandbox = cl_git_sandbox_init("empty_bare.git");
+	git_remote_callbacks dummy_callbacks = GIT_REMOTE_CALLBACKS_INIT;
 	cl_git_remove_placeholders(git_repository_path(sandbox), "dummy-marker.txt");
 
 	g_repo = NULL;
 
 	memset(&g_options, 0, sizeof(git_clone_options));
 	g_options.version = GIT_CLONE_OPTIONS_VERSION;
+	g_options.remote_callbacks = dummy_callbacks;
 }
 
 void test_clone_empty__cleanup(void)
@@ -44,22 +46,22 @@ void test_clone_empty__can_clone_an_empty_local_repo_barely(void)
 	g_options.bare = true;
 	cl_git_pass(git_clone(&g_repo_cloned, "./empty_bare.git", "./empty", &g_options));
 
-	/* Although the HEAD is orphaned... */
+	/* Although the HEAD is unborn... */
 	cl_assert_equal_i(GIT_ENOTFOUND, git_reference_lookup(&ref, g_repo_cloned, local_name));
 
 	/* ...one can still retrieve the name of the remote tracking reference */
-	cl_assert_equal_i((int)strlen(expected_tracked_branch_name) + 1, 
-		git_branch_tracking_name(buffer, 1024, g_repo_cloned, local_name));
+	cl_assert_equal_i((int)strlen(expected_tracked_branch_name) + 1,
+		git_branch_upstream_name(buffer, 1024, g_repo_cloned, local_name));
 
 	cl_assert_equal_s(expected_tracked_branch_name, buffer);
 
 	/* ...and the name of the remote... */
-	cl_assert_equal_i((int)strlen(expected_remote_name) + 1, 
+	cl_assert_equal_i((int)strlen(expected_remote_name) + 1,
 		git_branch_remote_name(buffer, 1024, g_repo_cloned, expected_tracked_branch_name));
 
 	cl_assert_equal_s(expected_remote_name, buffer);
 
-	/* ...even when the remote HEAD is orphaned as well */
+	/* ...even when the remote HEAD is unborn as well */
 	cl_assert_equal_i(GIT_ENOTFOUND, git_reference_lookup(&ref, g_repo_cloned,
 		expected_tracked_branch_name));
 }

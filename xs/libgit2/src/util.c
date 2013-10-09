@@ -11,6 +11,7 @@
 #include <ctype.h>
 #include "posix.h"
 #include "fileops.h"
+#include "cache.h"
 
 #ifdef _MSC_VER
 # include <Shlwapi.h>
@@ -31,6 +32,9 @@ int git_libgit2_capabilities()
 #endif
 #if defined(GIT_SSL) || defined(GIT_WINHTTP)
 		| GIT_CAP_HTTPS
+#endif
+#if defined(GIT_SSH)
+		| GIT_CAP_SSH
 #endif
 	;
 }
@@ -91,6 +95,40 @@ int git_libgit2_opts(int key, ...)
 	case GIT_OPT_SET_SEARCH_PATH:
 		if ((error = config_level_to_futils_dir(va_arg(ap, int))) >= 0)
 			error = git_futils_dirs_set(error, va_arg(ap, const char *));
+		break;
+
+	case GIT_OPT_SET_CACHE_OBJECT_LIMIT:
+		{
+			git_otype type = (git_otype)va_arg(ap, int);
+			size_t size = va_arg(ap, size_t);
+			error = git_cache_set_max_object_size(type, size);
+			break;
+		}
+
+	case GIT_OPT_SET_CACHE_MAX_SIZE:
+		git_cache__max_storage = va_arg(ap, ssize_t);
+		break;
+
+	case GIT_OPT_ENABLE_CACHING:
+		git_cache__enabled = (va_arg(ap, int) != 0);
+		break;
+
+	case GIT_OPT_GET_CACHED_MEMORY:
+		*(va_arg(ap, ssize_t *)) = git_cache__current_storage.val;
+		*(va_arg(ap, ssize_t *)) = git_cache__max_storage;
+		break;
+
+	case GIT_OPT_GET_TEMPLATE_PATH:
+		{
+			char *out = va_arg(ap, char *);
+			size_t outlen = va_arg(ap, size_t);
+
+			error = git_futils_dirs_get_str(out, outlen, GIT_FUTILS_DIR_TEMPLATE);
+		}
+		break;
+
+	case GIT_OPT_SET_TEMPLATE_PATH:
+		error = git_futils_dirs_set(GIT_FUTILS_DIR_TEMPLATE, va_arg(ap, const char *));
 		break;
 	}
 
@@ -255,6 +293,28 @@ int git__strcasecmp(const char *a, const char *b)
 	while (*a && *b && tolower(*a) == tolower(*b))
 		++a, ++b;
 	return (tolower(*a) - tolower(*b));
+}
+
+int git__strcasesort_cmp(const char *a, const char *b)
+{
+	int cmp = 0;
+
+	while (*a && *b) {
+		if (*a != *b) {
+			if (tolower(*a) != tolower(*b))
+				break;
+			/* use case in sort order even if not in equivalence */
+			if (!cmp)
+				cmp = (int)(*(const uint8_t *)a) - (int)(*(const uint8_t *)b);
+		}
+
+		++a, ++b;
+	}
+
+	if (*a || *b)
+		return tolower(*a) - tolower(*b);
+
+	return cmp;
 }
 
 int git__strncmp(const char *a, const char *b, size_t sz)
@@ -632,6 +692,9 @@ size_t git__unescape(char *str)
 {
 	char *scan, *pos = str;
 
+	if (!str)
+		return 0;
+
 	for (scan = str; *scan; pos++, scan++) {
 		if (*scan == '\\' && *(scan + 1) != '\0')
 			scan++; /* skip '\' but include next char */
@@ -663,7 +726,9 @@ static int GIT_STDLIB_CALL git__qsort_r_glue_cmp(
 void git__qsort_r(
 	void *els, size_t nel, size_t elsize, git__sort_r_cmp cmp, void *payload)
 {
-#if defined(__MINGW32__)
+#if defined(__MINGW32__) || defined(__OpenBSD__) || defined(AMIGA) || \
+	defined(__gnu_hurd__) || defined(__ANDROID_API__) || \
+	(__GLIBC__ == 2 && __GLIBC_MINOR__ < 8)
 	git__insertsort_r(els, nel, elsize, NULL, cmp, payload);
 #elif defined(GIT_WIN32)
 	git__qsort_r_glue glue = { cmp, payload };

@@ -1,6 +1,6 @@
 package Git::Raw::Branch;
 {
-  $Git::Raw::Branch::VERSION = '0.24';
+  $Git::Raw::Branch::VERSION = '0.25'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Branch - Git branch class
 
 =head1 VERSION
 
-version 0.24
+version 0.25
 
 =head1 SYNOPSIS
 
@@ -55,7 +55,7 @@ object, an additional C<Git::Raw::Branch-E<gt>lookup()> is needed.
 Run C<$callback> for every branch in the repo. The callback receives a
 branch object. A non-zero return value stops the loop.
 
-=head2 tracking( )
+=head2 upstream( )
 
 Retrieve the reference supporting the remote tracking branch, given the local
 branch.

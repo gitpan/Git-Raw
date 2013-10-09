@@ -10,14 +10,6 @@
 #include "mwindow.h"
 #include "hash.h"
 
-#if defined(GIT_THREADS) && defined(_MSC_VER)
-# define GIT_MEMORY_BARRIER MemoryBarrier()
-#elif defined(GIT_THREADS)
-# define GIT_MEMORY_BARRIER __sync_synchronize()
-#else
-# define GIT_MEMORY_BARRIER /* noop */
-#endif
-
 typedef struct {
 	git_error *last_error;
 	git_error error_t;
@@ -28,5 +20,9 @@ git_global_st *git__global_state(void);
 extern git_mutex git__mwindow_mutex;
 
 #define GIT_GLOBAL (git__global_state())
+
+typedef void (*git_global_shutdown_fn)(void);
+
+extern void git__on_shutdown(git_global_shutdown_fn callback);
 
 #endif

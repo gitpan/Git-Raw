@@ -30,24 +30,26 @@ void cl_git_mkfile(const char *filename, const char *content)
 }
 
 void cl_git_write2file(
-	const char *filename, const char *new_content, int flags, unsigned int mode)
+	const char *path, const char *content, size_t content_len,
+	int flags, unsigned int mode)
 {
-	int fd = p_open(filename, flags, mode);
-	cl_assert(fd >= 0);
-	if (!new_content)
-		new_content = "\n";
-	cl_must_pass(p_write(fd, new_content, strlen(new_content)));
+	int fd;
+	cl_assert(path && content);
+	cl_assert((fd = p_open(path, flags, mode)) >= 0);
+	if (!content_len)
+		content_len = strlen(content);
+	cl_must_pass(p_write(fd, content, content_len));
 	cl_must_pass(p_close(fd));
 }
 
-void cl_git_append2file(const char *filename, const char *new_content)
+void cl_git_append2file(const char *path, const char *content)
 {
-	cl_git_write2file(filename, new_content, O_WRONLY | O_CREAT | O_APPEND, 0644);
+	cl_git_write2file(path, content, 0, O_WRONLY | O_CREAT | O_APPEND, 0644);
 }
 
-void cl_git_rewritefile(const char *filename, const char *new_content)
+void cl_git_rewritefile(const char *path, const char *content)
 {
-	cl_git_write2file(filename, new_content, O_WRONLY | O_CREAT | O_TRUNC, 0644);
+	cl_git_write2file(path, content, 0, O_WRONLY | O_CREAT | O_TRUNC, 0644);
 }
 
 #ifdef GIT_WIN32
@@ -56,23 +58,24 @@ void cl_git_rewritefile(const char *filename, const char *new_content)
 
 char *cl_getenv(const char *name)
 {
-	wchar_t name_utf16[GIT_WIN_PATH];
+	git_win32_path name_utf16;
 	DWORD alloc_len;
 	wchar_t *value_utf16;
 	char *value_utf8;
 
-	git__utf8_to_16(name_utf16, GIT_WIN_PATH, name);
+	git_win32_path_from_c(name_utf16, name);
 	alloc_len = GetEnvironmentVariableW(name_utf16, NULL, 0);
 	if (alloc_len <= 0)
 		return NULL;
 
-	alloc_len = GIT_WIN_PATH;
 	cl_assert(value_utf16 = git__calloc(alloc_len, sizeof(wchar_t)));
 
 	GetEnvironmentVariableW(name_utf16, value_utf16, alloc_len);
 
-	cl_assert(value_utf8 = git__malloc(alloc_len));
-	git__utf16_to_8(value_utf8, value_utf16);
+	alloc_len = alloc_len * 4 + 1; /* worst case UTF16->UTF8 growth */
+	cl_assert(value_utf8 = git__calloc(alloc_len, 1));
+
+	git__utf16_to_8(value_utf8, alloc_len, value_utf16);
 
 	git__free(value_utf16);
 
@@ -81,13 +84,13 @@ char *cl_getenv(const char *name)
 
 int cl_setenv(const char *name, const char *value)
 {
-	wchar_t name_utf16[GIT_WIN_PATH];
-	wchar_t value_utf16[GIT_WIN_PATH];
+	git_win32_path name_utf16;
+	git_win32_path value_utf16;
 
-	git__utf8_to_16(name_utf16, GIT_WIN_PATH, name);
+	git_win32_path_from_c(name_utf16, name);
 
 	if (value) {
-		git__utf8_to_16(value_utf16, GIT_WIN_PATH, value);
+		git_win32_path_from_c(value_utf16, value);
 		cl_assert(SetEnvironmentVariableW(name_utf16, value_utf16));
 	} else {
 		/* Windows XP returns 0 (failed) when passing NULL for lpValue when
@@ -107,12 +110,12 @@ int cl_setenv(const char *name, const char *value)
  * the source is a directory, a child of the source). */
 int cl_rename(const char *source, const char *dest)
 {
-	wchar_t source_utf16[GIT_WIN_PATH];
-	wchar_t dest_utf16[GIT_WIN_PATH];
+	git_win32_path source_utf16;
+	git_win32_path dest_utf16;
 	unsigned retries = 1;
 
-	git__utf8_to_16(source_utf16, GIT_WIN_PATH, source);
-	git__utf8_to_16(dest_utf16, GIT_WIN_PATH, dest);
+	git_win32_path_from_c(source_utf16, source);
+	git_win32_path_from_c(dest_utf16, dest);
 
 	while (!MoveFileW(source_utf16, dest_utf16)) {
 		/* Only retry if the error is ERROR_ACCESS_DENIED;
@@ -186,6 +189,18 @@ git_repository *cl_git_sandbox_init(const char *sandbox)
 
 	/* Now open the sandbox repository and make it available for tests */
 	cl_git_pass(git_repository_open(&_cl_repo, sandbox));
+
+	return _cl_repo;
+}
+
+git_repository *cl_git_sandbox_reopen(void)
+{
+	if (_cl_repo) {
+		git_repository_free(_cl_repo);
+		_cl_repo = NULL;
+
+		cl_git_pass(git_repository_open(&_cl_repo, _cl_sandbox));
+	}
 
 	return _cl_repo;
 }
@@ -324,10 +339,141 @@ int cl_git_remove_placeholders(const char *directory_path, const char *filename)
 	return error;
 }
 
+#define CL_COMMIT_NAME "Libgit2 Tester"
+#define CL_COMMIT_EMAIL "libgit2-test@github.com"
+#define CL_COMMIT_MSG "Test commit of tree "
+
+void cl_repo_commit_from_index(
+	git_oid *out,
+	git_repository *repo,
+	git_signature *sig,
+	git_time_t time,
+	const char *msg)
+{
+	git_index *index;
+	git_oid commit_id, tree_id;
+	git_object *parent = NULL;
+	git_reference *ref = NULL;
+	git_tree *tree = NULL;
+	char buf[128];
+	int free_sig = (sig == NULL);
+
+	/* it is fine if looking up HEAD fails - we make this the first commit */
+	git_revparse_ext(&parent, &ref, repo, "HEAD");
+
+	/* write the index content as a tree */
+	cl_git_pass(git_repository_index(&index, repo));
+	cl_git_pass(git_index_write_tree(&tree_id, index));
+	cl_git_pass(git_index_write(index));
+	git_index_free(index);
+
+	cl_git_pass(git_tree_lookup(&tree, repo, &tree_id));
+
+	if (sig)
+		cl_assert(sig->name && sig->email);
+	else if (!time)
+		cl_git_pass(git_signature_now(&sig, CL_COMMIT_NAME, CL_COMMIT_EMAIL));
+	else
+		cl_git_pass(git_signature_new(
+			&sig, CL_COMMIT_NAME, CL_COMMIT_EMAIL, time, 0));
+
+	if (!msg) {
+		strcpy(buf, CL_COMMIT_MSG);
+		git_oid_tostr(buf + strlen(CL_COMMIT_MSG),
+			sizeof(buf) - strlen(CL_COMMIT_MSG), &tree_id);
+		msg = buf;
+	}
+
+	cl_git_pass(git_commit_create_v(
+		&commit_id, repo, ref ? git_reference_name(ref) : "HEAD",
+		sig, sig, NULL, msg, tree, parent ? 1 : 0, parent));
+
+	if (out)
+		git_oid_cpy(out, &commit_id);
+
+	git_object_free(parent);
+	git_reference_free(ref);
+	if (free_sig)
+		git_signature_free(sig);
+	git_tree_free(tree);
+}
+
 void cl_repo_set_bool(git_repository *repo, const char *cfg, int value)
 {
 	git_config *config;
 	cl_git_pass(git_repository_config(&config, repo));
 	cl_git_pass(git_config_set_bool(config, cfg, value != 0));
 	git_config_free(config);
+}
+
+int cl_repo_get_bool(git_repository *repo, const char *cfg)
+{
+	int val = 0;
+	git_config *config;
+	cl_git_pass(git_repository_config(&config, repo));
+	cl_git_pass(git_config_get_bool(&val, config, cfg));;
+	git_config_free(config);
+	return val;
+}
+
+/* this is essentially the code from git__unescape modified slightly */
+static size_t strip_cr_from_buf(char *start, size_t len)
+{
+	char *scan, *trail, *end = start + len;
+
+	for (scan = trail = start; scan < end; trail++, scan++) {
+		while (*scan == '\r')
+			scan++; /* skip '\r' */
+
+		if (trail != scan)
+			*trail = *scan;
+	}
+
+	*trail = '\0';
+
+	return (trail - start);
+}
+
+void clar__assert_equal_file(
+	const char *expected_data,
+	size_t expected_bytes,
+	int ignore_cr,
+	const char *path,
+	const char *file,
+	int line)
+{
+	char buf[4000];
+	ssize_t bytes, total_bytes = 0;
+	int fd = p_open(path, O_RDONLY | O_BINARY);
+	cl_assert(fd >= 0);
+
+	if (expected_data && !expected_bytes)
+		expected_bytes = strlen(expected_data);
+
+	while ((bytes = p_read(fd, buf, sizeof(buf))) != 0) {
+		clar__assert(
+			bytes > 0, file, line, "error reading from file", path, 1);
+
+		if (ignore_cr)
+			bytes = strip_cr_from_buf(buf, bytes);
+
+		if (memcmp(expected_data, buf, bytes) != 0) {
+			int pos;
+			for (pos = 0; pos < bytes && expected_data[pos] == buf[pos]; ++pos)
+				/* find differing byte offset */;
+			p_snprintf(
+				buf, sizeof(buf), "file content mismatch at byte %d",
+				(int)(total_bytes + pos));
+			clar__fail(file, line, buf, path, 1);
+		}
+
+		expected_data += bytes;
+		total_bytes   += bytes;
+	}
+
+	p_close(fd);
+
+	clar__assert(!bytes, file, line, "error reading from file", path, 1);
+	clar__assert_equal(file, line, "mismatched file length", 1, "%"PRIuZ,
+		(size_t)expected_bytes, (size_t)total_bytes);
 }

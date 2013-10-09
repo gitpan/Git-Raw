@@ -28,6 +28,9 @@ extern int git_config_find_global_r(git_buf *global_config_path);
 extern int git_config_find_xdg_r(git_buf *system_config_path);
 extern int git_config_find_system_r(git_buf *system_config_path);
 
+
+extern int git_config__global_location(git_buf *buf);
+
 extern int git_config_rename_section(
 	git_repository *repo,
 	const char *old_section_name,	/* eg "branch.dummy" */
@@ -45,5 +48,8 @@ extern int git_config_rename_section(
  * @param path where the config file is located
  */
 extern int git_config_file__ondisk(struct git_config_backend **out, const char *path);
+
+extern int git_config__normalize_name(const char *in, char **out);
+
 
 #endif

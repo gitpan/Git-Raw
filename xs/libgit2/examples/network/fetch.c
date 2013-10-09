@@ -16,7 +16,7 @@ struct dl_data {
 
 static void progress_cb(const char *str, int len, void *data)
 {
-	data = data;
+	(void)data;
 	printf("remote: %.*s", len, str);
 	fflush(stdout); /* We don't have the \n to force the flush */
 }
@@ -35,7 +35,7 @@ static void *download(void *ptr)
 	// Download the packfile and index it. This function updates the
 	// amount of received data and the indexer stats which lets you
 	// inform the user about progress.
-	if (git_remote_download(data->remote, NULL, NULL) < 0) {
+	if (git_remote_download(data->remote) < 0) {
 		data->ret = -1;
 		goto exit;
 	}
@@ -50,7 +50,7 @@ exit:
 static int update_cb(const char *refname, const git_oid *a, const git_oid *b, void *data)
 {
 	char a_str[GIT_OID_HEXSZ+1], b_str[GIT_OID_HEXSZ+1];
-	data = data;
+	(void)data;
 
 	git_oid_fmt(b_str, b);
 	b_str[GIT_OID_HEXSZ] = '\0';
@@ -76,7 +76,11 @@ int fetch(git_repository *repo, int argc, char **argv)
 	pthread_t worker;
 #endif
 
-	argc = argc;
+	if (argc < 2) {
+		fprintf(stderr, "usage: %s fetch <repo>\n", argv[-1]);
+		return EXIT_FAILURE;
+	}
+
 	// Figure out whether it's a named remote or a URL
 	printf("Fetching %s for repo %p\n", argv[1], repo);
 	if (git_remote_load(&remote, repo, argv[1]) < 0) {
@@ -87,6 +91,7 @@ int fetch(git_repository *repo, int argc, char **argv)
 	// Set up the callbacks (only update_tips for now)
 	callbacks.update_tips = &update_cb;
 	callbacks.progress = &progress_cb;
+	callbacks.credentials = cred_acquire_cb;
 	git_remote_set_callbacks(remote, &callbacks);
 
 	// Set up the information for the background worker thread
