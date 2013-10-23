@@ -33,10 +33,10 @@ index 0000000..6afc8a6
 --- /dev/null
 +++ b/diff
 hunk => @@ -0,0 +1 @@
-add => +diff me, biatch
+add => diff me, biatch
 EOS
 
-my $output = capture_stdout { $diff -> patch($printer) };
+my $output = capture_stdout { $diff -> print("patch", $printer) };
 
 is $output, $expected;
 
@@ -44,7 +44,7 @@ $expected = <<'EOS';
 file => A	diff
 EOS
 
-$output = capture_stdout { $diff -> compact($printer) };
+$output = capture_stdout { $diff -> print("name_status", $printer) };
 
 is $output, $expected;
 
@@ -60,11 +60,11 @@ index 0000000..c7eaef2
 --- /dev/null
 +++ b/test3/under/the/tree/test3
 hunk => @@ -0,0 +1 @@
-add => +this is a third testdel => 
+add => this is a third testdel => 
 \ No newline at end of file
 EOS
 
-$output = capture_stdout { $diff -> patch($printer) };
+$output = capture_stdout { $diff -> print("patch", $printer) };
 
 is $output, $expected;
 
@@ -72,7 +72,7 @@ $expected = <<'EOS';
 file => A	test3/under/the/tree/test3
 EOS
 
-$output = capture_stdout { $diff -> compact($printer) };
+$output = capture_stdout { $diff -> print("name_status", $printer) };
 
 is $output, $expected;
 

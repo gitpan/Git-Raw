@@ -1,6 +1,6 @@
 package Git::Raw::Reference;
 {
-  $Git::Raw::Reference::VERSION = '0.26'; # TRIAL
+  $Git::Raw::Reference::VERSION = '0.27';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.26
+version 0.27
 
 =head1 DESCRIPTION
 

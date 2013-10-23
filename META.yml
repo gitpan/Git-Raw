@@ -15,7 +15,7 @@ configure_requires:
   Devel::CheckLib: 0
   ExtUtils::MakeMaker: 6.30
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 4.300039, CPAN::Meta::Converter version 2.132661'
+generated_by: 'Dist::Zilla version 4.300039, CPAN::Meta::Converter version 2.132830'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -29,7 +29,7 @@ resources:
   bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/ghedo/p5-Git-Raw.git
-version: 0.26
+version: 0.27
 x_Dist_Zilla:
   perl:
     version: 5.018001
@@ -93,7 +93,7 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::Git::NextVersion
       name: '@Author::ALEXBIO/Git::NextVersion'
-      version: 2.014
+      version: 2.016
     -
       class: Dist::Zilla::Plugin::MetaConfig
       name: '@Author::ALEXBIO/MetaConfig'
@@ -143,15 +143,15 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::Git::Commit
       name: '@Author::ALEXBIO/Git::Commit'
-      version: 2.014
+      version: 2.016
     -
       class: Dist::Zilla::Plugin::Git::Tag
       name: '@Author::ALEXBIO/Git::Tag'
-      version: 2.014
+      version: 2.016
     -
       class: Dist::Zilla::Plugin::Git::Push
       name: '@Author::ALEXBIO/Git::Push'
-      version: 2.014
+      version: 2.016
     -
       class: Dist::Zilla::Plugin::UploadToCPAN
       name: '@Author::ALEXBIO/UploadToCPAN'
@@ -207,5 +207,5 @@ x_Dist_Zilla:
   zilla:
     class: Dist::Zilla::Dist::Builder
     config:
-      is_trial: 1
+      is_trial: 0
     version: 4.300039

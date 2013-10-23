@@ -158,6 +158,7 @@ xs/libgit2/include/git2/odb.h
 xs/libgit2/include/git2/odb_backend.h
 xs/libgit2/include/git2/oid.h
 xs/libgit2/include/git2/pack.h
+xs/libgit2/include/git2/patch.h
 xs/libgit2/include/git2/pathspec.h
 xs/libgit2/include/git2/push.h
 xs/libgit2/include/git2/refdb.h
@@ -430,6 +431,7 @@ xs/libgit2/tests-clar/buf/splice.c
 xs/libgit2/tests-clar/checkout/binaryunicode.c
 xs/libgit2/tests-clar/checkout/checkout_helpers.c
 xs/libgit2/tests-clar/checkout/checkout_helpers.h
+xs/libgit2/tests-clar/checkout/conflict.c
 xs/libgit2/tests-clar/checkout/crlf.c
 xs/libgit2/tests-clar/checkout/head.c
 xs/libgit2/tests-clar/checkout/index.c
@@ -473,6 +475,7 @@ xs/libgit2/tests-clar/core/env.c
 xs/libgit2/tests-clar/core/errors.c
 xs/libgit2/tests-clar/core/filebuf.c
 xs/libgit2/tests-clar/core/hex.c
+xs/libgit2/tests-clar/core/iconv.c
 xs/libgit2/tests-clar/core/mkdir.c
 xs/libgit2/tests-clar/core/oid.c
 xs/libgit2/tests-clar/core/oidmap.c
