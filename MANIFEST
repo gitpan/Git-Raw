@@ -27,6 +27,7 @@ lib/Git/Raw/Signature.pm
 lib/Git/Raw/Stash.pm
 lib/Git/Raw/Tag.pm
 lib/Git/Raw/Tree.pm
+lib/Git/Raw/TreeBuilder.pm
 lib/Git/Raw/TreeEntry.pm
 lib/Git/Raw/Walker.pm
 t/00-compile.t
@@ -43,6 +44,7 @@ t/10-clone.t
 t/11-stash.t
 t/12-blob.t
 t/13-checkout.t
+t/14-tree-builder.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -63,6 +65,7 @@ xs/Signature.xs
 xs/Stash.xs
 xs/Tag.xs
 xs/Tree.xs
+xs/TreeBuilder.xs
 xs/TreeEntry.xs
 xs/Walker.xs
 xs/libgit2/AUTHORS

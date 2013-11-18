@@ -1,6 +1,6 @@
 package Git::Raw::Blob;
 {
-  $Git::Raw::Blob::VERSION = '0.27';
+  $Git::Raw::Blob::VERSION = '0.28';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Blob - Git blob class
 
 =head1 VERSION
 
-version 0.27
+version 0.28
 
 =head1 DESCRIPTION
 
@@ -41,6 +41,10 @@ Retrieve the raw content of a blob.
 =head2 size( )
 
 Retrieve the size of the raw content of a blob.
+
+=head2 id( )
+
+Return the raw ID (the SHA-1 hash) of the blob.
 
 =head1 AUTHOR
 

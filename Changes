@@ -1,5 +1,14 @@
 Revision history for Git-Raw
 
+0.28      2013-11-18 15:00:10 Europe/Rome
+
+ - Add Blob -> id() (GH#15) (thanks, @hoelzro!)
+ - Add TreeBuilder API (GH#16) (thanks, @hoelzro!)
+ - Add Reference -> create() (GH#17) (thanks, @hoelzro!)
+ - Add Repository -> refs() method (GH#19) (thanks, @hoelzro!)
+ - Make Commit -> create() take an optional parameter indicating the name
+   of a reference to update (GH#19) (thanks, @hoelzro!)
+
 0.27      2013-10-23 12:34:13 Europe/Rome
 
  - Update to libgit2 1c74686

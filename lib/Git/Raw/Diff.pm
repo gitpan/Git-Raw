@@ -1,6 +1,6 @@
 package Git::Raw::Diff;
 {
-  $Git::Raw::Diff::VERSION = '0.27';
+  $Git::Raw::Diff::VERSION = '0.28';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Diff - Git diff class
 
 =head1 VERSION
 
-version 0.27
+version 0.28
 
 =head1 DESCRIPTION
 

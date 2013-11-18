@@ -29,7 +29,7 @@ resources:
   bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/ghedo/p5-Git-Raw.git
-version: 0.27
+version: 0.28
 x_Dist_Zilla:
   perl:
     version: 5.018001
@@ -93,7 +93,7 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::Git::NextVersion
       name: '@Author::ALEXBIO/Git::NextVersion'
-      version: 2.016
+      version: 2.017
     -
       class: Dist::Zilla::Plugin::MetaConfig
       name: '@Author::ALEXBIO/MetaConfig'
@@ -122,12 +122,13 @@ x_Dist_Zilla:
       class: Dist::Zilla::Plugin::Test::Compile
       config:
         Dist::Zilla::Plugin::Test::Compile:
+          filename: t/00-compile.t
           module_finder:
             - ':InstallModules'
           script_finder:
             - ':ExecFiles'
       name: '@Author::ALEXBIO/Test::Compile'
-      version: 2.033
+      version: 2.037
     -
       class: Dist::Zilla::Plugin::Test::CheckManifest
       name: '@Author::ALEXBIO/Test::CheckManifest'
@@ -143,15 +144,15 @@ x_Dist_Zilla:
     -
       class: Dist::Zilla::Plugin::Git::Commit
       name: '@Author::ALEXBIO/Git::Commit'
-      version: 2.016
+      version: 2.017
     -
       class: Dist::Zilla::Plugin::Git::Tag
       name: '@Author::ALEXBIO/Git::Tag'
-      version: 2.016
+      version: 2.017
     -
       class: Dist::Zilla::Plugin::Git::Push
       name: '@Author::ALEXBIO/Git::Push'
-      version: 2.016
+      version: 2.017
     -
       class: Dist::Zilla::Plugin::UploadToCPAN
       name: '@Author::ALEXBIO/UploadToCPAN'
