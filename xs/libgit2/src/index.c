@@ -321,6 +321,7 @@ void git_index__set_ignore_case(git_index *index, bool ignore_case)
 int git_index_open(git_index **index_out, const char *index_path)
 {
 	git_index *index;
+	int error;
 
 	assert(index_out);
 
@@ -346,10 +347,15 @@ int git_index_open(git_index **index_out, const char *index_path)
 	index->entries_search_path = index_srch_path;
 	index->reuc_search = reuc_srch;
 
+	if ((index_path != NULL) && ((error = git_index_read(index, true)) < 0)) {
+		git_index_free(index);
+		return error;
+	}
+
 	*index_out = index;
 	GIT_REFCOUNT_INC(index);
 
-	return (index_path != NULL) ? git_index_read(index) : 0;
+	return 0;
 }
 
 int git_index_new(git_index **out)
@@ -451,11 +457,11 @@ unsigned int git_index_caps(const git_index *index)
 			(index->no_symlinks ? GIT_INDEXCAP_NO_SYMLINKS : 0));
 }
 
-int git_index_read(git_index *index)
+int git_index_read(git_index *index, int force)
 {
 	int error = 0, updated;
 	git_buf buffer = GIT_BUF_INIT;
-	git_futils_filestamp stamp = {0};
+	git_futils_filestamp stamp = index->stamp;
 
 	if (!index->index_file_path)
 		return create_index_error(-1,
@@ -464,12 +470,13 @@ int git_index_read(git_index *index)
 	index->on_disk = git_path_exists(index->index_file_path);
 
 	if (!index->on_disk) {
-		git_index_clear(index);
+		if (force)
+			git_index_clear(index);
 		return 0;
 	}
 
 	updated = git_futils_filestamp_check(&stamp, index->index_file_path);
-	if (updated <= 0)
+	if (updated < 0 || (!updated && !force))
 		return updated;
 
 	error = git_futils_readbuffer(&buffer, index->index_file_path);
@@ -499,7 +506,7 @@ int git_index_write(git_index *index)
 	git_vector_sort(&index->reuc);
 
 	if ((error = git_filebuf_open(
-		     &file, index->index_file_path, GIT_FILEBUF_HASH_CONTENTS)) < 0) {
+		&file, index->index_file_path, GIT_FILEBUF_HASH_CONTENTS, GIT_INDEX_FILE_MODE)) < 0) {
 		if (error == GIT_ELOCKED)
 			giterr_set(GITERR_INDEX, "The index is locked. This might be due to a concurrrent or crashed process");
 
@@ -511,7 +518,7 @@ int git_index_write(git_index *index)
 		return error;
 	}
 
-	if ((error = git_filebuf_commit(&file, GIT_INDEX_FILE_MODE)) < 0)
+	if ((error = git_filebuf_commit(&file)) < 0)
 		return error;
 
 	error = git_futils_filestamp_check(&index->stamp, index->index_file_path);

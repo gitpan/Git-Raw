@@ -1,6 +1,6 @@
 package Git::Raw::Branch;
 {
-  $Git::Raw::Branch::VERSION = '0.28';
+  $Git::Raw::Branch::VERSION = '0.29';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Branch - Git branch class
 
 =head1 VERSION
 
-version 0.28
+version 0.29
 
 =head1 SYNOPSIS
 
@@ -49,11 +49,6 @@ Retrieve the branch corresponding to the given branch name.
 
 Rename the branch to C<$name>. Note that in order to get the updated branch
 object, an additional C<Git::Raw::Branch-E<gt>lookup()> is needed.
-
-=head2 foreach( $repo, $callback )
-
-Run C<$callback> for every branch in the repo. The callback receives a
-branch object. A non-zero return value stops the loop.
 
 =head2 upstream( )
 

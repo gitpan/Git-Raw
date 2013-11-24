@@ -7,9 +7,11 @@ libgit2 - the Git linkable library
 re-entrant linkable library with a solid API, allowing you to write native
 speed custom Git applications in any language with bindings.
 
-`libgit2` is licensed under a **very permissive license** (GPLv2 with a special Linking Exception).
-This basically means that you can link it (unmodified) with any kind of software without having to
-release its source code.
+`libgit2` is licensed under a **very permissive license** (GPLv2 with a special
+Linking Exception).  This basically means that you can link it (unmodified)
+with any kind of software without having to release its source code.
+Additionally, the example code has been released to the public domain (see the
+[separate license](examples/COPYING) for more information).
 
 * Website: [libgit2.github.com](http://libgit2.github.com)
 * StackOverflow Tag: [libgit2](http://stackoverflow.com/questions/tagged/libgit2)
@@ -42,6 +44,17 @@ and also powering Microsoft's Visual Studio tools for Git.  The library provides
 * thread safety and reentrancy
 * descriptive and detailed error messages
 * ...and more (over 175 different API calls)
+
+Optional dependencies
+=====================
+
+While the library provides git functionality without the need for
+dependencies, it can make use of a few libraries to add to it:
+
+- pthreads (non-Windows) to enable threadsafe access as well as multi-threaded pack generation
+- OpenSSL (non-Windows) to talk over HTTPS and provide the SHA-1 functions
+- LibSSH2 to enable the ssh transport
+- iconv (OSX) to handle the HFS+ path encoding peculiarities
 
 Building libgit2 - Using CMake
 ==============================
@@ -112,8 +125,8 @@ Android
 -------
 
 Extract toolchain from NDK using, `make-standalone-toolchain.sh` script.
-Optionaly, crosscompile and install OpenSSL inside of it. Then create CMake
-toolchain file that configures paths to your crosscompiler (substitude `{PATH}`
+Optionally, crosscompile and install OpenSSL inside of it. Then create CMake
+toolchain file that configures paths to your crosscompiler (substitute `{PATH}`
 with full path to the toolchain):
 
 	SET(CMAKE_SYSTEM_NAME Linux)
@@ -155,7 +168,7 @@ Here are the bindings to libgit2 that are currently available:
     * luagit2 <https://github.com/libgit2/luagit2>
 * .NET
     * libgit2sharp <https://github.com/libgit2/libgit2sharp>
-    * libgit2net, low level bindings superceeded by libgit2sharp <https://github.com/txdv/libgit2net>
+    * libgit2net, low level bindings superseded by libgit2sharp <https://github.com/txdv/libgit2net>
 * Node.js
     * node-gitteh <https://github.com/libgit2/node-gitteh>
     * nodegit <https://github.com/tbranyen/nodegit>

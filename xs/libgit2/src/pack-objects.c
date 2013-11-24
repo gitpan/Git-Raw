@@ -26,7 +26,7 @@ struct unpacked {
 	git_pobject *object;
 	void *data;
 	struct git_delta_index *index;
-	unsigned int depth;
+	int depth;
 };
 
 struct tree_walk_context {
@@ -35,7 +35,7 @@ struct tree_walk_context {
 };
 
 struct pack_write_context {
-	git_indexer_stream *indexer;
+	git_indexer *indexer;
 	git_transfer_progress *stats;
 };
 
@@ -232,40 +232,6 @@ int git_packbuilder_insert(git_packbuilder *pb, const git_oid *oid,
 	return 0;
 }
 
-/*
- * The per-object header is a pretty dense thing, which is
- *  - first byte: low four bits are "size",
- *    then three bits of "type",
- *    with the high bit being "size continues".
- *  - each byte afterwards: low seven bits are size continuation,
- *    with the high bit being "size continues"
- */
-static int gen_pack_object_header(
-		unsigned char *hdr,
-		unsigned long size,
-		git_otype type)
-{
-	unsigned char *hdr_base;
-	unsigned char c;
-
-	assert(type >= GIT_OBJ_COMMIT && type <= GIT_OBJ_REF_DELTA);
-
-	/* TODO: add support for chunked objects; see git.git 6c0d19b1 */
-
-	c = (unsigned char)((type << 4) | (size & 15));
-	size >>= 4;
-	hdr_base = hdr;
-
-	while (size) {
-		*hdr++ = c | 0x80;
-		c = size & 0x7f;
-		size >>= 7;
-	}
-	*hdr++ = c;
-
-	return (int)(hdr - hdr_base);
-}
-
 static int get_delta(void **out, git_odb *odb, git_pobject *po)
 {
 	git_odb_object *src = NULL, *trg = NULL;
@@ -306,7 +272,7 @@ static int write_object(git_buf *buf, git_packbuilder *pb, git_pobject *po)
 	git_buf zbuf = GIT_BUF_INIT;
 	git_otype type;
 	unsigned char hdr[10];
-	unsigned int hdr_len;
+	size_t hdr_len;
 	unsigned long size;
 	void *data;
 
@@ -327,7 +293,7 @@ static int write_object(git_buf *buf, git_packbuilder *pb, git_pobject *po)
 	}
 
 	/* Write header */
-	hdr_len = gen_pack_object_header(hdr, size, type);
+	hdr_len = git_packfile__object_header(hdr, size, type);
 
 	if (git_buf_put(buf, (char *)hdr, hdr_len) < 0)
 		goto on_error;
@@ -594,6 +560,7 @@ static int write_pack(git_packbuilder *pb,
 	git_buf buf = GIT_BUF_INIT;
 	enum write_one_status status;
 	struct git_pack_header ph;
+	git_oid entry_oid;
 	unsigned int i = 0;
 	int error = 0;
 
@@ -630,10 +597,10 @@ static int write_pack(git_packbuilder *pb,
 	} while (pb->nr_remaining && i < pb->nr_objects);
 
 
-	if ((error = git_hash_final(&pb->pack_oid, &pb->ctx)) < 0)
+	if ((error = git_hash_final(&entry_oid, &pb->ctx)) < 0)
 		goto done;
 
-	error = cb(pb->pack_oid.id, GIT_OID_RAWSZ, data);
+	error = cb(entry_oid.id, GIT_OID_RAWSZ, data);
 
 done:
 	git__free(write_order);
@@ -693,7 +660,7 @@ static int delta_cacheable(git_packbuilder *pb, unsigned long src_size,
 }
 
 static int try_delta(git_packbuilder *pb, struct unpacked *trg,
-		     struct unpacked *src, unsigned int max_depth,
+		     struct unpacked *src, int max_depth,
 		     unsigned long *mem_usage, int *ret)
 {
 	git_pobject *trg_object = trg->object;
@@ -858,7 +825,7 @@ static unsigned long free_unpacked(struct unpacked *n)
 
 static int find_deltas(git_packbuilder *pb, git_pobject **list,
 		       unsigned int *list_size, unsigned int window,
-		       unsigned int depth)
+		       int depth)
 {
 	git_pobject *po;
 	git_buf zbuf = GIT_BUF_INIT;
@@ -873,8 +840,7 @@ static int find_deltas(git_packbuilder *pb, git_pobject **list,
 
 	for (;;) {
 		struct unpacked *n = array + idx;
-		unsigned int max_depth;
-		int j, best_base = -1;
+		int max_depth, j, best_base = -1;
 
 		git_packbuilder__progress_lock(pb);
 		if (!*list_size) {
@@ -1067,7 +1033,7 @@ static void *threaded_find_deltas(void *arg)
 
 static int ll_find_deltas(git_packbuilder *pb, git_pobject **list,
 			  unsigned int list_size, unsigned int window,
-			  unsigned int depth)
+			  int depth)
 {
 	struct thread_params *p;
 	int i, ret, active_threads = 0;
@@ -1276,39 +1242,47 @@ int git_packbuilder_write_buf(git_buf *buf, git_packbuilder *pb)
 static int write_cb(void *buf, size_t len, void *payload)
 {
 	struct pack_write_context *ctx = payload;
-	return git_indexer_stream_add(ctx->indexer, buf, len, ctx->stats);
+	return git_indexer_append(ctx->indexer, buf, len, ctx->stats);
 }
 
 int git_packbuilder_write(
 	git_packbuilder *pb,
 	const char *path,
+	unsigned int mode,
 	git_transfer_progress_callback progress_cb,
 	void *progress_cb_payload)
 {
-	git_indexer_stream *indexer;
+	git_indexer *indexer;
 	git_transfer_progress stats;
 	struct pack_write_context ctx;
 
 	PREPARE_PACK;
 
-	if (git_indexer_stream_new(
-		&indexer, path, progress_cb, progress_cb_payload) < 0)
+	if (git_indexer_new(
+		&indexer, path, mode, pb->odb, progress_cb, progress_cb_payload) < 0)
 		return -1;
 
 	ctx.indexer = indexer;
 	ctx.stats = &stats;
 
 	if (git_packbuilder_foreach(pb, write_cb, &ctx) < 0 ||
-		git_indexer_stream_finalize(indexer, &stats) < 0) {
-		git_indexer_stream_free(indexer);
+		git_indexer_commit(indexer, &stats) < 0) {
+		git_indexer_free(indexer);
 		return -1;
 	}
 
-	git_indexer_stream_free(indexer);
+	git_oid_cpy(&pb->pack_oid, git_indexer_hash(indexer));
+
+	git_indexer_free(indexer);
 	return 0;
 }
 
 #undef PREPARE_PACK
+
+const git_oid *git_packbuilder_hash(git_packbuilder *pb)
+{
+	return &pb->pack_oid;
+}
 
 static int cb_tree_walk(const char *root, const git_tree_entry *entry, void *payload)
 {

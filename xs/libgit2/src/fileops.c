@@ -19,9 +19,12 @@ int git_futils_mkpath2file(const char *file_path, const mode_t mode)
 		GIT_MKDIR_PATH | GIT_MKDIR_SKIP_LAST | GIT_MKDIR_VERIFY_DIR);
 }
 
-int git_futils_mktmp(git_buf *path_out, const char *filename)
+int git_futils_mktmp(git_buf *path_out, const char *filename, mode_t mode)
 {
 	int fd;
+	mode_t mask;
+
+	p_umask(mask = p_umask(0));
 
 	git_buf_sets(path_out, filename);
 	git_buf_puts(path_out, "_git2_XXXXXX");
@@ -32,6 +35,12 @@ int git_futils_mktmp(git_buf *path_out, const char *filename)
 	if ((fd = p_mkstemp(path_out->ptr)) < 0) {
 		giterr_set(GITERR_OS,
 			"Failed to create temporary file '%s'", path_out->ptr);
+		return -1;
+	}
+
+	if (p_chmod(path_out->ptr, (mode & ~mask))) {
+		giterr_set(GITERR_OS,
+			"Failed to set permissions on file '%s'", path_out->ptr);
 		return -1;
 	}
 
@@ -343,11 +352,11 @@ int git_futils_mkdir(
 
 		/* make directory */
 		if (p_mkdir(make_path.ptr, mode) < 0) {
-			int tmp_errno = errno;
+			int tmp_errno = giterr_system_last();
 
 			/* ignore error if directory already exists */
 			if (p_stat(make_path.ptr, &st) < 0 || !S_ISDIR(st.st_mode)) {
-				errno = tmp_errno;
+				giterr_system_set(tmp_errno);
 				giterr_set(GITERR_OS, "Failed to make directory '%s'", make_path.ptr);
 				goto done;
 			}
@@ -609,7 +618,7 @@ static git_futils_dirs_guess_cb git_futils__dir_guess[GIT_FUTILS_DIR__MAX] = {
 	git_futils_guess_template_dirs,
 };
 
-static void git_futils_dirs_global_shutdown(void)
+void git_futils_dirs_global_shutdown(void)
 {
 	int i;
 	for (i = 0; i < GIT_FUTILS_DIR__MAX; ++i)

@@ -120,6 +120,18 @@ static void cvar_free(cvar_t *var)
 	git__free(var);
 }
 
+static int cvar_length(cvar_t *var)
+{
+	int length = 0;
+
+	while (var) {
+		length++;
+		var = var->next;
+	}
+
+	return length;
+}
+
 int git_config_file_normalize_section(char *start, char *end)
 {
 	char *scan;
@@ -373,10 +385,10 @@ static int config_set(git_config_backend *cfg, const char *name, const char *val
 		GITERR_CHECK_ALLOC(esc_value);
 	}
 
-	if (config_write(b, key, NULL, esc_value) < 0) {
+	if ((ret = config_write(b, key, NULL, esc_value)) < 0) {
 		git__free(esc_value);
 		cvar_free(var);
-		return -1;
+		return ret;
 	}
 
 	git__free(esc_value);
@@ -531,6 +543,80 @@ static int config_delete(git_config_backend *cfg, const char *name)
 	return result;
 }
 
+static int config_delete_multivar(git_config_backend *cfg, const char *name, const char *regexp)
+{
+	cvar_t *var, *prev = NULL, *new_head = NULL;
+	cvar_t **to_delete;
+	int to_delete_idx;
+	diskfile_backend *b = (diskfile_backend *)cfg;
+	char *key;
+	regex_t preg;
+	int result;
+	khiter_t pos;
+
+	if ((result = git_config__normalize_name(name, &key)) < 0)
+		return result;
+
+	pos = git_strmap_lookup_index(b->values, key);
+
+	if (!git_strmap_valid_index(b->values, pos)) {
+		giterr_set(GITERR_CONFIG, "Could not find key '%s' to delete", name);
+		git__free(key);
+		return GIT_ENOTFOUND;
+	}
+
+	var = git_strmap_value_at(b->values, pos);
+
+	result = regcomp(&preg, regexp, REG_EXTENDED);
+	if (result < 0) {
+		git__free(key);
+		giterr_set_regex(&preg, result);
+		regfree(&preg);
+		return -1;
+	}
+
+	to_delete = git__calloc(cvar_length(var), sizeof(cvar_t *));
+	GITERR_CHECK_ALLOC(to_delete);
+	to_delete_idx = 0;
+
+	while (var != NULL) {
+		cvar_t *next = var->next;
+
+		if (regexec(&preg, var->entry->value, 0, NULL, 0) == 0) {
+			// If we are past the head, reattach previous node to next one,
+			// otherwise set the new head for the strmap.
+			if (prev != NULL) {
+				prev->next = next;
+			} else {
+				new_head = next;
+			}
+
+			to_delete[to_delete_idx++] = var;
+		} else {
+			prev = var;
+		}
+
+		var = next;
+	}
+
+	if (new_head != NULL) {
+		git_strmap_set_value_at(b->values, pos, new_head);
+	} else {
+		git_strmap_delete_at(b->values, pos);
+	}
+
+	if (to_delete_idx > 0)
+		result = config_write(b, key, &preg, NULL);
+
+	while (to_delete_idx-- > 0)
+		cvar_free(to_delete[to_delete_idx]);
+
+	git__free(key);
+	git__free(to_delete);
+	regfree(&preg);
+	return result;
+}
+
 int git_config_file__ondisk(git_config_backend **out, const char *path)
 {
 	diskfile_backend *backend;
@@ -548,6 +634,7 @@ int git_config_file__ondisk(git_config_backend **out, const char *path)
 	backend->parent.set = config_set;
 	backend->parent.set_multivar = config_set_multivar;
 	backend->parent.del = config_delete;
+	backend->parent.del_multivar = config_delete_multivar;
 	backend->parent.iterator = config_iterator_new;
 	backend->parent.refresh = config_refresh;
 	backend->parent.free = backend_free;
@@ -1091,6 +1178,24 @@ static int write_section(git_filebuf *file, const char *key)
 	return result;
 }
 
+static const char *quotes_for_value(const char *value)
+{
+	const char *ptr;
+
+	if (value[0] == ' ' || value[0] == '\0')
+		return "\"";
+
+	for (ptr = value; *ptr; ++ptr) {
+		if (*ptr == ';' || *ptr == '#')
+			return "\"";
+	}
+
+	if (ptr[-1] == ' ')
+		return "\"";
+
+	return "";
+}
+
 /*
  * This is pretty much the parsing, except we write out anything we don't have
  */
@@ -1098,7 +1203,7 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 {
 	int result, c;
 	int section_matches = 0, last_section_matched = 0, preg_replaced = 0, write_trailer = 0;
-	const char *pre_end = NULL, *post_start = NULL, *data_start;
+	const char *pre_end = NULL, *post_start = NULL, *data_start, *write_start;
 	char *current_section = NULL, *section, *name, *ldot;
 	git_filebuf file = GIT_FILEBUF_INIT;
 	struct reader *reader = git_array_get(cfg->readers, 0);
@@ -1120,9 +1225,14 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 		return -1; /* OS error when reading the file */
 	}
 
+	write_start = data_start;
+
 	/* Lock the file */
-	if (git_filebuf_open(&file, cfg->file_path, 0) < 0)
-		return -1;
+	if ((result = git_filebuf_open(
+		&file, cfg->file_path, 0, GIT_CONFIG_FILE_MODE)) < 0) {
+			git_buf_free(&reader->buffer);
+			return result;
+	}
 
 	skip_bom(reader);
 	ldot = strrchr(key, '.');
@@ -1204,18 +1314,23 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 
 			/* We've found the variable we wanted to change, so
 			 * write anything up to it */
-			git_filebuf_write(&file, data_start, pre_end - data_start);
+			git_filebuf_write(&file, write_start, pre_end - write_start);
 			preg_replaced = 1;
 
 			/* Then replace the variable. If the value is NULL, it
 			 * means we want to delete it, so don't write anything. */
 			if (value != NULL) {
-				git_filebuf_printf(&file, "\t%s = %s\n", name, value);
+				const char *q = quotes_for_value(value);
+				git_filebuf_printf(&file, "\t%s = %s%s%s\n", name, q, value, q);
 			}
 
-			/* multiline variable? we need to keep reading lines to match */
-			if (preg != NULL) {
-				data_start = post_start;
+			/*
+			 * If we have a multivar, we should keep looking for entries,
+			 * but only if we're in the right section. Otherwise we'll end up
+			 * looping on the edge of a matching and a non-matching section.
+			 */
+			if (section_matches && preg != NULL) {
+				write_start = post_start;
 				continue;
 			}
 
@@ -1245,8 +1360,10 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 		git_filebuf_write(&file, post_start, reader->buffer.size - (post_start - data_start));
 	} else {
 		if (preg_replaced) {
-			git_filebuf_printf(&file, "\n%s", data_start);
+			git_filebuf_printf(&file, "\n%s", write_start);
 		} else {
+			const char *q;
+
 			git_filebuf_write(&file, reader->buffer.ptr, reader->buffer.size);
 
 			/* And now if we just need to add a variable */
@@ -1266,7 +1383,8 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 			if (reader->buffer.size > 0 && *(reader->buffer.ptr + reader->buffer.size - 1) != '\n')
 				git_filebuf_write(&file, "\n", 1);
 
-			git_filebuf_printf(&file, "\t%s = %s\n", name, value);
+			q = quotes_for_value(value);
+			git_filebuf_printf(&file, "\t%s = %s%s%s\n", name, q, value, q);
 		}
 	}
 
@@ -1276,7 +1394,7 @@ static int config_write(diskfile_backend *cfg, const char *key, const regex_t *p
 	/* refresh stats - if this errors, then commit will error too */
 	(void)git_filebuf_stats(&reader->file_mtime, &reader->file_size, &file);
 
-	result = git_filebuf_commit(&file, GIT_CONFIG_FILE_MODE);
+	result = git_filebuf_commit(&file);
 	git_buf_free(&reader->buffer);
 
 	return result;

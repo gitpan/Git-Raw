@@ -1,6 +1,6 @@
 package Git::Raw::Remote;
 {
-  $Git::Raw::Remote::VERSION = '0.28';
+  $Git::Raw::Remote::VERSION = '0.29';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.28
+version 0.29
 
 =head1 SYNOPSIS
 
@@ -28,7 +28,7 @@ version 0.28
 
     # set the acquire credentials callback
     $remote -> callbacks({
-      credentials => sub { Git::Raw::Cred -> plaintext($usr, $pwd) }
+      credentials => sub { Git::Raw::Cred -> userpass($usr, $pwd) }
     });
 
     # connect the remote

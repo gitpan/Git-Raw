@@ -1,6 +1,6 @@
 package Git::Raw::Repository;
 {
-  $Git::Raw::Repository::VERSION = '0.28';
+  $Git::Raw::Repository::VERSION = '0.29';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.28
+version 0.29
 
 =head1 SYNOPSIS
 
@@ -204,19 +204,6 @@ sub branch { return Git::Raw::Branch -> create(@_) }
 =head2 branches( )
 
 Retrieve a list of L<Git::Raw::Branch> objects.
-
-=cut
-
-sub branches {
-	my $self = shift;
-	my $branches;
-
-	Git::Raw::Branch -> foreach($self, sub {
-		push @$branches, shift; 0
-	});
-
-	return $branches;
-}
 
 =head2 commit( $msg, $author, $committer, [@parents], $tree [, $update_ref ] )
 

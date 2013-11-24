@@ -1673,9 +1673,9 @@ static int checkout_write_merge(
 		goto done;
 
 	if ((error = git_futils_mkpath2file(path_workdir.ptr, 0755)) < 0 ||
-		(error = git_filebuf_open(&output, path_workdir.ptr, GIT_FILEBUF_DO_NOT_BUFFER)) < 0 ||
+		(error = git_filebuf_open(&output, path_workdir.ptr, GIT_FILEBUF_DO_NOT_BUFFER, result.mode)) < 0 ||
 		(error = git_filebuf_write(&output, result.data, result.len)) < 0 ||
-		(error = git_filebuf_commit(&output, result.mode)) < 0)
+		(error = git_filebuf_commit(&output)) < 0)
 		goto done;
 
 done:
@@ -1694,7 +1694,6 @@ done:
 
 static int checkout_create_conflicts(checkout_data *data)
 {
-	git_vector conflicts = GIT_VECTOR_INIT;
 	checkout_conflictdata *conflict;
 	size_t i;
 	int error = 0;
@@ -1838,7 +1837,7 @@ static int checkout_data_init(
 		} else {
 			/* otherwise, grab and reload the index */
 			if ((error = git_repository_index(&data->index, data->repo)) < 0 ||
-				(error = git_index_read(data->index)) < 0)
+				(error = git_index_read(data->index, true)) < 0)
 				goto cleanup;
 
 			/* cannot checkout if unresolved conflicts exist */
@@ -2019,7 +2018,7 @@ cleanup:
 int git_checkout_index(
 	git_repository *repo,
 	git_index *index,
-	git_checkout_opts *opts)
+	const git_checkout_opts *opts)
 {
 	int error;
 	git_iterator *index_i;
@@ -2054,7 +2053,7 @@ int git_checkout_index(
 int git_checkout_tree(
 	git_repository *repo,
 	const git_object *treeish,
-	git_checkout_opts *opts)
+	const git_checkout_opts *opts)
 {
 	int error;
 	git_tree *tree = NULL;
@@ -2074,10 +2073,21 @@ int git_checkout_tree(
 	if (!repo)
 		repo = git_object_owner(treeish);
 
-	if (git_object_peel((git_object **)&tree, treeish, GIT_OBJ_TREE) < 0) {
-		giterr_set(
-			GITERR_CHECKOUT, "Provided object cannot be peeled to a tree");
-		return -1;
+	if (treeish) {
+		if (git_object_peel((git_object **)&tree, treeish, GIT_OBJ_TREE) < 0) {
+			giterr_set(
+				GITERR_CHECKOUT, "Provided object cannot be peeled to a tree");
+			return -1;
+		}
+	}
+	else {
+		if ((error = checkout_lookup_head_tree(&tree, repo)) < 0) {
+			if (error != GIT_EUNBORNBRANCH)
+				giterr_set(
+					GITERR_CHECKOUT,
+					"HEAD could not be peeled to a tree and no treeish given");
+			return error;
+		}
 	}
 
 	if (!(error = git_iterator_for_tree(&tree_i, tree, 0, NULL, NULL)))
@@ -2093,18 +2103,6 @@ int git_checkout_head(
 	git_repository *repo,
 	const git_checkout_opts *opts)
 {
-	int error;
-	git_tree *head = NULL;
-	git_iterator *head_i = NULL;
-
 	assert(repo);
-
-	if (!(error = checkout_lookup_head_tree(&head, repo)) &&
-		!(error = git_iterator_for_tree(&head_i, head, 0, NULL, NULL)))
-		error = git_checkout_iterator(head_i, opts);
-
-	git_iterator_free(head_i);
-	git_tree_free(head);
-
-	return error;
+	return git_checkout_tree(repo, NULL, opts);
 }

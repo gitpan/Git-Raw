@@ -141,7 +141,7 @@ extern int git_futils_rmdir_r(const char *path, const char *base, uint32_t flags
  * Writes the filename into path_out.
  * @return On success, an open file descriptor, else an error code < 0.
  */
-extern int git_futils_mktmp(git_buf *path_out, const char *filename);
+extern int git_futils_mktmp(git_buf *path_out, const char *filename, mode_t mode);
 
 /**
  * Move a file on the filesystem, create the
@@ -398,5 +398,10 @@ extern int git_futils_filestamp_check(
  */
 extern void git_futils_filestamp_set(
 	git_futils_filestamp *tgt, const git_futils_filestamp *src);
+
+/**
+ * Free the configuration file search paths.
+ */
+extern void git_futils_dirs_global_shutdown(void);
 
 #endif /* INCLUDE_fileops_h__ */

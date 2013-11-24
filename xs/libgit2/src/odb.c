@@ -492,7 +492,7 @@ static int add_default_backends(
 #endif
 
 	/* add the loose object backend */
-	if (git_odb_backend_loose(&loose, objects_dir, -1, 0) < 0 ||
+	if (git_odb_backend_loose(&loose, objects_dir, -1, 0, 0, 0) < 0 ||
 		add_backend_internal(db, loose, GIT_LOOSE_PRIORITY, as_alternates, inode) < 0)
 		return -1;
 
@@ -995,7 +995,7 @@ int git_odb_write_pack(struct git_odb_writepack **out, git_odb *db, git_transfer
 
 		if (b->writepack != NULL) {
 			++writes;
-			error = b->writepack(out, b, progress_cb, progress_payload);
+			error = b->writepack(out, b, db, progress_cb, progress_payload);
 		}
 	}
 

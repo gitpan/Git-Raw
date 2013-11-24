@@ -1,6 +1,6 @@
 package Git::Raw::Cred;
 {
-  $Git::Raw::Cred::VERSION = '0.28';
+  $Git::Raw::Cred::VERSION = '0.29';
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::Cred - Git credentials class
 
 =head1 VERSION
 
-version 0.28
+version 0.29
 
 =head1 DESCRIPTION
 
@@ -23,15 +23,21 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 =head1 METHODS
 
-=head2 plaintext( $user, $pass )
+=head2 userpass( $user, $pass )
 
 Create a new credential object with the given username and password.
 
-=head2 keyfile( $user, $public, $private, $pass )
+=head2 sshkey( $user, $public, $private, $pass )
 
 Create a new credential object given a SSH public and private key files, and
 the password of the private key. If the SSH support has not been enabled at
 build-time, this method will always return C<undef>.
+
+=head2 sshagent( $user )
+
+Create a new credential object used for querying an ssh-agent. If the SSH
+support has not been enabled at build-time, this method will always return
+C<undef>.
 
 =head1 AUTHOR
 

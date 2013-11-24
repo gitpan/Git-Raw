@@ -52,6 +52,7 @@ static const int no_check_cert_flags = SECURITY_FLAG_IGNORE_CERT_CN_INVALID |
 
 typedef enum {
 	GIT_WINHTTP_AUTH_BASIC = 1,
+	GIT_WINHTTP_AUTH_NEGOTIATE = 2,
 } winhttp_authmechanism_t;
 
 typedef struct {
@@ -136,6 +137,22 @@ on_error:
 	git_buf_free(&buf);
 	git_buf_free(&raw);
 	return error;
+}
+
+static int apply_default_credentials(HINTERNET request)
+{
+	/* If we are explicitly asked to deliver default credentials, turn set
+	 * the security level to low which will guarantee they are delivered.
+	 * The default is "medium" which applies to the intranet and sounds
+	 * like it would correspond to Internet Explorer security zones, but
+	 * in fact does not.
+	 */
+	DWORD data = WINHTTP_AUTOLOGON_SECURITY_LEVEL_LOW;
+
+	if (!WinHttpSetOption(request, WINHTTP_OPTION_AUTOLOGON_POLICY, &data, sizeof(DWORD)))
+		return -1;
+
+	return 0;
 }
 
 static int winhttp_stream_connect(winhttp_stream *s)
@@ -269,14 +286,27 @@ static int winhttp_stream_connect(winhttp_stream *s)
 		/* Send Content-Type and Accept headers -- only necessary on a POST */
 		git_buf_clear(&buf);
 		if (git_buf_printf(&buf,
-			"Content-Type: application/x-git-%s-request\r\n"
-			"Accept: application/x-git-%s-result\r\n",
-			s->service, s->service) < 0)
+			"Content-Type: application/x-git-%s-request",
+			s->service) < 0)
 			goto on_error;
 
 		git__utf8_to_16(ct, MAX_CONTENT_TYPE_LEN, git_buf_cstr(&buf));
 
-		if (!WinHttpAddRequestHeaders(s->request, ct, (ULONG) -1L,
+		if (!WinHttpAddRequestHeaders(s->request, ct, (ULONG)-1L,
+			WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE)) {
+			giterr_set(GITERR_OS, "Failed to add a header to the request");
+			goto on_error;
+		}
+
+		git_buf_clear(&buf);
+		if (git_buf_printf(&buf,
+			"Accept: application/x-git-%s-result",
+			s->service) < 0)
+			goto on_error;
+
+		git__utf8_to_16(ct, MAX_CONTENT_TYPE_LEN, git_buf_cstr(&buf));
+
+		if (!WinHttpAddRequestHeaders(s->request, ct, (ULONG)-1L,
 			WINHTTP_ADDREQ_FLAG_ADD | WINHTTP_ADDREQ_FLAG_REPLACE)) {
 			giterr_set(GITERR_OS, "Failed to add a header to the request");
 			goto on_error;
@@ -303,6 +333,11 @@ static int winhttp_stream_connect(winhttp_stream *s)
 		t->cred->credtype == GIT_CREDTYPE_USERPASS_PLAINTEXT &&
 		t->auth_mechanism == GIT_WINHTTP_AUTH_BASIC &&
 		apply_basic_credential(s->request, t->cred) < 0)
+		goto on_error;
+	else if (t->cred &&
+		t->cred->credtype == GIT_CREDTYPE_DEFAULT &&
+		t->auth_mechanism == GIT_WINHTTP_AUTH_NEGOTIATE &&
+		apply_default_credentials(s->request) < 0)
 		goto on_error;
 
 	/* If no other credentials have been applied and the URL has username and
@@ -346,6 +381,12 @@ static int parse_unauthorized_response(
 	if (WINHTTP_AUTH_SCHEME_BASIC & supported) {
 		*allowed_types |= GIT_CREDTYPE_USERPASS_PLAINTEXT;
 		*auth_mechanism = GIT_WINHTTP_AUTH_BASIC;
+	}
+
+	if ((WINHTTP_AUTH_SCHEME_NTLM & supported) ||
+		(WINHTTP_AUTH_SCHEME_NEGOTIATE & supported)) {
+		*allowed_types |= GIT_CREDTYPE_DEFAULT;
+		*auth_mechanism = GIT_WINHTTP_AUTH_NEGOTIATE;
 	}
 
 	return 0;
@@ -627,8 +668,8 @@ replay:
 				(!t->cred || 0 == (t->cred->credtype & allowed_types))) {
 
 				if (t->owner->cred_acquire_cb(&t->cred, t->owner->url, t->connection_data.user, allowed_types, 
-								t->owner->cred_acquire_payload) < 0)
-					return -1;
+					t->owner->cred_acquire_payload) < 0)
+					return GIT_EUSER;
 
 				assert(t->cred);
 

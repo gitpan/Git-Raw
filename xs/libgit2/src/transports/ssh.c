@@ -213,10 +213,6 @@ static int git_ssh_extract_url_parts(
 
 	colon = strchr(url, ':');
 
-	if (colon == NULL) {
-		giterr_set(GITERR_NET, "Malformed URL: missing :");
-		return -1;
-	}
 
 	at = strchr(url, '@');
 	if (at) {
@@ -228,10 +224,59 @@ static int git_ssh_extract_url_parts(
 		*username = NULL;
 	}
 
+	if (colon == NULL || (colon < start)) {
+		giterr_set(GITERR_NET, "Malformed URL");
+		return -1;
+	}
+
 	*host = git__substrdup(start, colon - start);
 	GITERR_CHECK_ALLOC(*host);
 
 	return 0;
+}
+
+static int ssh_agent_auth(LIBSSH2_SESSION *session, git_cred_ssh_key *c) {
+	int rc = LIBSSH2_ERROR_NONE;
+
+	struct libssh2_agent_publickey *curr, *prev = NULL;
+
+	LIBSSH2_AGENT *agent = libssh2_agent_init(session);
+
+	if (agent == NULL)
+		return -1;
+
+	rc = libssh2_agent_connect(agent);
+
+	if (rc != LIBSSH2_ERROR_NONE)
+		goto shutdown;
+
+	rc = libssh2_agent_list_identities(agent);
+
+	if (rc != LIBSSH2_ERROR_NONE)
+		goto shutdown;
+
+	while (1) {
+		rc = libssh2_agent_get_identity(agent, &curr, prev);
+
+		if (rc < 0)
+			goto shutdown;
+
+		if (rc == 1)
+			goto shutdown;
+
+		rc = libssh2_agent_userauth(agent, c->username, curr);
+
+		if (rc == 0)
+			break;
+
+		prev = curr;
+	}
+
+shutdown:
+	libssh2_agent_disconnect(agent);
+	libssh2_agent_free(agent);
+
+	return rc;
 }
 
 static int _git_ssh_authenticate_session(
@@ -249,15 +294,21 @@ static int _git_ssh_authenticate_session(
 			rc = libssh2_userauth_password(session, user, c->password);
 			break;
 		}
-		case GIT_CREDTYPE_SSH_KEYFILE_PASSPHRASE: {
-			git_cred_ssh_keyfile_passphrase *c = (git_cred_ssh_keyfile_passphrase *)cred;
+		case GIT_CREDTYPE_SSH_KEY: {
+			git_cred_ssh_key *c = (git_cred_ssh_key *)cred;
 			user = c->username ? c->username : user;
-			rc = libssh2_userauth_publickey_fromfile(
-				session, c->username, c->publickey, c->privatekey, c->passphrase);
+
+			if (c->privatekey)
+				rc = libssh2_userauth_publickey_fromfile(
+					session, c->username, c->publickey,
+					c->privatekey, c->passphrase);
+			else
+				rc = ssh_agent_auth(session, c);
+
 			break;
 		}
-		case GIT_CREDTYPE_SSH_PUBLICKEY: {
-			git_cred_ssh_publickey *c = (git_cred_ssh_publickey *)cred;
+		case GIT_CREDTYPE_SSH_CUSTOM: {
+			git_cred_ssh_custom *c = (git_cred_ssh_custom *)cred;
 
 			user = c->username ? c->username : user;
 			rc = libssh2_userauth_publickey(
@@ -316,7 +367,7 @@ static int _git_ssh_setup_conn(
 	const char *cmd,
 	git_smart_subtransport_stream **stream)
 {
-	char *host, *port=NULL, *user=NULL, *pass=NULL;
+	char *host=NULL, *port=NULL, *path=NULL, *user=NULL, *pass=NULL;
 	const char *default_port="22";
 	ssh_stream *s;
 	LIBSSH2_SESSION* session=NULL;
@@ -329,8 +380,7 @@ static int _git_ssh_setup_conn(
 	s = (ssh_stream *)*stream;
 
 	if (!git__prefixcmp(url, prefix_ssh)) {
-		url = url + strlen(prefix_ssh);
-		if (gitno_extract_url_parts(&host, &port, &user, &pass, url, default_port) < 0)
+		if (gitno_extract_url_parts(&host, &port, &path, &user, &pass, url, default_port) < 0)
 			goto on_error;
 	} else {
 		if (git_ssh_extract_url_parts(&host, &user, url) < 0)
@@ -349,8 +399,8 @@ static int _git_ssh_setup_conn(
 		if (t->owner->cred_acquire_cb(
 				&t->cred, t->owner->url, user,
 				GIT_CREDTYPE_USERPASS_PLAINTEXT |
-				GIT_CREDTYPE_SSH_KEYFILE_PASSPHRASE |
-				GIT_CREDTYPE_SSH_PUBLICKEY,
+				GIT_CREDTYPE_SSH_KEY |
+				GIT_CREDTYPE_SSH_CUSTOM,
 				t->owner->cred_acquire_payload) < 0)
 			goto on_error;
 
@@ -389,6 +439,7 @@ static int _git_ssh_setup_conn(
 	t->current_stream = s;
 	git__free(host);
 	git__free(port);
+	git__free(path);
 	git__free(user);
 	git__free(pass);
 

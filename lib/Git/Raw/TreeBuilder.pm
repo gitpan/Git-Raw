@@ -1,6 +1,6 @@
 package Git::Raw::TreeBuilder;
 {
-  $Git::Raw::TreeBuilder::VERSION = '0.28';
+  $Git::Raw::TreeBuilder::VERSION = '0.29';
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::TreeBuilder - Git tree builder class
 
 =head1 VERSION
 
-version 0.28
+version 0.29
 
 =head1 DESCRIPTION
 

@@ -32,6 +32,8 @@ OPTION( LIBGIT2_FILENAME	"Name of the produced binary"			OFF )
 OPTION( ANDROID				"Build for android NDK"	 				OFF )
 
 OPTION( USE_ICONV			"Link with and use iconv library" 		OFF )
+OPTION( USE_SSH				"Link with libssh to enable SSH support" ON )
+
 IF(APPLE)
 	SET( USE_ICONV ON )
 ENDIF()
@@ -48,7 +50,20 @@ IF(MSVC)
 	# This option must match the settings used in your program, in particular if you
 	# are linking statically
 	OPTION( STATIC_CRT		"Link the static CRT libraries"	ON  )
+
+	# By default, libgit2 is built with WinHTTP.  To use the built-in
+	# HTTP transport, invoke CMake with the "-DWINHTTP=OFF" argument.
+	OPTION( WINHTTP			"Use Win32 WinHTTP routines"	ON  )
 ENDIF()
+
+# This variable will contain the libraries we need to put into
+# libgit2.pc's Requires.private. That is, what we're linking to or
+# what someone who's statically linking us needs to link to.
+SET(LIBGIT2_PC_REQUIRES "")
+# This will be set later if we use the system's http-parser library or
+# use iconv (OSX) and will be written to the Libs.private field in the
+# pc file.
+SET(LIBGIT2_PC_LIBS "")
 
 # Installation paths
 #
@@ -61,13 +76,16 @@ FUNCTION(TARGET_OS_LIBRARIES target)
 		TARGET_LINK_LIBRARIES(${target} ws2_32)
 	ELSEIF(CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
 		TARGET_LINK_LIBRARIES(${target} socket nsl)
+		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lsocket -lnsl" PARENT_SCOPE)
 	ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
 		TARGET_LINK_LIBRARIES(${target} rt)
+		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lrt" PARENT_SCOPE)
 	ENDIF()
 
 	IF(USE_ICONV)
 		TARGET_LINK_LIBRARIES(${target} iconv)
 		ADD_DEFINITIONS(-DGIT_USE_ICONV)
+		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -liconv" PARENT_SCOPE)
 	ENDIF()
 
 	IF(THREADSAFE)
@@ -79,7 +97,7 @@ ENDFUNCTION()
 # explorer does. This is esp. useful with the libgit2_clar project, were
 # usually 2 or more files share the same name.  Sadly, this file grouping
 # is a per-directory option in cmake and not per-target, resulting in
-# empty virtual folders "tests-clar" for the git2.dll
+# empty virtual folders "tests" for the git2.dll
 FUNCTION(MSVC_SPLIT_SOURCES target)
 	IF(MSVC_IDE)
 		GET_TARGET_PROPERTY(sources ${target} SOURCES)
@@ -108,8 +126,10 @@ SET(LIBGIT2_VERSION_STRING "${LIBGIT2_VERSION_MAJOR}.${LIBGIT2_VERSION_MINOR}.${
 # Find required dependencies
 INCLUDE_DIRECTORIES(src include)
 
-IF (WIN32 AND NOT MINGW)
+IF (WIN32 AND WINHTTP AND NOT MINGW)
 	ADD_DEFINITIONS(-DGIT_WINHTTP)
+	INCLUDE_DIRECTORIES(deps/http-parser)
+	FILE(GLOB SRC_HTTP deps/http-parser/*.c deps/http-parser/*.h)
 ELSE ()
 	IF (NOT AMIGA)
 		FIND_PACKAGE(OpenSSL)
@@ -119,6 +139,7 @@ ELSE ()
 	IF (HTTP_PARSER_FOUND AND HTTP_PARSER_VERSION_MAJOR EQUAL 2)
 		INCLUDE_DIRECTORIES(${HTTP_PARSER_INCLUDE_DIRS})
 		LINK_LIBRARIES(${HTTP_PARSER_LIBRARIES})
+		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lhttp_parser")
 	ELSE()
 		MESSAGE("http-parser was not found or is too old; using bundled 3rd-party sources.")
 		INCLUDE_DIRECTORIES(deps/http-parser)
@@ -132,6 +153,7 @@ IF (WIN32 AND NOT MINGW AND NOT SHA1_TYPE STREQUAL "builtin")
 	FILE(GLOB SRC_SHA1 src/hash/hash_win32.c)
 ELSEIF (OPENSSL_FOUND AND NOT SHA1_TYPE STREQUAL "builtin")
 	ADD_DEFINITIONS(-DOPENSSL_SHA1)
+	SET(LIBGIT2_PC_REQUIRES "${LIBGIT2_PC_REQUIRES} openssl")
 ELSE()
 	FILE(GLOB SRC_SHA1 src/hash/hash_generic.c)
 ENDIF()
@@ -154,6 +176,11 @@ FIND_PACKAGE(ZLIB QUIET)
 IF (ZLIB_FOUND)
 	INCLUDE_DIRECTORIES(${ZLIB_INCLUDE_DIRS})
 	LINK_LIBRARIES(${ZLIB_LIBRARIES})
+	IF(APPLE)
+		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lz")
+	ELSE()
+		SET(LIBGIT2_PC_REQUIRES "${LIBGIT2_PC_REQUIRES} zlib")
+	ENDIF()
 	# Fake the message CMake would have shown
 	MESSAGE("-- Found zlib: ${ZLIB_LIBRARY}")
 ELSE()
@@ -163,12 +190,13 @@ ELSE()
 	FILE(GLOB SRC_ZLIB deps/zlib/*.c deps/zlib/*.h)
 ENDIF()
 
-IF (NOT MINGW)
+IF (USE_SSH AND NOT MINGW)
 	FIND_PACKAGE(LIBSSH2 QUIET)
 ENDIF()
 IF (LIBSSH2_FOUND)
 	ADD_DEFINITIONS(-DGIT_SSH)
 	INCLUDE_DIRECTORIES(${LIBSSH2_INCLUDE_DIR})
+	SET(LIBGIT2_PC_REQUIRES "${LIBGIT2_PC_REQUIRES} libssh2")
 	SET(SSH_LIBRARIES ${LIBSSH2_LIBRARIES})
 ENDIF()
 
@@ -365,9 +393,9 @@ INSTALL(FILES include/git2.h DESTINATION ${INCLUDE_INSTALL_DIR} )
 IF (BUILD_CLAR)
 	FIND_PACKAGE(PythonInterp REQUIRED)
 
-	SET(CLAR_FIXTURES "${CMAKE_CURRENT_SOURCE_DIR}/tests-clar/resources/")
-	SET(CLAR_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests-clar")
-	SET(CLAR_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests-clar/resources" CACHE PATH "Path to test resources.")
+	SET(CLAR_FIXTURES "${CMAKE_CURRENT_SOURCE_DIR}/tests/resources/")
+	SET(CLAR_PATH "${CMAKE_CURRENT_SOURCE_DIR}/tests")
+	SET(CLAR_RESOURCES "${CMAKE_CURRENT_SOURCE_DIR}/tests/resources" CACHE PATH "Path to test resources.")
 	ADD_DEFINITIONS(-DCLAR_FIXTURE_PATH=\"${CLAR_FIXTURES}\")
 	ADD_DEFINITIONS(-DCLAR_RESOURCES=\"${TEST_RESOURCES}\")
 

@@ -1,7 +1,7 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Cred
 
 Cred
-plaintext(class, user, pass)
+userpass(class, user, pass)
 	SV *class
 	SV *user
 	SV *pass
@@ -20,7 +20,7 @@ plaintext(class, user, pass)
 	OUTPUT: RETVAL
 
 Cred
-keyfile(class, user, public, private, pass)
+sshkey(class, user, public, private, pass)
 	SV *class
 	SV *user
 	SV *public
@@ -35,9 +35,26 @@ keyfile(class, user, public, private, pass)
 		const char *privatekey = SvPVbyte_nolen(private);
 		const char *passphrase = SvPVbyte_nolen(pass);
 
-		int rc = git_cred_ssh_keyfile_passphrase_new(
+		int rc = git_cred_ssh_key_new(
 			&out, username, publickey, privatekey, passphrase
 		);
+		git_check_error(rc);
+
+		RETVAL = out;
+
+	OUTPUT: RETVAL
+
+Cred
+sshagent(class, user)
+	SV *class
+	SV *user
+
+	CODE:
+		Cred out;
+
+		const char *username   = SvPVbyte_nolen(user);
+
+		int rc = git_cred_ssh_key_from_agent(&out, username);
 		git_check_error(rc);
 
 		RETVAL = out;
