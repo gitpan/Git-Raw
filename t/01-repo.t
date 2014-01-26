@@ -3,6 +3,7 @@
 use Test::More;
 
 use Git::Raw;
+use File::Spec;
 use File::Slurp;
 use Cwd qw(abs_path);
 
@@ -27,8 +28,25 @@ is $head, undef;
 my $file  = $repo -> workdir . 'ignore';
 write_file($file, 'this file should be ignored');
 
+$file = $repo -> workdir . 'untracked';
+write_file($file, 'this file should be untracked');
+
 $repo -> ignore("ignore\n");
-ok eq_array($repo -> status('ignore'), ['ignored']);
+
+is_deeply $repo -> status('ignore') -> {'ignore'}, {'flags' => ['ignored']};
+is_deeply $repo -> status('untracked') -> {'untracked'}, {'flags' => ['worktree_new']};
+is_deeply $repo -> status, {
+	'ignore'    => {'flags' => ['ignored']},
+	'untracked' => {'flags' => ['worktree_new']},
+	'subdir/'   => {'flags' => ['ignored']}};
+
+$file = $repo -> workdir . 'subdir/' .'untracked';
+write_file($file, 'this file should be untracked');
+is_deeply $repo -> status('subdir/') -> {'subdir/'}, {'flags' => ['worktree_new']};
+
+is $repo -> path_is_ignored('ignore'), 1;
+is $repo -> path_is_ignored('test'), 0;
+is $repo -> path_is_ignored('untracked'), 0;
 
 my $config = $repo -> config;
 
@@ -62,5 +80,15 @@ $config -> foreach(sub {
 
 	0
 });
+
+is $repo -> state, "none";
+
+my $commit_msg_file = File::Spec->catfile($repo -> path, 'MERGE_MSG');
+
+ok (open HANDLE, ">$commit_msg_file");
+ok (close HANDLE);
+
+$repo -> state_cleanup;
+isnt -f $commit_msg_file, 1;
 
 done_testing;

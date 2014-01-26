@@ -3,17 +3,20 @@
 use Test::More;
 
 use Git::Raw;
+use File::Copy;
 use File::Slurp;
 use Cwd qw(abs_path);
-use File::Path 2.07 qw(make_path);
+use File::Path 2.07 qw(make_path remove_tree);
+use Time::Local;
 
 my $path = abs_path('t/test_repo');
 my $repo = Git::Raw::Repository -> open($path);
 
 my $file  = $repo -> workdir . 'test';
+my $untracked_file = $repo -> workdir . 'untracked_file';
 write_file($file, 'this is a test');
 
-ok eq_array($repo -> status('test'), ['worktree_new']);
+is_deeply $repo -> status -> {'test'}, {'flags' => ['worktree_new']};
 
 my $index = $repo -> index;
 $index -> add('test');
@@ -22,7 +25,25 @@ $index -> write;
 my $tree_id = $index -> write_tree;
 my $tree    = $repo -> lookup($tree_id);
 
-ok eq_array($repo -> status('test'), ['index_new']);
+is_deeply $repo -> status -> {'test'}, {'flags' => ['index_new']};
+
+write_file($file, 'this is a test with more content');
+is_deeply $repo -> status -> {'test'}, {'flags' => ['index_new', 'worktree_modified']};
+
+$index -> add('test');
+$index -> write;
+
+is_deeply $repo -> status -> {'test'}, {'flags' => ['index_new']};
+
+write_file($file, 'this is a test');
+$index -> add('test');
+$index -> write;
+
+write_file($untracked_file, 'this is an untracked file');
+is_deeply $repo -> status -> {'untracked_file'}, {'flags' => ['worktree_new']};
+
+remove_tree($untracked_file);
+is_deeply $repo -> status -> {'untracked_file'}, undef;
 
 isa_ok $tree, 'Git::Raw::Tree';
 
@@ -36,11 +57,12 @@ my $me   = Git::Raw::Signature -> new($name, $email, $time, $off);
 
 my $commit = $repo -> commit("initial commit\n", $me, $me, [], $tree);
 
-ok eq_array($repo -> status('test'), []);
+is_deeply $repo -> status -> {'test'}, undef;
 
 my $author = $commit -> author;
 
 is $commit -> message, "initial commit\n";
+is $commit -> summary, "initial commit";
 
 is $commit -> author -> name, $name;
 is $commit -> author -> email, $email;
@@ -55,6 +77,35 @@ is $commit -> committer -> offset, $off;
 is $commit -> time, $time;
 is $commit -> offset, $off;
 
+move($file, $file.'.moved');
+$index -> remove('test');
+$index -> add('test.moved');
+$index -> write;
+is_deeply $repo -> status -> {'test.moved'}, {'flags' => ['index_renamed'],
+	'index' => {'old_file' => 'test'}};
+
+write_file($file.'.moved', 'this is a test with more content');
+is_deeply $repo -> status -> {'test.moved'}, {'flags' => ['index_renamed', 'worktree_modified'],
+	'index' => {'old_file' => 'test'}};
+
+move($file.'.moved', $file);
+$index -> remove('test.moved');
+$index -> add('test');
+$index -> write;
+is_deeply $repo -> status -> {'test'}, {'flags' => ['index_modified']};
+
+$repo -> reset($commit, {'paths' => ['test']});
+is_deeply $repo -> status -> {'test'}, {'flags' => ['worktree_modified']};
+
+$index -> add('test');
+$index -> write;
+is_deeply $repo -> status -> {'test'}, {'flags' => ['index_modified']};
+
+write_file($file, 'this is a test');
+$index -> add('test');
+$index -> write;
+is_deeply $repo -> status -> {'test'}, undef;
+
 $file  = $repo -> workdir . 'test2';
 write_file($file, 'this is a second test');
 
@@ -63,6 +114,12 @@ $index -> write;
 
 $tree_id = $index -> write_tree;
 $tree    = $repo -> lookup($tree_id);
+
+$time = time();
+$me = Git::Raw::Signature -> default($repo);
+
+my @current_time = localtime($time);
+$off = (timegm(@current_time) - timelocal(@current_time))/60;
 
 my $commit2 = $repo -> commit(
 	"second commit\n", $me, $me, [$repo -> head -> target], $tree
@@ -73,6 +130,7 @@ my $head = $repo -> head -> target;
 isa_ok $head, 'Git::Raw::Commit';
 
 is $head -> message, "second commit\n";
+is $head -> summary, "second commit";
 
 is $head -> author -> name, $name;
 is $head -> author -> email, $email;
@@ -110,6 +168,7 @@ $head = $repo -> head -> target;
 isa_ok $head, 'Git::Raw::Commit';
 
 is $head -> message, "third commit\n";
+is $head -> summary, "third commit";
 
 is $head -> author -> name, $name;
 is $head -> author -> email, $email;
@@ -135,6 +194,7 @@ is $repo -> head -> target -> id, $commit3 -> id, q{Make sure that undef referen
 $commit4 = Git::Raw::Commit -> lookup($repo, $commit4 -> id);
 
 is $commit4 -> message, "fourth commit\n";
+is $commit4 -> summary, "fourth commit";
 
 is $commit4 -> author -> name, $name;
 is $commit4 -> author -> email, $email;
@@ -159,6 +219,7 @@ is $repo -> head -> target -> id, $commit3 -> id, q{Make sure that stringy refer
 $commit5 = Git::Raw::Reference -> lookup('refs/commit-test-ref', $repo) -> target;
 
 is $commit5 -> message, "fifth commit\n";
+is $commit5 -> summary, "fifth commit";
 
 is $commit5 -> author -> name, $name;
 is $commit5 -> author -> email, $email;

@@ -1,6 +1,6 @@
 package Git::Raw::Blob;
 {
-  $Git::Raw::Blob::VERSION = '0.29';
+  $Git::Raw::Blob::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Blob - Git blob class
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 DESCRIPTION
 
@@ -52,15 +52,11 @@ Returns true.
 
 =cut
 
-sub is_blob { !0 }
-
 =head2 is_tree( )
 
 Returns false.
 
 =cut
-
-sub is_tree { !1 }
 
 =head1 AUTHOR
 

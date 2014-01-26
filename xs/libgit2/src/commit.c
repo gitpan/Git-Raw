@@ -31,6 +31,7 @@ void git_commit__free(void *_commit)
 	git__free(commit->raw_header);
 	git__free(commit->raw_message);
 	git__free(commit->message_encoding);
+	git__free(commit->summary);
 
 	git__free(commit);
 }
@@ -275,15 +276,45 @@ GIT_COMMIT_GETTER(const git_oid *, tree_id, &commit->tree_id);
 
 const char *git_commit_message(const git_commit *commit)
 {
-	const char *message = commit->raw_message;
+	const char *message;
 
 	assert(commit);
+
+	message = commit->raw_message;
 
 	/* trim leading newlines from raw message */
 	while (*message && *message == '\n')
 		++message;
 
 	return message;
+}
+
+const char *git_commit_summary(git_commit *commit)
+{
+	git_buf summary = GIT_BUF_INIT;
+	const char *msg, *space;
+
+	assert(commit);
+
+	if (!commit->summary) {
+		for (msg = git_commit_message(commit), space = NULL; *msg; ++msg) {
+			if (msg[0] == '\n' && (!msg[1] || msg[1] == '\n'))
+				break;
+			else if (msg[0] == '\n')
+				git_buf_putc(&summary, ' ');
+			else if (git__isspace(msg[0]))
+				space = space ? space : msg;
+			else if (space) {
+				git_buf_put(&summary, space, (msg - space) + 1);
+				space = NULL;
+			} else
+				git_buf_putc(&summary, *msg);
+		}
+
+		commit->summary = git_buf_detach(&summary);
+	}
+
+	return commit->summary;
 }
 
 int git_commit_tree(git_tree **tree_out, const git_commit *commit)

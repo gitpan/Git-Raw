@@ -186,39 +186,37 @@ static int load_workdir(git_repository *repo, git_buf *parent_path)
 {
 	int         error;
 	git_config *config;
-	const char *worktree;
-	git_buf     worktree_buf = GIT_BUF_INIT;
+	const git_config_entry *ce;
+	git_buf     worktree = GIT_BUF_INIT;
 
 	if (repo->is_bare)
 		return 0;
 
-	if (git_repository_config__weakptr(&config, repo) < 0)
-		return -1;
-
-	error = git_config_get_string(&worktree, config, "core.worktree");
-	if (!error && worktree != NULL) {
-		error = git_path_prettify_dir(
-			&worktree_buf, worktree, repo->path_repository);
-		if (error < 0)
-			return error;
-		repo->workdir = git_buf_detach(&worktree_buf);
-	}
-	else if (error != GIT_ENOTFOUND)
+	if ((error = git_repository_config__weakptr(&config, repo)) < 0)
 		return error;
-	else {
-		giterr_clear();
 
-		if (parent_path && git_path_isdir(parent_path->ptr))
-			repo->workdir = git_buf_detach(parent_path);
-		else {
-			git_path_dirname_r(&worktree_buf, repo->path_repository);
-			git_path_to_dir(&worktree_buf);
-			repo->workdir = git_buf_detach(&worktree_buf);
-		}
+	if ((error = git_config__lookup_entry(
+			&ce, config, "core.worktree", false)) < 0)
+		return error;
+
+	if (ce && ce->value) {
+		if ((error = git_path_prettify_dir(
+				&worktree, ce->value, repo->path_repository)) < 0)
+			return error;
+
+		repo->workdir = git_buf_detach(&worktree);
+	}
+	else if (parent_path && git_path_isdir(parent_path->ptr))
+		repo->workdir = git_buf_detach(parent_path);
+	else {
+		if (git_path_dirname_r(&worktree, repo->path_repository) < 0 ||
+			git_path_to_dir(&worktree) < 0)
+			return -1;
+
+		repo->workdir = git_buf_detach(&worktree);
 	}
 
 	GITERR_CHECK_ALLOC(repo->workdir);
-
 	return 0;
 }
 
@@ -1610,15 +1608,14 @@ static int at_least_one_cb(const char *refname, void *payload)
 {
 	GIT_UNUSED(refname);
 	GIT_UNUSED(payload);
-
-	return GIT_EUSER;
+	return GIT_PASSTHROUGH;
 }
 
 static int repo_contains_no_reference(git_repository *repo)
 {
 	int error = git_reference_foreach_name(repo, &at_least_one_cb, NULL);
 
-	if (error == GIT_EUSER)
+	if (error == GIT_PASSTHROUGH)
 		return 0;
 
 	if (!error)
@@ -1963,6 +1960,42 @@ int git_repository_state(git_repository *repo)
 
 	git_buf_free(&repo_path);
 	return state;
+}
+
+int git_repository__cleanup_files(git_repository *repo, const char *files[], size_t files_len)
+{
+	git_buf path = GIT_BUF_INIT;
+	size_t i;
+	int error = 0;
+
+	for (i = 0; i < files_len; ++i) {
+		git_buf_clear(&path);
+
+		if ((error = git_buf_joinpath(&path, repo->path_repository, files[i])) < 0 ||
+			(git_path_isfile(git_buf_cstr(&path)) &&
+			(error = p_unlink(git_buf_cstr(&path))) < 0))
+			goto done;
+	}
+
+done:
+	git_buf_free(&path);
+
+	return error;
+}
+
+static const char *state_files[] = {
+	GIT_MERGE_HEAD_FILE,
+	GIT_MERGE_MODE_FILE,
+	GIT_MERGE_MSG_FILE,
+	GIT_REVERT_HEAD_FILE,
+	GIT_CHERRY_PICK_HEAD_FILE,
+};
+
+int git_repository_state_cleanup(git_repository *repo)
+{
+	assert(repo);
+
+	return git_repository__cleanup_files(repo, state_files, ARRAY_SIZE(state_files));
 }
 
 int git_repository_is_shallow(git_repository *repo)

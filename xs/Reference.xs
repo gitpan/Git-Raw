@@ -7,19 +7,21 @@ create(class, name, repo, object, ...)
 	SV *repo
 	SV *object
 
-	CODE:
+	PREINIT:
 		int rc, force = 0;
 
 		Reference ref;
-
 		const git_oid *oid;
 
+	CODE:
 		if (items > 4)
 			force = SvTRUE(ST(4));
 
-		if (sv_isobject(object) && sv_derived_from(object, "Git::Raw::Blob"))
+		if (sv_isobject(object) &&
+		    sv_derived_from(object, "Git::Raw::Blob"))
 			oid = git_blob_id(GIT_SV_TO_PTR(Blob, object));
-		else if (sv_isobject(object) && sv_derived_from(object, "Git::Raw::Commit"))
+		else if (sv_isobject(object) &&
+			 sv_derived_from(object, "Git::Raw::Commit"))
 			oid = git_commit_id(GIT_SV_TO_PTR(Commit, object));
 		else
 			oid = git_tree_id(GIT_SV_TO_PTR(Tree, object));
@@ -39,10 +41,12 @@ lookup(class, name, repo)
 	SV *name
 	SV *repo
 
-	CODE:
+	PREINIT:
+		int rc;
 		Reference ref;
 
-		int rc = git_reference_lookup(
+	CODE:
+		rc = git_reference_lookup(
 			&ref, GIT_SV_TO_PTR(Repository, repo),
 			SvPVbyte_nolen(name)
 		);
@@ -56,11 +60,11 @@ void
 delete(self)
 	SV *self
 
-	CODE:
+	PREINIT:
 		int rc;
-		Reference ref = GIT_SV_TO_PTR(Reference, self);
 
-		rc = git_reference_delete(ref);
+	CODE:
+		rc = git_reference_delete(GIT_SV_TO_PTR(Reference, self));
 		git_check_error(rc);
 
 		sv_setiv(SvRV(self), 0);
@@ -69,8 +73,11 @@ SV *
 name(self)
 	Reference self
 
+	PREINIT:
+		const char *msg;
+
 	CODE:
-		const char *msg = git_reference_name(self);
+		msg = git_reference_name(self);
 		RETVAL = newSVpv(msg, 0);
 
 	OUTPUT: RETVAL
@@ -79,13 +86,22 @@ SV *
 type(self)
 	Reference self
 
-	CODE:
+	PREINIT:
 		SV *type;
 
+	CODE:
 		switch (git_reference_type(self)) {
-			case GIT_REF_OID: type = newSVpv("direct", 0); break;
-			case GIT_REF_SYMBOLIC: type = newSVpv("symbolic", 0); break;
-			default: Perl_croak(aTHX_ "Invalid reference type");
+			case GIT_REF_OID:
+				type = newSVpv("direct", 0);
+				break;
+
+			case GIT_REF_SYMBOLIC:
+				type = newSVpv("symbolic", 0);
+				break;
+
+			default:
+				Perl_croak(aTHX_ "Invalid reference type");
+				break;
 		}
 
 		RETVAL = type;
@@ -96,78 +112,98 @@ SV *
 owner(self)
 	SV *self
 
+	PREINIT:
+		SV *ref;
+
 	CODE:
 		if (!SvROK(self)) Perl_croak(aTHX_ "Not a reference");
 
-		SV *r = xs_object_magic_get_struct(aTHX_ SvRV(self));
-		if (!r) Perl_croak(aTHX_ "Invalid object");
+		ref = xs_object_magic_get_struct(aTHX_ SvRV(self));
+		if (!ref) Perl_croak(aTHX_ "Invalid object");
 
-		RETVAL = newRV_inc(r);
+		RETVAL = newRV_inc(ref);
 
 	OUTPUT: RETVAL
 
 SV *
-target(self)
+target(self, ...)
 	SV *self
 
-	PROTOTYPE: $
-	CODE:
+	PROTOTYPE: $;$
+
+	PREINIT:
 		int rc;
-		Reference ref = GIT_SV_TO_PTR(Reference, self);
+		Reference ref;
 
-		switch (git_reference_type(ref)) {
-			case GIT_REF_OID: {
-				git_object *obj;
-				const git_oid *oid;
+	CODE:
+		ref = GIT_SV_TO_PTR(Reference, self);
 
-				oid = git_reference_target(ref);
+		if (items == 2) {
+			Reference new_ref;
 
-				rc = git_object_lookup(
-					&obj, git_reference_owner(ref),
-					oid, GIT_OBJ_ANY
-				);
-				git_check_error(rc);
+			Commit commit = GIT_SV_TO_PTR(Commit, ST(1));
 
-				RETVAL = git_obj_to_sv(obj, self);
-				break;
+			rc = git_reference_set_target(&new_ref, ref, git_commit_id(commit));
+			git_check_error(rc);
+
+			GIT_NEW_OBJ(
+				RETVAL, "Git::Raw::Reference",
+				new_ref, GIT_SV_TO_REPO(self)
+			);
+		} else {
+			switch (git_reference_type(ref)) {
+				case GIT_REF_OID: {
+					git_object *obj;
+					const git_oid *oid;
+
+					oid = git_reference_target(ref);
+
+					rc = git_object_lookup(
+						&obj, git_reference_owner(ref),
+						oid, GIT_OBJ_ANY
+					);
+					git_check_error(rc);
+
+					RETVAL = git_obj_to_sv(obj, self);
+					break;
+				}
+
+				case GIT_REF_SYMBOLIC: {
+					Reference linked_ref;
+					const char *target;
+
+					target = git_reference_symbolic_target(ref);
+
+					rc = git_reference_lookup(&linked_ref, git_reference_owner(ref), target);
+					git_check_error(rc);
+
+					GIT_NEW_OBJ(
+						RETVAL, "Git::Raw::Reference", linked_ref, GIT_SV_TO_REPO(self)
+					);
+					break;
+				}
+
+				default: Perl_croak(aTHX_ "Invalid reference type");
 			}
-
-			case GIT_REF_SYMBOLIC: {
-				Reference ref;
-				const char *target;
-				SV *repo = GIT_SV_TO_REPO(self);
-
-				target = git_reference_symbolic_target(ref);
-
-				rc = git_reference_lookup(&ref, git_reference_owner(ref), target);
-				git_check_error(rc);
-
-				GIT_NEW_OBJ(
-					RETVAL, "Git::Raw::Reference", ref, repo
-				);
-				break;
-			}
-
-			default: Perl_croak(aTHX_ "Invalid reference type");
 		}
 
 	OUTPUT: RETVAL
 
-bool
+SV *
 is_branch(self)
 	Reference self
 
 	CODE:
-		RETVAL = git_reference_is_branch(self);
+		RETVAL = newSViv(git_reference_is_branch(self));
 
 	OUTPUT: RETVAL
 
-bool
+SV *
 is_remote(self)
 	Reference self
 
 	CODE:
-		RETVAL = git_reference_is_remote(self);
+		RETVAL = newSViv(git_reference_is_remote(self));
 
 	OUTPUT: RETVAL
 

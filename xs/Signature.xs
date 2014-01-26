@@ -8,13 +8,16 @@ new(class, name, email, time, off)
 	SV *time
 	unsigned off
 
-	CODE:
+	PREINIT:
+		int rc;
 		Signature sig;
 
 		git_time_t git_time;
+
+	CODE:
 		sscanf(SvPVbyte_nolen(time), "%" PRId64, &git_time);
 
-		int rc = git_signature_new(
+		rc = git_signature_new(
 			&sig, SvPVbyte_nolen(name),
 			SvPVbyte_nolen(email), git_time, off
 		);
@@ -30,12 +33,31 @@ now(class, name, email)
 	SV *name
 	SV *email
 
-	CODE:
+	PREINIT:
+		int rc;
 		Signature sig;
 
-		int rc = git_signature_now(
+	CODE:
+		rc = git_signature_now(
 			&sig, SvPVbyte_nolen(name), SvPVbyte_nolen(email)
 		);
+		git_check_error(rc);
+
+		RETVAL = sig;
+
+	OUTPUT: RETVAL
+
+Signature
+default(class, repo)
+	SV *class
+	Repository repo
+
+	PREINIT:
+		int rc;
+		Signature sig;
+
+	CODE:
+		rc = git_signature_default(&sig, repo);
 		git_check_error(rc);
 
 		RETVAL = sig;
@@ -64,15 +86,18 @@ SV *
 time(self)
 	Signature self
 
+	PREINIT:
+		char *buf;
+		git_time_t time;
+
 	CODE:
-		git_time_t time = self -> when.time;
+		time = self -> when.time;
 
-		const int n = snprintf(NULL, 0, "%" PRId64, time);
-		char buf[n + 1];
-
-		snprintf(buf, n + 1, "%" PRId64, time);
+		Newx(buf, snprintf(NULL, 0, "%" PRId64, time)+1, char);
+		sprintf(buf, "%" PRId64, time);
 
 		RETVAL = newSVpv(buf, 0);
+		Safefree(buf);
 
 	OUTPUT: RETVAL
 

@@ -108,17 +108,23 @@ git_blame* git_blame__alloc(
 	git_blame_options opts,
 	const char *path)
 {
-	git_blame *gbr = (git_blame*)git__calloc(1, sizeof(git_blame));
-	if (!gbr) {
-		giterr_set_oom();
+	git_blame *gbr = git__calloc(1, sizeof(git_blame));
+	if (!gbr)
 		return NULL;
-	}
-	git_vector_init(&gbr->hunks, 8, hunk_cmp);
-	git_vector_init(&gbr->paths, 8, paths_cmp);
+
 	gbr->repository = repo;
 	gbr->options = opts;
-	gbr->path = git__strdup(path);
-	git_vector_insert(&gbr->paths, git__strdup(path));
+
+	if (git_vector_init(&gbr->hunks, 8, hunk_cmp) < 0 ||
+		git_vector_init(&gbr->paths, 8, paths_cmp) < 0 ||
+		(gbr->path = git__strdup(path)) == NULL ||
+		git_vector_insert(&gbr->paths, git__strdup(path)) < 0)
+	{
+		git_blame_free(gbr);
+		git__free(gbr);
+		return NULL;
+	}
+
 	return gbr;
 }
 
@@ -126,7 +132,6 @@ void git_blame_free(git_blame *blame)
 {
 	size_t i;
 	git_blame_hunk *hunk;
-	char *path;
 
 	if (!blame) return;
 
@@ -134,13 +139,11 @@ void git_blame_free(git_blame *blame)
 		free_hunk(hunk);
 	git_vector_free(&blame->hunks);
 
-	git_vector_foreach(&blame->paths, i, path)
-		git__free(path);
-	git_vector_free(&blame->paths);
+	git_vector_free_deep(&blame->paths);
 
 	git_array_clear(blame->line_index);
 
-	git__free((void*)blame->path);
+	git__free(blame->path);
 	git_blob_free(blame->final_blob);
 	git__free(blame);
 }
@@ -239,7 +242,7 @@ static int index_blob_lines(git_blame *blame)
     git_off_t len = blame->final_buf_size;
     int num = 0, incomplete = 0, bol = 1;
     size_t *i;
- 
+
     if (len && buf[len-1] != '\n')
         incomplete++; /* incomplete line at the end */
     while (len--) {
@@ -260,13 +263,15 @@ static int index_blob_lines(git_blame *blame)
     blame->num_lines = num + incomplete;
     return blame->num_lines;
 }
- 
+
 static git_blame_hunk* hunk_from_entry(git_blame__entry *e)
 {
 	git_blame_hunk *h = new_hunk(
 			e->lno+1, e->num_lines, e->s_lno+1, e->suspect->path);
 	git_oid_cpy(&h->final_commit_id, git_commit_id(e->suspect->commit));
+	git_oid_cpy(&h->orig_commit_id, git_commit_id(e->suspect->commit));
 	h->final_signature = git_signature_dup(git_commit_author(e->suspect->commit));
+	h->orig_signature = git_signature_dup(git_commit_author(e->suspect->commit));
 	h->boundary = e->is_boundary ? 1 : 0;
 	return h;
 }
@@ -282,8 +287,6 @@ static int load_blob(git_blame *blame)
 		goto cleanup;
 	error = git_object_lookup_bypath((git_object**)&blame->final_blob,
 			(git_object*)blame->final, blame->path, GIT_OBJ_BLOB);
-	if (error < 0)
-		goto cleanup;
 
 cleanup:
 	return error;

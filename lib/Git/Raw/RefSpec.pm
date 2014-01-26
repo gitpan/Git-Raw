@@ -1,6 +1,6 @@
 package Git::Raw::RefSpec;
 {
-  $Git::Raw::RefSpec::VERSION = '0.29';
+  $Git::Raw::RefSpec::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -12,7 +12,7 @@ Git::Raw::RefSpec - Git refspec class
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 DESCRIPTION
 

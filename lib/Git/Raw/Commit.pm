@@ -1,6 +1,6 @@
 package Git::Raw::Commit;
 {
-  $Git::Raw::Commit::VERSION = '0.29';
+  $Git::Raw::Commit::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 SYNOPSIS
 
@@ -59,14 +59,15 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 Create a new commit given a message, two L<Git::Raw::Signature> (one is the
 commit author and the other the committer), a list of parent commits and a
-L<Git::Raw::Tree>.  If C<$update_ref> is provided and is defined, the reference with
-the corresponding name is automatically updated or created.  If C<$update_ref> is
-C<undef>, no reference is updated.  If C<$update_ref> is not provided, "HEAD" is updated.
+L<Git::Raw::Tree>. If C<$update_ref> is provided and is defined, the reference
+with the corresponding name is automatically updated or created. If
+C<$update_ref> is C<undef>, no reference is updated.  If C<$update_ref> is not
+provided, "HEAD" is updated.
 
 =head2 lookup( $repo, $id )
 
-Retrieve the commit corresponding to C<$id>. This function is pretty much
-the same as C<$repo-E<gt>lookup($id)> except that it only returns commits.
+Retrieve the commit corresponding to C<$id>. This function is pretty much the
+same as C<$repo-E<gt>lookup($id)> except that it only returns commits.
 
 =head2 id( )
 
@@ -75,6 +76,10 @@ Retrieve the id of the commit, as string.
 =head2 message( )
 
 Retrieve the message of the commit.
+
+=head2 summary( )
+
+Retrieve the summary of the commit.
 
 =head2 author( )
 

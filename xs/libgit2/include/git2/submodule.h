@@ -105,6 +105,19 @@ typedef enum {
 	GIT_SUBMODULE_STATUS_WD_UNTRACKED)) != 0)
 
 /**
+ * Options for submodule recurse.
+ *
+ * * GIT_SUBMODULE_RECURSE_NO   - do no recurse into submodules
+ * * GIT_SUBMODULE_RECURSE_YES  - recurse into submodules
+ * * GIT_SUBMODULE_RECURSE_ONDEMAND - recurse into submodules only when commit not already in local clone
+ */
+typedef enum {
+	GIT_SUBMODULE_RECURSE_NO = 0,
+	GIT_SUBMODULE_RECURSE_YES = 1,
+	GIT_SUBMODULE_RECURSE_ONDEMAND = 2,
+} git_submodule_recurse_t;
+
+/**
  * Lookup submodule information by name or path.
  *
  * Given either the submodule name or path (they are usually the same), this
@@ -271,6 +284,14 @@ GIT_EXTERN(const char *) git_submodule_path(git_submodule *submodule);
 GIT_EXTERN(const char *) git_submodule_url(git_submodule *submodule);
 
 /**
+* Get the branch for the submodule.
+*
+* @param submodule Pointer to submodule object
+* @return Pointer to the submodule branch
+*/
+GIT_EXTERN(const char *) git_submodule_branch(git_submodule *submodule);
+
+/**
  * Set the URL for the submodule.
  *
  * This sets the URL in memory for the submodule. This will be used for
@@ -410,7 +431,7 @@ GIT_EXTERN(git_submodule_update_t) git_submodule_set_update(
  *
  * @return 0 if fetchRecurseSubmodules is false, 1 if true
  */
-GIT_EXTERN(int) git_submodule_fetch_recurse_submodules(
+GIT_EXTERN(git_submodule_recurse_t) git_submodule_fetch_recurse_submodules(
 	git_submodule *submodule);
 
 /**
@@ -424,9 +445,9 @@ GIT_EXTERN(int) git_submodule_fetch_recurse_submodules(
  * @param fetch_recurse_submodules Boolean value
  * @return old value for fetchRecurseSubmodules
  */
-GIT_EXTERN(int) git_submodule_set_fetch_recurse_submodules(
+GIT_EXTERN(git_submodule_recurse_t) git_submodule_set_fetch_recurse_submodules(
 	git_submodule *submodule,
-	int fetch_recurse_submodules);
+	git_submodule_recurse_t fetch_recurse_submodules);
 
 /**
  * Copy submodule info into ".git/config" file.

@@ -26,6 +26,7 @@
 #include "oid.h"
 #include "index.h"
 #include "filebuf.h"
+#include "config.h"
 
 #include "git2/types.h"
 #include "git2/repository.h"
@@ -253,7 +254,8 @@ int git_merge__bases_many(git_commit_list **out, git_revwalk *walk, git_commit_l
 	return 0;
 }
 
-int git_repository_mergehead_foreach(git_repository *repo,
+int git_repository_mergehead_foreach(
+	git_repository *repo,
 	git_repository_mergehead_foreach_cb cb,
 	void *payload)
 {
@@ -285,8 +287,8 @@ int git_repository_mergehead_foreach(git_repository *repo,
 		if ((error = git_oid_fromstr(&oid, line)) < 0)
 			goto cleanup;
 
-		if (cb(&oid, payload) != 0) {
-			error = GIT_EUSER;
+		if ((error = cb(&oid, payload)) != 0) {
+			giterr_set_after_callback(error);
 			goto cleanup;
 		}
 
@@ -1206,7 +1208,7 @@ static git_merge_diff *merge_diff_from_index_entries(
 
 /* Merge trees */
 
-static int merge_index_insert_conflict(
+static int merge_diff_list_insert_conflict(
 	git_merge_diff_list *diff_list,
 	struct merge_diff_df_data *merge_df_data,
 	const git_index_entry *tree_items[3])
@@ -1222,7 +1224,7 @@ static int merge_index_insert_conflict(
 	return 0;
 }
 
-static int merge_index_insert_unmodified(
+static int merge_diff_list_insert_unmodified(
 	git_merge_diff_list *diff_list,
 	const git_index_entry *tree_items[3])
 {
@@ -1252,7 +1254,7 @@ int git_merge_diff_list__find_differences(
 	size_t i, j;
 	int error = 0;
 
-	assert(diff_list && our_tree && their_tree);
+	assert(diff_list && (our_tree || their_tree));
 
 	if ((error = git_iterator_for_tree(&iterators[TREE_IDX_ANCESTOR], (git_tree *)ancestor_tree, GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0 ||
 		(error = git_iterator_for_tree(&iterators[TREE_IDX_OURS], (git_tree *)our_tree, GIT_ITERATOR_DONT_IGNORE_CASE, NULL, NULL)) < 0 ||
@@ -1262,6 +1264,7 @@ int git_merge_diff_list__find_differences(
 	/* Set up the iterators */
 	for (i = 0; i < 3; i++) {
 		error = git_iterator_current(&items[i], iterators[i]);
+
 		if (error < 0 && error != GIT_ITEROVER)
 			goto done;
 	}
@@ -1313,9 +1316,9 @@ int git_merge_diff_list__find_differences(
 			break;
 
 		if (cur_item_modified)
-			error = merge_index_insert_conflict(diff_list, &df_data, cur_items);
+			error = merge_diff_list_insert_conflict(diff_list, &df_data, cur_items);
 		else
-			error = merge_index_insert_unmodified(diff_list, cur_items);
+			error = merge_diff_list_insert_unmodified(diff_list, cur_items);
 		if (error < 0)
 			goto done;
 
@@ -1325,6 +1328,7 @@ int git_merge_diff_list__find_differences(
 				continue;
 
 			error = git_iterator_advance(&items[i], iterators[i]);
+
 			if (error < 0 && error != GIT_ITEROVER)
 				goto done;
 		}
@@ -1394,19 +1398,13 @@ static int merge_tree_normalize_opts(
 	}
 
 	if (!opts->target_limit) {
-		int32_t limit = 0;
+		int limit = git_config__get_int_force(cfg, "merge.renamelimit", 0);
 
-		opts->target_limit = GIT_MERGE_TREE_TARGET_LIMIT;
+		if (!limit)
+			limit = git_config__get_int_force(cfg, "diff.renamelimit", 0);
 
-		if (git_config_get_int32(&limit, cfg, "merge.renameLimit") < 0) {
-			giterr_clear();
-
-			if (git_config_get_int32(&limit, cfg, "diff.renameLimit") < 0)
-				giterr_clear();
-		}
-
-		if (limit > 0)
-			opts->target_limit = limit;
+		opts->target_limit = (limit <= 0) ?
+			GIT_MERGE_TREE_TARGET_LIMIT : (unsigned int)limit;
 	}
 
 	/* assign the internal metric with whitespace flag as payload */
@@ -1569,9 +1567,11 @@ int git_merge_trees(
 	size_t i;
 	int error = 0;
 
-	assert(out && repo && our_tree && their_tree);
+	assert(out && repo && (our_tree || their_tree));
 
 	*out = NULL;
+
+	GITERR_CHECK_VERSION(given_opts, GIT_MERGE_TREE_OPTS_VERSION, "git_merge_tree_opts");
 
 	if ((error = merge_tree_normalize_opts(repo, &opts, given_opts)) < 0)
 		return error;
@@ -1603,6 +1603,40 @@ int git_merge_trees(
 
 done:
 	git_merge_diff_list__free(diff_list);
+
+	return error;
+}
+
+int git_merge_commits(
+	git_index **out,
+	git_repository *repo,
+	const git_commit *our_commit,
+	const git_commit *their_commit,
+	const git_merge_tree_opts *opts)
+{
+	git_oid ancestor_oid;
+	git_commit *ancestor_commit = NULL;
+	git_tree *our_tree = NULL, *their_tree = NULL, *ancestor_tree = NULL;
+	int error = 0;
+
+	if ((error = git_merge_base(&ancestor_oid, repo, git_commit_id(our_commit), git_commit_id(their_commit))) < 0 &&
+		error == GIT_ENOTFOUND)
+		giterr_clear();
+	else if (error < 0 ||
+		(error = git_commit_lookup(&ancestor_commit, repo, &ancestor_oid)) < 0 ||
+		(error = git_commit_tree(&ancestor_tree, ancestor_commit)) < 0)
+		goto done;
+
+	if ((error = git_commit_tree(&our_tree, our_commit)) < 0 ||
+		(error = git_commit_tree(&their_tree, their_commit)) < 0 ||
+		(error = git_merge_trees(out, repo, ancestor_tree, our_tree, their_tree, opts)) < 0)
+		goto done;
+
+done:
+	git_commit_free(ancestor_commit);
+	git_tree_free(our_tree);
+	git_tree_free(their_tree);
+	git_tree_free(ancestor_tree);
 
 	return error;
 }
@@ -2268,10 +2302,10 @@ done:
 	return error;
 }
 
-static int merge_indexes(git_repository *repo, git_index *index_new)
+int git_merge__indexes(git_repository *repo, git_index *index_new)
 {
-	git_index *index_repo;
-	unsigned int index_repo_caps;
+	git_index *index_repo = NULL;
+	unsigned int index_repo_caps = 0;
 	git_vector paths = GIT_VECTOR_INIT;
 	size_t index_conflicts = 0, wd_conflicts = 0, conflicts, i;
 	char *path;
@@ -2351,13 +2385,20 @@ done:
         git_index_set_caps(index_repo, index_repo_caps);
 
 	git_index_free(index_repo);
-
-	git_vector_foreach(&paths, i, path)
-		git__free(path);
-
-	git_vector_free(&paths);
+	git_vector_free_deep(&paths);
 
 	return error;
+}
+
+static int merge_state_cleanup(git_repository *repo)
+{
+	const char *state_files[] = {
+		GIT_MERGE_HEAD_FILE,
+		GIT_MERGE_MODE_FILE,
+		GIT_MERGE_MSG_FILE,
+	};
+
+	return git_repository__cleanup_files(repo, state_files, ARRAY_SIZE(state_files));
 }
 
 int git_merge(
@@ -2379,6 +2420,8 @@ int git_merge(
 	assert(out && repo && their_heads);
 
 	*out = NULL;
+
+	GITERR_CHECK_VERSION(given_opts, GIT_MERGE_OPTS_VERSION, "git_merge_opts");
 
 	if (their_heads_len != 1) {
 		giterr_set(GITERR_MERGE, "Can only merge a single branch");
@@ -2440,7 +2483,7 @@ int git_merge(
 	/* TODO: recursive, octopus, etc... */
 
 	if ((error = git_merge_trees(&index_new, repo, ancestor_tree, our_tree, their_trees[0], &opts.merge_tree_opts)) < 0 ||
-		(error = merge_indexes(repo, index_new)) < 0 ||
+		(error = git_merge__indexes(repo, index_new)) < 0 ||
 		(error = git_repository_index(&index_repo, repo)) < 0 ||
 		(error = git_checkout_index(repo, index_repo, &opts.checkout_opts)) < 0)
 		goto on_error;
@@ -2451,7 +2494,7 @@ int git_merge(
 	goto done;
 
 on_error:
-	git_repository_merge_cleanup(repo);
+	merge_state_cleanup(repo);
 
 	git_index_free(index_new);
 	git__free(result);
@@ -2491,39 +2534,6 @@ int git_merge__setup(
 		(error = write_merge_mode(repo, flags)) == 0) {
 		error = write_merge_msg(repo, heads, heads_len);
 	}
-
-	return error;
-}
-
-int git_repository_merge_cleanup(git_repository *repo)
-{
-	int error = 0;
-	git_buf merge_head_path = GIT_BUF_INIT,
-		merge_mode_path = GIT_BUF_INIT,
-		merge_msg_path = GIT_BUF_INIT;
-
-	assert(repo);
-
-	if (git_buf_joinpath(&merge_head_path, repo->path_repository, GIT_MERGE_HEAD_FILE) < 0 ||
-		git_buf_joinpath(&merge_mode_path, repo->path_repository, GIT_MERGE_MODE_FILE) < 0 ||
-		git_buf_joinpath(&merge_msg_path, repo->path_repository, GIT_MERGE_MSG_FILE) < 0)
-		return -1;
-
-	if (git_path_isfile(merge_head_path.ptr)) {
-		if ((error = p_unlink(merge_head_path.ptr)) < 0)
-			goto cleanup;
-	}
-
-	if (git_path_isfile(merge_mode_path.ptr))
-		(void)p_unlink(merge_mode_path.ptr);
-
-	if (git_path_isfile(merge_msg_path.ptr))
-		(void)p_unlink(merge_msg_path.ptr);
-
-cleanup:
-	git_buf_free(&merge_msg_path);
-	git_buf_free(&merge_mode_path);
-	git_buf_free(&merge_head_path);
 
 	return error;
 }

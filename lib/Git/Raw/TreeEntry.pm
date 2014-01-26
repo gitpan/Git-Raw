@@ -1,6 +1,6 @@
 package Git::Raw::TreeEntry;
 {
-  $Git::Raw::TreeEntry::VERSION = '0.29';
+  $Git::Raw::TreeEntry::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::TreeEntry - Git tree entry class
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 DESCRIPTION
 

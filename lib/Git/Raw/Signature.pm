@@ -1,6 +1,6 @@
 package Git::Raw::Signature;
 {
-  $Git::Raw::Signature::VERSION = '0.29';
+  $Git::Raw::Signature::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Signature - Git signature class
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 DESCRIPTION
 
@@ -32,6 +32,11 @@ Create a new signature.
 =head2 now( $name, $email )
 
 Create a new signature with a timestamp of 'now'.
+
+=head2 default( $repo )
+
+Create a new signature with default user and a timestamp of 'now'.
+This looks up the C<"user.name"> and C<"user.email"> from the configuration.
 
 =head2 name( )
 

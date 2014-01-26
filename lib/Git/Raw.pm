@@ -1,6 +1,6 @@
 package Git::Raw;
 {
-  $Git::Raw::VERSION = '0.29';
+  $Git::Raw::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -17,7 +17,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 DESCRIPTION
 

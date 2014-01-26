@@ -1,6 +1,6 @@
 package Git::Raw::Index;
 {
-  $Git::Raw::Index::VERSION = '0.29';
+  $Git::Raw::Index::VERSION = '0.30'; # TRIAL
 }
 
 use strict;
@@ -14,7 +14,7 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.29
+version 0.30
 
 =head1 DESCRIPTION
 
@@ -52,6 +52,14 @@ Create a new tree from the index and write it to disk.
 =head2 remove( $path )
 
 Remove C<$path> from the index.
+
+=head2 has_conflicts( )
+
+Determine if the index contains entries representing file conflicts.
+
+=head2 conflict_cleanup( )
+
+Remove all conflicts in the index (entries with a stage greater than 0).
 
 =head1 AUTHOR
 

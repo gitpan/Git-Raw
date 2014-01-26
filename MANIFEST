@@ -45,6 +45,7 @@ t/11-stash.t
 t/12-blob.t
 t/13-checkout.t
 t/14-tree-builder.t
+t/15-merge.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
 t/release-pod-syntax.t
@@ -77,6 +78,7 @@ xs/libgit2/Makefile.embed
 xs/libgit2/README.md
 xs/libgit2/api.docurium
 xs/libgit2/cmake/Modules/FindHTTP_Parser.cmake
+xs/libgit2/cmake/Modules/FindIconv.cmake
 xs/libgit2/cmake/Modules/FindLIBSSH2.cmake
 xs/libgit2/deps/http-parser/LICENSE-MIT
 xs/libgit2/deps/http-parser/http_parser.c
@@ -176,6 +178,7 @@ xs/libgit2/include/git2/refspec.h
 xs/libgit2/include/git2/remote.h
 xs/libgit2/include/git2/repository.h
 xs/libgit2/include/git2/reset.h
+xs/libgit2/include/git2/revert.h
 xs/libgit2/include/git2/revparse.h
 xs/libgit2/include/git2/revwalk.h
 xs/libgit2/include/git2/signature.h
@@ -203,7 +206,6 @@ xs/libgit2/include/git2/version.h
 xs/libgit2/libgit2.pc.in
 xs/libgit2/libgit2_clar.supp
 xs/libgit2/script/cibuild.sh
-xs/libgit2/src/amiga/map.c
 xs/libgit2/src/array.h
 xs/libgit2/src/attr.c
 xs/libgit2/src/attr.h
@@ -350,6 +352,7 @@ xs/libgit2/src/repo_template.h
 xs/libgit2/src/repository.c
 xs/libgit2/src/repository.h
 xs/libgit2/src/reset.c
+xs/libgit2/src/revert.c
 xs/libgit2/src/revparse.c
 xs/libgit2/src/revwalk.c
 xs/libgit2/src/revwalk.h
@@ -480,6 +483,7 @@ xs/libgit2/tests/config/multivar.c
 xs/libgit2/tests/config/new.c
 xs/libgit2/tests/config/read.c
 xs/libgit2/tests/config/refresh.c
+xs/libgit2/tests/config/rename.c
 xs/libgit2/tests/config/stress.c
 xs/libgit2/tests/config/validkeyname.c
 xs/libgit2/tests/config/write.c
@@ -544,6 +548,7 @@ xs/libgit2/tests/main.c
 xs/libgit2/tests/merge/merge_helpers.c
 xs/libgit2/tests/merge/merge_helpers.h
 xs/libgit2/tests/merge/trees/automerge.c
+xs/libgit2/tests/merge/trees/commits.c
 xs/libgit2/tests/merge/trees/modeconflict.c
 xs/libgit2/tests/merge/trees/renames.c
 xs/libgit2/tests/merge/trees/treediff.c
@@ -625,6 +630,7 @@ xs/libgit2/tests/refs/branches/upstream.c
 xs/libgit2/tests/refs/branches/upstreamname.c
 xs/libgit2/tests/refs/crashes.c
 xs/libgit2/tests/refs/create.c
+xs/libgit2/tests/refs/createwithlog.c
 xs/libgit2/tests/refs/delete.c
 xs/libgit2/tests/refs/foreachglob.c
 xs/libgit2/tests/refs/isvalidname.c
@@ -643,6 +649,7 @@ xs/libgit2/tests/refs/reflog/drop.c
 xs/libgit2/tests/refs/reflog/reflog.c
 xs/libgit2/tests/refs/rename.c
 xs/libgit2/tests/refs/revparse.c
+xs/libgit2/tests/refs/settargetwithlog.c
 xs/libgit2/tests/refs/setter.c
 xs/libgit2/tests/refs/shorthand.c
 xs/libgit2/tests/refs/unicode.c
@@ -870,6 +877,10 @@ xs/libgit2/tests/resources/renames/ikeepsix.txt
 xs/libgit2/tests/resources/renames/sixserving.txt
 xs/libgit2/tests/resources/renames/songof7cities.txt
 xs/libgit2/tests/resources/renames/untimely.txt
+xs/libgit2/tests/resources/revert/file1.txt
+xs/libgit2/tests/resources/revert/file2.txt
+xs/libgit2/tests/resources/revert/file3.txt
+xs/libgit2/tests/resources/revert/file6.txt
 xs/libgit2/tests/resources/shallow.git/HEAD
 xs/libgit2/tests/resources/shallow.git/config
 xs/libgit2/tests/resources/shallow.git/objects/pack/pack-706e49b161700946489570d96153e5be4dc31ad4.idx
@@ -1088,6 +1099,8 @@ xs/libgit2/tests/resources/unsymlinked.git/objects/f9/e65619d93fdf2673882e0a261c
 xs/libgit2/tests/resources/unsymlinked.git/refs/heads/exe-file
 xs/libgit2/tests/resources/unsymlinked.git/refs/heads/master
 xs/libgit2/tests/resources/unsymlinked.git/refs/heads/reg-file
+xs/libgit2/tests/revert/bare.c
+xs/libgit2/tests/revert/workdir.c
 xs/libgit2/tests/revwalk/basic.c
 xs/libgit2/tests/revwalk/mergebase.c
 xs/libgit2/tests/revwalk/signatureparsing.c

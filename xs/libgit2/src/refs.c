@@ -21,6 +21,7 @@
 #include <git2/refs.h>
 #include <git2/refdb.h>
 #include <git2/sys/refs.h>
+#include <git2/signature.h>
 
 GIT__USE_STRMAP;
 
@@ -328,12 +329,17 @@ static int reference__create(
 	const char *name,
 	const git_oid *oid,
 	const char *symbolic,
-	int force)
+	int force,
+	const git_signature *signature,
+	const char *log_message)
 {
 	char normalized[GIT_REFNAME_MAX];
 	git_refdb *refdb;
 	git_reference *ref = NULL;
 	int error = 0;
+
+	assert(repo && name);
+	assert(symbolic || signature);
 
 	if (ref_out)
 		*ref_out = NULL;
@@ -347,15 +353,34 @@ static int reference__create(
 		return error;
 
 	if (oid != NULL) {
+		git_odb *odb;
+
 		assert(symbolic == NULL);
-		ref = git_reference__alloc(normalized, oid, NULL);
+
+		/* Sanity check the reference being created - target must exist. */
+		if ((error = git_repository_odb__weakptr(&odb, repo)) < 0)
+			return error;
+
+		if (!git_odb_exists(odb, oid)) {
+			giterr_set(GITERR_REFERENCE,
+				"Target OID for the reference doesn't exist on the repository");
+			return -1;
+		}
+
+		ref = git_reference__alloc(name, oid, NULL);
 	} else {
-		ref = git_reference__alloc_symbolic(normalized, symbolic);
+		char normalized_target[GIT_REFNAME_MAX];
+
+		if ((error = git_reference__normalize_name_lax(
+			normalized_target, sizeof(normalized_target), symbolic)) < 0)
+			return error;
+
+		ref = git_reference__alloc_symbolic(name, normalized_target);
 	}
 
 	GITERR_CHECK_ALLOC(ref);
 
-	if ((error = git_refdb_write(refdb, ref, force)) < 0) {
+	if ((error = git_refdb_write(refdb, ref, force, signature, log_message)) < 0) {
 		git_reference_free(ref);
 		return error;
 	}
@@ -375,22 +400,37 @@ int git_reference_create(
 	const git_oid *oid,
 	int force)
 {
-	git_odb *odb;
-	int error = 0;
+	git_signature *who;
+	int error;
 
-	assert(repo && name && oid);
+	assert(oid);
 
-	/* Sanity check the reference being created - target must exist. */
-	if ((error = git_repository_odb__weakptr(&odb, repo)) < 0)
+	/* Should we return an error if there is no default? */
+	if (((error = git_signature_default(&who, repo)) < 0) &&
+	    ((error = git_signature_now(&who, "unknown", "unknown")) < 0)) {
 		return error;
-
-	if (!git_odb_exists(odb, oid)) {
-		giterr_set(GITERR_REFERENCE,
-			"Target OID for the reference doesn't exist on the repository");
-		return -1;
 	}
 
-	return reference__create(ref_out, repo, name, oid, NULL, force);
+	error = reference__create(ref_out, repo, name, oid, NULL, force, who, NULL);
+
+	git_signature_free(who);
+
+	return error;
+}
+
+int git_reference_create_with_log(
+	git_reference **ref_out,
+	git_repository *repo,
+	const char *name,
+	const git_oid *oid,
+	int force,
+	const git_signature *signature,
+	const char *log_message)
+{
+	assert(oid && signature);
+
+	return reference__create(
+		ref_out, repo, name, oid, NULL, force, signature, log_message);
 }
 
 int git_reference_symbolic_create(
@@ -400,16 +440,32 @@ int git_reference_symbolic_create(
 	const char *target,
 	int force)
 {
-	char normalized[GIT_REFNAME_MAX];
-	int error = 0;
+	assert(target);
+	return reference__create(ref_out, repo, name, NULL, target, force, NULL, NULL);
+}
 
-	assert(repo && name && target);
+int git_reference_symbolic_create_with_log(
+	git_reference **ref_out,
+	git_repository *repo,
+	const char *name,
+	const char *target,
+	int force,
+	const git_signature *signature,
+	const char *log_message)
+{
+	assert(target && signature);
 
-	if ((error = git_reference__normalize_name_lax(
-		normalized, sizeof(normalized), target)) < 0)
-		return error;
+	return reference__create(
+		ref_out, repo, name, NULL, target, force, signature, log_message);
+}
 
-	return reference__create(ref_out, repo, name, NULL, normalized, force);
+static int ensure_is_an_updatable_direct_reference(git_reference *ref)
+{
+	if (ref->type == GIT_REF_OID)
+		return 0;
+
+	giterr_set(GITERR_REFERENCE, "Cannot set OID on symbolic reference");
+	return -1;
 }
 
 int git_reference_set_target(
@@ -417,14 +473,42 @@ int git_reference_set_target(
 	git_reference *ref,
 	const git_oid *id)
 {
+	int error;
+
 	assert(out && ref && id);
 
-	if (ref->type != GIT_REF_OID) {
-		giterr_set(GITERR_REFERENCE, "Cannot set OID on symbolic reference");
-		return -1;
-	}
+	if ((error = ensure_is_an_updatable_direct_reference(ref)) < 0)
+		return error;
 
 	return git_reference_create(out, ref->db->repo, ref->name, id, 1);
+}
+
+int git_reference_set_target_with_log(
+	git_reference **out,
+	git_reference *ref,
+	const git_oid *id,
+	const git_signature *signature,
+	const char *log_message)
+{
+	int error;
+
+	assert(out && ref && id);
+	assert(signature && log_message);
+
+	if ((error = ensure_is_an_updatable_direct_reference(ref)) < 0)
+		return error;
+
+	return git_reference_create_with_log(
+		out, ref->db->repo, ref->name, id, 1, signature, log_message);
+}
+
+static int ensure_is_an_updatable_symbolic_reference(git_reference *ref)
+{
+	if (ref->type == GIT_REF_SYMBOLIC)
+		return 0;
+
+	giterr_set(GITERR_REFERENCE, "Cannot set symbolic target on a direct reference");
+	return -1;
 }
 
 int git_reference_symbolic_set_target(
@@ -432,28 +516,25 @@ int git_reference_symbolic_set_target(
 	git_reference *ref,
 	const char *target)
 {
+	int error;
+
 	assert(out && ref && target);
 
-	if (ref->type != GIT_REF_SYMBOLIC) {
-		giterr_set(GITERR_REFERENCE,
-			"Cannot set symbolic target on a direct reference");
-		return -1;
-	}
+	if ((error = ensure_is_an_updatable_symbolic_reference(ref)) < 0)
+		return error;
 
 	return git_reference_symbolic_create(out, ref->db->repo, ref->name, target, 1);
 }
 
-int git_reference_rename(
-	git_reference **out,
-	git_reference *ref,
-	const char *new_name,
-	int force)
+static int reference__rename(git_reference **out, git_reference *ref, const char *new_name, int force,
+				 const git_signature *signature, const char *message)
 {
 	unsigned int normalization_flags;
 	char normalized[GIT_REFNAME_MAX];
 	bool should_head_be_updated = false;
 	int error = 0;
-	int reference_has_log;
+
+	assert(ref && new_name && signature);
 
 	normalization_flags = ref->type == GIT_REF_SYMBOLIC ?
 		GIT_REF_FORMAT_ALLOW_ONELEVEL : GIT_REF_FORMAT_NORMAL;
@@ -462,31 +543,58 @@ int git_reference_rename(
 			normalized, sizeof(normalized), new_name, normalization_flags)) < 0)
 		return error;
 
+
 	/* Check if we have to update HEAD. */
 	if ((error = git_branch_is_head(ref)) < 0)
 		return error;
 
 	should_head_be_updated = (error > 0);
 
-	if ((error = git_refdb_rename(out, ref->db, ref->name, new_name, force)) < 0)
+	if ((error = git_refdb_rename(out, ref->db, ref->name, new_name, force, signature, message)) < 0)
 		return error;
 
-	/* Update HEAD it was poiting to the reference being renamed. */
+	/* Update HEAD it was pointing to the reference being renamed */
 	if (should_head_be_updated &&
 		(error = git_repository_set_head(ref->db->repo, new_name)) < 0) {
 		giterr_set(GITERR_REFERENCE, "Failed to update HEAD after renaming reference");
 		return error;
 	}
 
-	/* Rename the reflog file, if it exists. */
-	reference_has_log = git_reference_has_log(ref);
-	if (reference_has_log < 0)
-		return reference_has_log;
-
-	if (reference_has_log && (error = git_reflog_rename(git_reference_owner(ref), git_reference_name(ref), new_name)) < 0)
-		return error;
-
 	return 0;
+}
+
+
+int git_reference_rename(
+	git_reference **out,
+	git_reference *ref,
+	const char *new_name,
+	int force)
+{
+	git_signature *who;
+	int error;
+
+	/* Should we return an error if there is no default? */
+	if (((error = git_signature_default(&who, ref->db->repo)) < 0) &&
+	    ((error = git_signature_now(&who, "unknown", "unknown")) < 0)) {
+		return error;
+	}
+
+	error = reference__rename(out, ref, new_name, force, who, NULL);
+
+	git_signature_free(who);
+
+	return error;
+}
+
+int git_reference_rename_with_log(
+	git_reference **out,
+	git_reference *ref,
+	const char *new_name,
+	int force,
+	const git_signature *who,
+	const char * message)
+{
+	return reference__rename(out, ref, new_name, force, who, message);
 }
 
 int git_reference_resolve(git_reference **ref_out, const git_reference *ref)
@@ -513,20 +621,19 @@ int git_reference_foreach(
 	git_reference *ref;
 	int error;
 
-	if (git_reference_iterator_new(&iter, repo) < 0)
-		return -1;
+	if ((error = git_reference_iterator_new(&iter, repo)) < 0)
+		return error;
 
-	while ((error = git_reference_next(&ref, iter)) == 0) {
-		if (callback(ref, payload)) {
-			error = GIT_EUSER;
-			goto out;
+	while (!(error = git_reference_next(&ref, iter))) {
+		if ((error = callback(ref, payload)) != 0) {
+			giterr_set_after_callback(error);
+			break;
 		}
 	}
 
 	if (error == GIT_ITEROVER)
 		error = 0;
 
-out:
 	git_reference_iterator_free(iter);
 	return error;
 }
@@ -540,20 +647,19 @@ int git_reference_foreach_name(
 	const char *refname;
 	int error;
 
-	if (git_reference_iterator_new(&iter, repo) < 0)
-		return -1;
+	if ((error = git_reference_iterator_new(&iter, repo)) < 0)
+		return error;
 
-	while ((error = git_reference_next_name(&refname, iter)) == 0) {
-		if (callback(refname, payload)) {
-			error = GIT_EUSER;
-			goto out;
+	while (!(error = git_reference_next_name(&refname, iter))) {
+		if ((error = callback(refname, payload)) != 0) {
+			giterr_set_after_callback(error);
+			break;
 		}
 	}
 
 	if (error == GIT_ITEROVER)
 		error = 0;
 
-out:
 	git_reference_iterator_free(iter);
 	return error;
 }
@@ -568,20 +674,19 @@ int git_reference_foreach_glob(
 	const char *refname;
 	int error;
 
-	if (git_reference_iterator_glob_new(&iter, repo, glob) < 0)
-		return -1;
+	if ((error = git_reference_iterator_glob_new(&iter, repo, glob)) < 0)
+		return error;
 
-	while ((error = git_reference_next_name(&refname, iter)) == 0) {
-		if (callback(refname, payload)) {
-			error = GIT_EUSER;
-			goto out;
+	while (!(error = git_reference_next_name(&refname, iter))) {
+		if ((error = callback(refname, payload)) != 0) {
+			giterr_set_after_callback(error);
+			break;
 		}
 	}
 
 	if (error == GIT_ITEROVER)
 		error = 0;
 
-out:
 	git_reference_iterator_free(iter);
 	return error;
 }
@@ -624,7 +729,9 @@ void git_reference_iterator_free(git_reference_iterator *iter)
 
 static int cb__reflist_add(const char *ref, void *data)
 {
-	return git_vector_insert((git_vector *)data, git__strdup(ref));
+	char *name = git__strdup(ref);
+	GITERR_CHECK_ALLOC(name);
+	return git_vector_insert((git_vector *)data, name);
 }
 
 int git_reference_list(
@@ -647,8 +754,8 @@ int git_reference_list(
 		return -1;
 	}
 
-	array->strings = (char **)ref_list.contents;
-	array->count = ref_list.length;
+	array->strings = (char **)git_vector_detach(&array->count, NULL, &ref_list);
+
 	return 0;
 }
 
@@ -957,22 +1064,30 @@ int git_reference__update_terminal(
 	return reference__update_terminal(repo, ref_name, oid, 0);
 }
 
-int git_reference_has_log(
-	git_reference *ref)
+int git_reference_has_log(git_repository *repo, const char *refname)
 {
-	git_buf path = GIT_BUF_INIT;
-	int result;
+	int error;
+	git_refdb *refdb;
 
-	assert(ref);
+	assert(repo && refname);
 
-	if (git_buf_join_n(&path, '/', 3, ref->db->repo->path_repository,
-		GIT_REFLOG_DIR, ref->name) < 0)
-		return -1;
+	if ((error = git_repository_refdb__weakptr(&refdb, repo)) < 0)
+		return error;
 
-	result = git_path_isfile(git_buf_cstr(&path));
-	git_buf_free(&path);
+	return git_refdb_has_log(refdb, refname);
+}
 
-	return result;
+int git_reference_ensure_log(git_repository *repo, const char *refname)
+{
+	int error;
+	git_refdb *refdb;
+
+	assert(repo && refname);
+
+	if ((error = git_repository_refdb__weakptr(&refdb, repo)) < 0)
+		return error;
+
+	return git_refdb_ensure_log(refdb, refname);
 }
 
 int git_reference__is_branch(const char *ref_name)

@@ -4,8 +4,11 @@ SV *
 id(self)
 	TreeEntry self
 
+	PREINIT:
+		const git_oid *oid;
+
 	CODE:
-		const git_oid *oid = git_tree_entry_id(self);
+		oid = git_tree_entry_id(self);
 		RETVAL = git_oid_to_sv((git_oid *) oid);
 
 	OUTPUT: RETVAL
@@ -14,8 +17,11 @@ SV *
 name(self)
 	TreeEntry self
 
+	PREINIT:
+		const char *name;
+
 	CODE:
-		const char *name = git_tree_entry_name(self);
+		name = git_tree_entry_name(self);
 		RETVAL = newSVpv(name, 0);
 
 	OUTPUT: RETVAL
@@ -24,15 +30,20 @@ SV *
 object(self)
 	SV *self
 
-	CODE:
-		git_object *obj;
-		TreeEntry self_ptr = GIT_SV_TO_PTR(TreeEntry, self);
-		Repository repo = INT2PTR(
-			Repository,
-			SvIV((SV *)xs_object_magic_get_struct(aTHX_ SvRV(self)))
-		);
+	PREINIT:
+		int rc;
 
-		int rc = git_tree_entry_to_object(&obj, repo, self_ptr);
+		git_object *obj;
+		Repository repo;
+
+		TreeEntry entry;
+
+	CODE:
+		repo = INT2PTR(Repository, SvIV((SV *) GIT_SV_TO_REPO(self)));
+
+		entry = GIT_SV_TO_PTR(TreeEntry, self);
+
+		rc = git_tree_entry_to_object(&obj, repo, entry);
 		git_check_error(rc);
 
 		RETVAL = git_obj_to_sv(obj, self);

@@ -6,16 +6,24 @@ lookup(class, repo, id)
 	SV *repo
 	SV *id
 
-	CODE:
+	PREINIT:
+		int rc;
+
 		Tree tree;
 		git_oid oid;
 
 		STRLEN len;
-		const char *id_str = SvPVbyte(id, len);
-		Repository repo_ptr = GIT_SV_TO_PTR(Repository, repo);
+		const char *id_str;
 
-		int rc = git_oid_fromstrn(&oid, id_str, len);
+		Repository repo_ptr;
+
+	CODE:
+		id_str = SvPVbyte(id, len);
+
+		rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
+
+		repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 
 		rc = git_tree_lookup_prefix(&tree, repo_ptr, &oid, len);
 		git_check_error(rc);
@@ -28,8 +36,11 @@ SV *
 id(self)
 	Tree self
 
+	PREINIT:
+		const git_oid *oid;
+
 	CODE:
-		const git_oid *oid = git_tree_id(self);
+		oid = git_tree_id(self);
 		RETVAL = git_oid_to_sv((git_oid *) oid);
 
 	OUTPUT: RETVAL
@@ -38,20 +49,25 @@ AV *
 entries(self)
 	SV *self
 
-	CODE:
-		SV *repo = GIT_SV_TO_REPO(self);
+	PREINIT:
+		int i, count;
 
+		Tree self_ptr;
 		AV *entries = newAV();
-		Tree self_ptr = GIT_SV_TO_PTR(Tree, self);
-		int i, count = git_tree_entrycount(self_ptr);
+
+	CODE:
+		self_ptr = GIT_SV_TO_PTR(Tree, self);
+
+		count = git_tree_entrycount(self_ptr);
 
 		for (i = 0; i < count; i++) {
 			SV *tmp;
-			TreeEntry entry = (TreeEntry) git_tree_entry_byindex(self_ptr, i);
+			TreeEntry entry = (TreeEntry)
+				git_tree_entry_byindex(self_ptr, i);
 
 			GIT_NEW_OBJ(
 				tmp, "Git::Raw::TreeEntry",
-				git_tree_entry_dup(entry), repo
+				git_tree_entry_dup(entry), GIT_SV_TO_REPO(self)
 			);
 
 			av_push(entries, tmp);
@@ -66,13 +82,16 @@ entry_byname(self, name)
 	SV *self
 	SV *name
 
-	CODE:
-		SV *repo = GIT_SV_TO_REPO(self);
-
+	PREINIT:
 		STRLEN len;
-		const char *name_str = SvPVbyte(name, len);
+		const char *name_str;
 
-		TreeEntry entry = (TreeEntry) git_tree_entry_byname(
+		TreeEntry entry;
+
+	CODE:
+		name_str = SvPVbyte(name, len);
+
+		entry = (TreeEntry) git_tree_entry_byname(
 			GIT_SV_TO_PTR(Tree, self), name_str
 		);
 
@@ -80,7 +99,7 @@ entry_byname(self, name)
 
 		GIT_NEW_OBJ(
 			RETVAL, "Git::Raw::TreeEntry",
-			git_tree_entry_dup(entry), repo
+			git_tree_entry_dup(entry), GIT_SV_TO_REPO(self)
 		);
 
 	OUTPUT: RETVAL
@@ -90,21 +109,23 @@ entry_bypath(self, path)
 	SV *self
 	SV *path
 
-	CODE:
-		SV *repo = GIT_SV_TO_REPO(self);
-
+	PREINIT:
 		int rc;
+
 		STRLEN len;
-		const char *path_str = SvPVbyte(path, len);
+		const char *path_str;
 
 		TreeEntry entry;
+
+	CODE:
+		path_str = SvPVbyte(path, len);
 
 		rc = git_tree_entry_bypath(
 			&entry, GIT_SV_TO_PTR(Tree, self), path_str
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, "Git::Raw::TreeEntry", entry, repo);
+		GIT_NEW_OBJ(RETVAL, "Git::Raw::TreeEntry", entry, GIT_SV_TO_REPO(self));
 
 	OUTPUT: RETVAL
 
@@ -113,35 +134,127 @@ diff(self, ...)
 	Tree self
 
 	PROTOTYPE: $;$
-	CODE:
+
+	PREINIT:
 		int rc;
+
 		Diff diff;
 
-		switch (items) {
-			case 1: {
-				rc = git_diff_tree_to_workdir(
-					&diff, git_tree_owner(self), self, NULL
-				);
-				git_check_error(rc);
+		char **paths = NULL;
+		Tree tree = NULL;
 
-				break;
+		git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
+
+	CODE:
+		if (items > 2)
+			Perl_croak(aTHX_ "Wrong number of arguments");
+
+		if (items == 2) {
+			SV **opt;
+			HV *opts;
+
+			if (!SvROK(ST(1)) || SvTYPE(SvRV(ST(1))) != SVt_PVHV)
+				Perl_croak(aTHX_ "Invalid type");
+
+			opts = (HV *) SvRV(ST(1));
+			if ((opt = hv_fetchs(opts, "tree", 0))) {
+				tree = GIT_SV_TO_PTR(Tree, *opt);
 			}
 
-			case 2: {
-				Tree new = GIT_SV_TO_PTR(Tree, ST(1));
+			if ((opt = hv_fetchs(opts, "flags", 0))) {
+				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
+					Perl_croak(aTHX_ "Expected a list of 'flags'");
 
-				rc = git_diff_tree_to_tree(
-					&diff, git_tree_owner(self), self, new, NULL
-				);
-				git_check_error(rc);
-
-				break;
+				diff_opts.flags |=
+					git_hv_to_diff_flag((HV *) SvRV(*opt));
 			}
 
-			default: Perl_croak(aTHX_ "Wrong number of arguments");
+			if ((opt = hv_fetchs(opts, "prefix", 0))) {
+				SV **ab;
+
+				if ((ab = hv_fetchs((HV *) SvRV(*opt), "a", 0))) {
+					if (!SvPOK(*ab))
+						Perl_croak(aTHX_ "Expected a string for prefix");
+
+					diff_opts.old_prefix = SvPVbyte_nolen(*ab);
+				}
+
+				if ((ab = hv_fetchs((HV *) SvRV(*opt), "b", 0))) {
+					if (!SvPOK(*ab))
+						Perl_croak(aTHX_ "Expected a string for prefix");
+
+					diff_opts.new_prefix = SvPVbyte_nolen(*ab);
+				}
+			}
+
+			if ((opt = hv_fetchs(opts, "context_lines", 0))) {
+				if (!SvIOK(*opt))
+					Perl_croak(aTHX_ "Expected an integer for 'context_lines'");
+
+				diff_opts.context_lines = SvIV(*opt);
+			}
+
+			if ((opt = hv_fetchs(opts, "interhunk_lines", 0))) {
+				if (!SvIOK(*opt))
+					Perl_croak(aTHX_ "Expected an integer for 'interhunk_lines'");
+
+				diff_opts.interhunk_lines = SvIV(*opt);
+			}
+
+			if ((opt = hv_fetchs(opts, "paths", 0))) {
+				SV **path;
+				size_t count = 0;
+
+				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
+					Perl_croak(aTHX_ "Expected a list of 'paths'");
+
+				while ((path = av_fetch((AV *) SvRV(*opt), count, 0))) {
+					if (SvOK(*path)) {
+						Renew(paths, count + 1, char *);
+						paths[count++] = SvPVbyte_nolen(*path);
+					}
+				}
+
+				if (count > 0) {
+					diff_opts.flags |= GIT_DIFF_DISABLE_PATHSPEC_MATCH;
+					diff_opts.pathspec.strings = paths;
+					diff_opts.pathspec.count   = count;
+				}
+			}
 		}
 
+		if (tree) {
+			rc = git_diff_tree_to_tree(
+				&diff, git_tree_owner(self), self, tree, &diff_opts
+			);
+		} else {
+			rc = git_diff_tree_to_workdir(
+				&diff, git_tree_owner(self), self, &diff_opts
+			);
+		}
+
+		Safefree(paths);
+		git_check_error(rc);
+
 		RETVAL = diff;
+
+	OUTPUT: RETVAL
+
+SV *
+is_tree(self)
+	SV *self
+
+	CODE:
+		RETVAL = newSVuv(1);
+
+	OUTPUT: RETVAL
+
+SV *
+is_blob(self)
+	SV *self
+
+	CODE:
+		RETVAL = newSVuv(0);
 
 	OUTPUT: RETVAL
 
