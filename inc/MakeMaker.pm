@@ -9,24 +9,71 @@ override _build_MakeFile_PL_template => sub {
 	my ($self) = @_;
 
 	my $template = <<'TEMPLATE';
+use strict;
+use warnings;
+
 use Devel::CheckLib;
 
 my $def = '';
 my $lib = '';
+my $inc = '';
+
+my %os_specific = (
+	'freebsd' => {
+		'ssh2' => {
+			'inc' => ['/usr/local/include'],
+			'lib' => ['/usr/local/lib']
+		}
+	}
+);
 
 if (check_lib(lib => 'ssl')) {
 	$def .= ' -DGIT_SSL';
 	$lib .= ' -lssl -lcrypto';
 
 	print "SSL support enabled\n";
+} else {
+	print "SSL support disabled\n";
 }
 
 if (check_lib(lib => 'ssh2')) {
+	my $os = $^O;
+
+	if (my $os_params = $os_specific{$os}) {
+		if (my $ssh2 = $os_params -> {'ssh2'}) {
+			if (my $ssh2inc = $ssh2 -> {'inc'}) {
+				$inc .= ' -I'.join (' -I', @$ssh2inc);
+			}
+
+			if (my $ssh2lib = $ssh2 -> {'lib'}) {
+				$lib .= ' -L'.join (' -L', @$ssh2lib);
+			}
+		}
+	}
+
 	$def .= ' -DGIT_SSH';
 	$lib .= ' -lssh2';
 
 	print "SSH support enabled\n";
+} else {
+	print "SSH support disabled\n";
 }
+
+my @deps = glob 'xs/libgit2/deps/{http-parser,zlib}/*.c';
+my @srcs = glob 'xs/libgit2/src/{*.c,transports/*.c,xdiff/*.c}';
+push @srcs, 'xs/libgit2/src/hash/hash_generic.c';
+
+if ($^O eq 'MSWin32') {
+	push @srcs, glob 'xs/libgit2/src/{win32,compat}/*.c';
+	push @srcs, 'xs/libgit2/deps/regex/regex.c';
+
+	$inc .= ' -Ideps/regex';
+	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -D__USE_MINGW_ANSI_STDIO=1';
+} else {
+	push @srcs, glob 'xs/libgit2/src/unix/*.c'
+}
+
+my @objs = map { substr ($_, 0, -1) . 'o' } (@deps, @srcs);
 
 sub MY::c_o {
 	return <<'EOS'
@@ -46,6 +93,8 @@ my {{ $WriteMakefileArgs }}
 
 $WriteMakefileArgs{DEFINE} .= $def;
 $WriteMakefileArgs{LIBS}   .= $lib;
+$WriteMakefileArgs{INC}    .= $inc;
+$WriteMakefileArgs{OBJECT} .= ' ' . join ' ', @objs;
 
 unless (eval { ExtUtils::MakeMaker->VERSION(6.56) }) {
 	my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};
@@ -72,16 +121,8 @@ TEMPLATE
 };
 
 override _build_WriteMakefile_args => sub {
-	# TODO: support Windows
 	my $inc = '-Ixs/libgit2 -Ixs/libgit2/src -Ixs/libgit2/include -Ixs/libgit2/deps/http-parser -Ixs/libgit2/deps/zlib';
 	my $def = '-DNO_VIZ -DSTDC -DNO_GZIP -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE';
-
-	my @deps = glob 'xs/libgit2/deps/{http-parser,zlib}/*.c';
-	my @srcs = glob 'xs/libgit2/src/{*.c,transports/*.c,unix/*.c,xdiff/*.c}';
-	push @srcs, 'xs/libgit2/src/hash/hash_generic.c';
-	my @objs = map { substr ($_, 0, -1) . 'o' } (@deps, @srcs);
-
-	my $libgit2_objs = join ' ', @objs;
 
 	my $bits = $Config{longsize} == 4 ? '-m32' : '';
 	my $ccflags = "$bits -Wall -Wno-unused-variable";
@@ -96,7 +137,7 @@ override _build_WriteMakefile_args => sub {
 		LIBS	=> "-lrt",
 		DEFINE	=> $def,
 		CCFLAGS	=> $ccflags,
-		OBJECT	=> "$libgit2_objs \$(O_FILES)",
+		OBJECT	=> '$(O_FILES)',
 	}
 };
 

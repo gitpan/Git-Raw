@@ -1,21 +1,68 @@
+use strict;
+use warnings;
+
 use Devel::CheckLib;
 
 my $def = '';
 my $lib = '';
+my $inc = '';
+
+my %os_specific = (
+	'freebsd' => {
+		'ssh2' => {
+			'inc' => ['/usr/local/include'],
+			'lib' => ['/usr/local/lib']
+		}
+	}
+);
 
 if (check_lib(lib => 'ssl')) {
 	$def .= ' -DGIT_SSL';
 	$lib .= ' -lssl -lcrypto';
 
 	print "SSL support enabled\n";
+} else {
+	print "SSL support disabled\n";
 }
 
 if (check_lib(lib => 'ssh2')) {
+	my $os = $^O;
+
+	if (my $os_params = $os_specific{$os}) {
+		if (my $ssh2 = $os_params -> {'ssh2'}) {
+			if (my $ssh2inc = $ssh2 -> {'inc'}) {
+				$inc .= ' -I'.join (' -I', @$ssh2inc);
+			}
+
+			if (my $ssh2lib = $ssh2 -> {'lib'}) {
+				$lib .= ' -L'.join (' -L', @$ssh2lib);
+			}
+		}
+	}
+
 	$def .= ' -DGIT_SSH';
 	$lib .= ' -lssh2';
 
 	print "SSH support enabled\n";
+} else {
+	print "SSH support disabled\n";
 }
+
+my @deps = glob 'xs/libgit2/deps/{http-parser,zlib}/*.c';
+my @srcs = glob 'xs/libgit2/src/{*.c,transports/*.c,xdiff/*.c}';
+push @srcs, 'xs/libgit2/src/hash/hash_generic.c';
+
+if ($^O eq 'MSWin32') {
+	push @srcs, glob 'xs/libgit2/src/{win32,compat}/*.c';
+	push @srcs, 'xs/libgit2/deps/regex/regex.c';
+
+	$inc .= ' -Ideps/regex';
+	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -D__USE_MINGW_ANSI_STDIO=1';
+} else {
+	push @srcs, glob 'xs/libgit2/src/unix/*.c'
+}
+
+my @objs = map { substr ($_, 0, -1) . 'o' } (@deps, @srcs);
 
 sub MY::c_o {
 	return <<'EOS'
@@ -47,7 +94,7 @@ my %WriteMakefileArgs = (
   "LIBS" => "-lrt",
   "LICENSE" => "perl",
   "NAME" => "Git::Raw",
-  "OBJECT" => "xs/libgit2/deps/http-parser/http_parser.o xs/libgit2/deps/zlib/adler32.o xs/libgit2/deps/zlib/crc32.o xs/libgit2/deps/zlib/deflate.o xs/libgit2/deps/zlib/inffast.o xs/libgit2/deps/zlib/inflate.o xs/libgit2/deps/zlib/inftrees.o xs/libgit2/deps/zlib/trees.o xs/libgit2/deps/zlib/zutil.o xs/libgit2/src/attr.o xs/libgit2/src/attr_file.o xs/libgit2/src/blame.o xs/libgit2/src/blame_git.o xs/libgit2/src/blob.o xs/libgit2/src/branch.o xs/libgit2/src/buf_text.o xs/libgit2/src/buffer.o xs/libgit2/src/cache.o xs/libgit2/src/checkout.o xs/libgit2/src/clone.o xs/libgit2/src/commit.o xs/libgit2/src/commit_list.o xs/libgit2/src/compress.o xs/libgit2/src/config.o xs/libgit2/src/config_cache.o xs/libgit2/src/config_file.o xs/libgit2/src/crlf.o xs/libgit2/src/date.o xs/libgit2/src/delta-apply.o xs/libgit2/src/delta.o xs/libgit2/src/diff.o xs/libgit2/src/diff_driver.o xs/libgit2/src/diff_file.o xs/libgit2/src/diff_patch.o xs/libgit2/src/diff_print.o xs/libgit2/src/diff_tform.o xs/libgit2/src/diff_xdiff.o xs/libgit2/src/errors.o xs/libgit2/src/fetch.o xs/libgit2/src/fetchhead.o xs/libgit2/src/filebuf.o xs/libgit2/src/fileops.o xs/libgit2/src/filter.o xs/libgit2/src/fnmatch.o xs/libgit2/src/global.o xs/libgit2/src/graph.o xs/libgit2/src/hash.o xs/libgit2/src/hashsig.o xs/libgit2/src/ident.o xs/libgit2/src/ignore.o xs/libgit2/src/index.o xs/libgit2/src/indexer.o xs/libgit2/src/iterator.o xs/libgit2/src/merge.o xs/libgit2/src/merge_file.o xs/libgit2/src/message.o xs/libgit2/src/mwindow.o xs/libgit2/src/netops.o xs/libgit2/src/notes.o xs/libgit2/src/object.o xs/libgit2/src/object_api.o xs/libgit2/src/odb.o xs/libgit2/src/odb_loose.o xs/libgit2/src/odb_pack.o xs/libgit2/src/oid.o xs/libgit2/src/pack-objects.o xs/libgit2/src/pack.o xs/libgit2/src/path.o xs/libgit2/src/pathspec.o xs/libgit2/src/pool.o xs/libgit2/src/posix.o xs/libgit2/src/pqueue.o xs/libgit2/src/push.o xs/libgit2/src/refdb.o xs/libgit2/src/refdb_fs.o xs/libgit2/src/reflog.o xs/libgit2/src/refs.o xs/libgit2/src/refspec.o xs/libgit2/src/remote.o xs/libgit2/src/repository.o xs/libgit2/src/reset.o xs/libgit2/src/revert.o xs/libgit2/src/revparse.o xs/libgit2/src/revwalk.o xs/libgit2/src/sha1_lookup.o xs/libgit2/src/signature.o xs/libgit2/src/sortedcache.o xs/libgit2/src/stash.o xs/libgit2/src/status.o xs/libgit2/src/strmap.o xs/libgit2/src/submodule.o xs/libgit2/src/tag.o xs/libgit2/src/thread-utils.o xs/libgit2/src/trace.o xs/libgit2/src/transport.o xs/libgit2/src/tree-cache.o xs/libgit2/src/tree.o xs/libgit2/src/tsort.o xs/libgit2/src/util.o xs/libgit2/src/vector.o xs/libgit2/src/transports/cred.o xs/libgit2/src/transports/cred_helpers.o xs/libgit2/src/transports/git.o xs/libgit2/src/transports/http.o xs/libgit2/src/transports/local.o xs/libgit2/src/transports/smart.o xs/libgit2/src/transports/smart_pkt.o xs/libgit2/src/transports/smart_protocol.o xs/libgit2/src/transports/ssh.o xs/libgit2/src/transports/winhttp.o xs/libgit2/src/unix/map.o xs/libgit2/src/unix/realpath.o xs/libgit2/src/xdiff/xdiffi.o xs/libgit2/src/xdiff/xemit.o xs/libgit2/src/xdiff/xhistogram.o xs/libgit2/src/xdiff/xmerge.o xs/libgit2/src/xdiff/xpatience.o xs/libgit2/src/xdiff/xprepare.o xs/libgit2/src/xdiff/xutils.o xs/libgit2/src/hash/hash_generic.o \$(O_FILES)",
+  "OBJECT" => "\$(O_FILES)",
   "PREREQ_PM" => {
     "XSLoader" => 0,
     "strict" => 0,
@@ -65,7 +112,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.30",
+  "VERSION" => "0.31",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -74,6 +121,8 @@ my %WriteMakefileArgs = (
 
 $WriteMakefileArgs{DEFINE} .= $def;
 $WriteMakefileArgs{LIBS}   .= $lib;
+$WriteMakefileArgs{INC}    .= $inc;
+$WriteMakefileArgs{OBJECT} .= ' ' . join ' ', @objs;
 
 unless (eval { ExtUtils::MakeMaker->VERSION(6.56) }) {
 	my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};

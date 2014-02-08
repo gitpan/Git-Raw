@@ -30,6 +30,7 @@ lib/Git/Raw/Tree.pm
 lib/Git/Raw/TreeBuilder.pm
 lib/Git/Raw/TreeEntry.pm
 lib/Git/Raw/Walker.pm
+ppport.h
 t/00-compile.t
 t/01-repo.t
 t/02-commit.t
