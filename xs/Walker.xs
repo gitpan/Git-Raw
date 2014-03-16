@@ -13,7 +13,9 @@ create(class, repo)
 		rc = git_revwalk_new(&walk, GIT_SV_TO_PTR(Repository, repo));
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), walk, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), walk, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -128,7 +130,7 @@ next(self)
 		Repository repo_ptr;
 
 	CODE:
-		repo = GIT_SV_TO_REPO(self);
+		repo = GIT_SV_TO_MAGIC(self);
 		walk = GIT_SV_TO_PTR(Walker, self);
 
 		repo_ptr = git_revwalk_repository(walk);
@@ -150,7 +152,7 @@ next(self)
 				git_check_error(rc);
 		}
 
-		GIT_NEW_OBJ(RETVAL, "Git::Raw::Commit", commit, repo);
+		GIT_NEW_OBJ_WITH_MAGIC(RETVAL, "Git::Raw::Commit", commit, repo);
 
 	OUTPUT: RETVAL
 
@@ -167,4 +169,4 @@ DESTROY(self)
 
 	CODE:
 		git_revwalk_free(GIT_SV_TO_PTR(Walker, self));
-		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));

@@ -16,17 +16,28 @@ create(class, repo, name, target)
 	PREINIT:
 		int rc;
 
+		Commit obj;
 		Reference ref;
-		Commit obj = (Commit) git_sv_to_obj(target);
+		Signature sig;
+
+	INIT:
+		obj = (Commit) git_sv_to_obj(target);
 
 	CODE:
-		rc = git_branch_create(
-			&ref, GIT_SV_TO_PTR(Repository, repo),
-			SvPVbyte_nolen(name), obj, 0
-		);
+		rc = git_signature_default(&sig, GIT_SV_TO_PTR(Repository, repo));
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), ref, SvRV(repo));
+		rc = git_branch_create(
+			&ref, GIT_SV_TO_PTR(Repository, repo),
+			SvPVbyte_nolen(name), obj, 0, sig, NULL
+		);
+
+		git_signature_free(sig);
+		git_check_error(rc);
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), ref, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -52,7 +63,9 @@ lookup(class, repo, name, is_local)
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), branch, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), branch, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -65,13 +78,25 @@ move(self, name, force)
 	PREINIT:
 		int rc;
 
+		Signature sig;
+
 		Branch new_branch;
-		Branch old_branch = GIT_SV_TO_PTR(Branch, self);
+		Branch old_branch;
+
+	INIT:
+		old_branch = GIT_SV_TO_PTR(Branch, self);
 
 	CODE:
+		rc = git_signature_default(&sig, git_reference_owner(
+			GIT_SV_TO_PTR(Reference, self)));
+		git_check_error(rc);
+
 		rc = git_branch_move(
-			&new_branch, old_branch, SvPVbyte_nolen(name), force
+			&new_branch, old_branch, SvPVbyte_nolen(name), force,
+			sig, NULL
 		);
+
+		git_signature_free(sig);
 		git_check_error(rc);
 
 Reference
@@ -106,4 +131,4 @@ DESTROY(self)
 
 	CODE:
 		git_reference_free(GIT_SV_TO_PTR(Reference, self));
-		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));

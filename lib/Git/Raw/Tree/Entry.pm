@@ -1,8 +1,5 @@
-package Git::Raw::TreeEntry;
-{
-  $Git::Raw::TreeEntry::VERSION = '0.31';
-}
-
+package Git::Raw::Tree::Entry;
+$Git::Raw::Tree::Entry::VERSION = '0.32';
 use strict;
 use warnings;
 
@@ -10,15 +7,15 @@ use Git::Raw;
 
 =head1 NAME
 
-Git::Raw::TreeEntry - Git tree entry class
+Git::Raw::Tree::Entry - Git tree entry class
 
 =head1 VERSION
 
-version 0.31
+version 0.32
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::TreeEntry> represents an entry in a L<Git::Raw::Tree>.
+A C<Git::Raw::Tree::Entry> represents an entry in a L<Git::Raw::Tree>.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
@@ -53,4 +50,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::TreeEntry
+1; # End of Git::Raw::Tree::Entry

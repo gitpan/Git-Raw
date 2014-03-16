@@ -57,7 +57,9 @@ create(class, repo, msg, author, committer, parents, tree, ...)
 		rc = git_commit_lookup(&commit, GIT_SV_TO_PTR(Repository, repo), &oid);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), commit, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), commit, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -76,7 +78,10 @@ lookup(class, repo, id)
 		Repository repo_ptr;
 
 		STRLEN len;
-		const char *id_str = SvPVbyte(id, len);
+		const char *id_str;
+
+	INIT:
+		id_str = SvPVbyte(id, len);
 
 	CODE:
 		rc = git_oid_fromstrn(&oid, id_str, len);
@@ -86,7 +91,9 @@ lookup(class, repo, id)
 		rc = git_commit_lookup_prefix(&commit, repo_ptr, &oid, len);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), commit, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), commit, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -133,11 +140,15 @@ author(self)
 	Commit self
 
 	PREINIT:
-		Signature a;
+		int rc;
+		Signature a, r;
 
 	CODE:
 		a = (Signature) git_commit_author(self);
-		RETVAL = git_signature_dup(a);
+		rc = git_signature_dup(&r, a);
+		git_check_error(rc);
+
+		RETVAL = r;
 
 	OUTPUT: RETVAL
 
@@ -146,11 +157,15 @@ committer(self)
 	Commit self
 
 	PREINIT:
-		Signature c;
+		int rc;
+		Signature c, r;
 
 	CODE:
 		c = (Signature) git_commit_committer(self);
-		RETVAL = git_signature_dup(c);
+		rc = git_signature_dup(&r, c);
+		git_check_error(rc);
+
+		RETVAL = r;
 
 	OUTPUT: RETVAL
 
@@ -165,7 +180,7 @@ time(self)
 	CODE:
 		time = git_commit_time(self);
 
-		Newx(buf, snprintf(NULL, 0, "%" PRId64, time)+1, char);
+		Newx(buf, snprintf(NULL, 0, "%" PRId64, time) + 1, char);
 		sprintf(buf, "%" PRId64, time);
 
 		RETVAL = newSVpv(buf, 0);
@@ -193,12 +208,12 @@ tree(self)
 		Tree tree;
 
 	CODE:
-		repo = GIT_SV_TO_REPO(self);
+		repo = GIT_SV_TO_MAGIC(self);
 
 		rc = git_commit_tree(&tree, GIT_SV_TO_PTR(Commit, self));
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, "Git::Raw::Tree", tree, repo);
+		GIT_NEW_OBJ_WITH_MAGIC(RETVAL, "Git::Raw::Tree", tree, repo);
 
 	OUTPUT: RETVAL
 
@@ -216,7 +231,7 @@ parents(self)
 		Commit child;
 
 	CODE:
-		repo = GIT_SV_TO_REPO(self);
+		repo = GIT_SV_TO_MAGIC(self);
 
 		child = GIT_SV_TO_PTR(Commit, self);
 		count = git_commit_parentcount(child);
@@ -230,7 +245,9 @@ parents(self)
 			rc = git_commit_parent(&parent, child, i);
 			git_check_error(rc);
 
-			GIT_NEW_OBJ(tmp, "Git::Raw::Commit", parent, repo);
+			GIT_NEW_OBJ_WITH_MAGIC(
+				tmp, "Git::Raw::Commit", parent, repo
+			);
 			av_push(parents, tmp);
 		}
 
@@ -244,4 +261,4 @@ DESTROY(self)
 
 	CODE:
 		git_commit_free(GIT_SV_TO_PTR(Commit, self));
-		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));

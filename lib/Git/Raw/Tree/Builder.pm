@@ -1,8 +1,5 @@
-package Git::Raw::TreeBuilder;
-{
-  $Git::Raw::TreeBuilder::VERSION = '0.31';
-}
-
+package Git::Raw::Tree::Builder;
+$Git::Raw::Tree::Builder::VERSION = '0.32';
 use strict;
 use warnings;
 
@@ -10,15 +7,15 @@ use Git::Raw;
 
 =head1 NAME
 
-Git::Raw::TreeBuilder - Git tree builder class
+Git::Raw::Tree::Builder - Git tree builder class
 
 =head1 VERSION
 
-version 0.31
+version 0.32
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::TreeBuilder> allows you to build Git tree objects.
+A C<Git::Raw::Tree::Builder> allows you to build Git tree objects.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
@@ -74,4 +71,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::TreeBuilder
+1; # End of Git::Raw::Tree::Builder

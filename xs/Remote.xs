@@ -1,36 +1,47 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Remote
 
-Remote
+SV *
 create(class, repo, name, url)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *name
 	SV *url
 
 	PREINIT:
 		int rc;
-		Remote remote;
+
+		git_remote *r = NULL;
+		Remote remote = NULL;
 
 	CODE:
 		rc = git_remote_create(
-			&remote, repo, SvPVbyte_nolen(name), SvPVbyte_nolen(url)
+			&r, GIT_SV_TO_PTR(Repository, repo),
+			SvPVbyte_nolen(name), SvPVbyte_nolen(url)
 		);
 		git_check_error(rc);
 
-		RETVAL = remote;
+		Newx(remote, 1, git_raw_remote);
+		git_init_remote_callbacks(&remote -> callbacks);
+		remote -> remote = r;
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), remote, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
-Remote
+SV *
 create_inmemory(class, repo, fetch, url)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *fetch
 	SV *url
 
 	PREINIT:
 		int rc;
-		Remote remote;
+
+		git_remote *r = NULL;
+		Remote remote = NULL;
 
 		const char *f = NULL;
 
@@ -39,29 +50,47 @@ create_inmemory(class, repo, fetch, url)
 			f = SvPVbyte_nolen(fetch);
 
 		rc = git_remote_create_inmemory(
-			&remote, repo, f, SvPVbyte_nolen(url)
+			&r, GIT_SV_TO_PTR(Repository, repo),
+			f, SvPVbyte_nolen(url)
 		);
 		git_check_error(rc);
 
-		RETVAL = remote;
+		Newx(remote, 1, git_raw_remote);
+		git_init_remote_callbacks(&remote -> callbacks);
+		remote -> remote = r;
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), remote, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
-Remote
+SV *
 load(class, repo, name)
 	SV *class
-	Repository repo
+	SV *repo
 	SV *name
 
 	PREINIT:
 		int rc;
-		Remote remote;
+
+		git_remote *r = NULL;
+		Remote remote = NULL;
 
 	CODE:
-		rc = git_remote_load(&remote, repo, SvPVbyte_nolen(name));
+
+		rc = git_remote_load(
+			&r, GIT_SV_TO_PTR(Repository, repo),
+			SvPVbyte_nolen(name));
 		git_check_error(rc);
 
-		RETVAL = remote;
+		Newx(remote, 1, git_raw_remote);
+		git_init_remote_callbacks(&remote -> callbacks);
+		remote -> remote = r;
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), remote, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -79,11 +108,11 @@ name(self, ...)
 		if (items == 2) {
 			name = SvPVbyte_nolen(ST(1));
 
-			rc = git_remote_rename(self, name, NULL, NULL);
+			rc = git_remote_rename(self -> remote, name, NULL, NULL);
 			git_check_error(rc);
 		}
 
-		name = (char *) git_remote_name(self);
+		name = (char *) git_remote_name(self -> remote);
 
 		RETVAL = newSVpv(name, 0);
 
@@ -103,14 +132,14 @@ url(self, ...)
 		if (items == 2) {
 			url = SvPVbyte_nolen(ST(1));
 
-			rc = git_remote_set_url(self, url);
+			rc = git_remote_set_url(self -> remote, url);
 			git_check_error(rc);
 
-			rc = git_remote_save(self);
+			rc = git_remote_save(self -> remote);
 			git_check_error(rc);
 		}
 
-		url = git_remote_url(self);
+		url = git_remote_url(self -> remote);
 
 		RETVAL = newSVpv(url, 0);
 
@@ -125,7 +154,7 @@ add_fetch(self, spec)
 		int rc;
 
 	CODE:
-		rc = git_remote_add_fetch(self, SvPVbyte_nolen(spec));
+		rc = git_remote_add_fetch(self -> remote, SvPVbyte_nolen(spec));
 		git_check_error(rc);
 
 void
@@ -137,7 +166,7 @@ add_push(self, spec)
 		int rc;
 
 	CODE:
-		rc = git_remote_add_push(self, SvPVbyte_nolen(spec));
+		rc = git_remote_add_push(self -> remote, SvPVbyte_nolen(spec));
 		git_check_error(rc);
 
 void
@@ -161,7 +190,7 @@ connect(self, direction)
 		else
 			Perl_croak(aTHX_ "Invalid direction");
 
-		rc = git_remote_connect(self, direct);
+		rc = git_remote_connect(self -> remote, direct);
 		git_check_error(rc);
 
 void
@@ -169,7 +198,7 @@ disconnect(self)
 	Remote self
 
 	CODE:
-		git_remote_disconnect(self);
+		git_remote_disconnect(self -> remote);
 
 void
 download(self)
@@ -179,7 +208,7 @@ download(self)
 		int rc;
 
 	CODE:
-		rc = git_remote_download(self);
+		rc = git_remote_download(self -> remote);
 		git_check_error(rc);
 
 void
@@ -190,7 +219,7 @@ save(self)
 		int rc;
 
 	CODE:
-		rc = git_remote_save(self);
+		rc = git_remote_save(self -> remote);
 		git_check_error(rc);
 
 void
@@ -199,9 +228,14 @@ update_tips(self)
 
 	PREINIT:
 		int rc;
+		Signature sig;
 
 	CODE:
-		rc = git_remote_update_tips(self);
+		rc = git_signature_default(&sig, git_remote_owner(self -> remote));
+		git_check_error(rc);
+
+		rc = git_remote_update_tips(self -> remote, sig, NULL);
+		git_signature_free(sig);
 		git_check_error(rc);
 
 void
@@ -212,102 +246,38 @@ callbacks(self, callbacks)
 	PREINIT:
 		int rc;
 
-		Remote remote_ptr;
+		Remote remote;
 
-		SV **opt;
-		SV *cb_obj;
-
-		xs_git_remote_callbacks *cbs = NULL;
 		git_remote_callbacks rcallbacks = GIT_REMOTE_CALLBACKS_INIT;
 
 	CODE:
-		remote_ptr = GIT_SV_TO_PTR(Remote, self);
+		remote = GIT_SV_TO_PTR(Remote, self);
 
-		cbs = xs_object_magic_get_struct(aTHX_ self);
-		if (cbs) {
-			if (cbs -> credentials)
-				SvREFCNT_dec(cbs -> credentials);
+		git_clean_remote_callbacks(&remote -> callbacks);
 
-			if (cbs -> progress)
-				SvREFCNT_dec(cbs -> progress);
-
-			if (cbs -> completion)
-				SvREFCNT_dec(cbs -> completion);
-
-			if (cbs -> transfer_progress)
-				SvREFCNT_dec(cbs -> transfer_progress);
-
-			if (cbs -> update_tips)
-				SvREFCNT_dec(cbs -> update_tips);
-		}
-
-		Renew(cbs, 1, xs_git_remote_callbacks);
-
-		if ((opt = hv_fetchs(callbacks, "credentials", 0))) {
-			SV *cb = *opt;
-
-			if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-				Perl_croak(aTHX_ "Expected a subroutine for credentials callback");
-
-			SvREFCNT_inc(cb);
-
-			cbs -> credentials = cb;
+		if ((remote -> callbacks.credentials =
+			get_callback_option(callbacks, "credentials")))
 			rcallbacks.credentials = git_credentials_cbb;
-		}
 
-		if ((opt = hv_fetchs(callbacks, "progress", 0))) {
-			SV *cb = *opt;
-
-			if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-				Perl_croak(aTHX_ "Expected a subroutine for progress callback");
-
-			SvREFCNT_inc(cb);
-
-			cbs -> progress = cb;
+		if ((remote -> callbacks.progress =
+			get_callback_option(callbacks, "progress")))
 			rcallbacks.progress = git_progress_cbb;
-		}
 
-		if ((opt = hv_fetchs(callbacks, "completion", 0))) {
-			SV *cb = *opt;
-
-			if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-				Perl_croak(aTHX_ "Expected a subroutine for completion callback");
-
-			SvREFCNT_inc(cb);
-
-			cbs -> completion = cb;
+		if ((remote -> callbacks.completion =
+			get_callback_option(callbacks, "completion")))
 			rcallbacks.completion = git_completion_cbb;
-		}
 
-		if ((opt = hv_fetchs(callbacks, "transfer_progress", 0))) {
-			SV *cb = *opt;
-
-			if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-				Perl_croak(aTHX_ "Expected a subroutine for transfer progress callback");
-
-			SvREFCNT_inc(cb);
-
-			cbs -> transfer_progress = cb;
+		if ((remote -> callbacks.transfer_progress =
+			get_callback_option(callbacks, "transfer_progress")))
 			rcallbacks.transfer_progress = git_transfer_progress_cbb;
-		}
 
-		if ((opt = hv_fetchs(callbacks, "update_tips", 0))) {
-			SV *cb = *opt;
-
-			if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-				Perl_croak(aTHX_ "Expected a subroutine for update tips callback");
-
-			SvREFCNT_inc(cb);
-
-			cbs -> update_tips = cb;
+		if ((remote -> callbacks.update_tips =
+			get_callback_option(callbacks, "update_tips")))
 			rcallbacks.update_tips = git_update_tips_cbb;
-		}
 
-		rcallbacks.payload = cbs;
+		rcallbacks.payload = &remote -> callbacks;
 
-		xs_object_magic_attach_struct(aTHX_ SvRV(self), cbs);
-
-		rc = git_remote_set_callbacks(remote_ptr, &rcallbacks);
+		rc = git_remote_set_callbacks(remote -> remote, &rcallbacks);
 		git_check_error(rc);
 
 SV *
@@ -317,14 +287,14 @@ ls(self)
 	PREINIT:
 		int rc;
 
-		const char *peel = "^{}";
 		size_t i, count;
+		const char *peel = "^{}";
 		const git_remote_head **refs;
 
 		HV *r;
 
 	CODE:
-		rc = git_remote_ls(&refs, &count, self);
+		rc = git_remote_ls(&refs, &count, self -> remote);
 		git_check_error(rc);
 
 		r = newHV();
@@ -345,8 +315,7 @@ ls(self)
 					git_oid_to_sv(&refs[i] -> loid));
 
 			ref_name = refs[i] -> name;
-			len = strlen(ref_name) -
-			     (strstr(ref_name, peel) == NULL ?
+			len = strlen(ref_name) - (strstr(ref_name, peel) == NULL ?
 				0 : strlen(peel));
 
 			hv_store(r, refs[i] -> name, len,
@@ -362,7 +331,7 @@ is_connected(self)
 	Remote self
 
 	CODE:
-		RETVAL = newSViv(git_remote_connected(self));
+		RETVAL = newSViv(git_remote_connected(self -> remote));
 
 	OUTPUT: RETVAL
 
@@ -371,27 +340,12 @@ DESTROY(self)
 	SV *self
 
 	PREINIT:
-		xs_git_remote_callbacks *cbs;
+		Remote remote;
 
 	CODE:
-		cbs = xs_object_magic_get_struct(aTHX_ self);
-		if (cbs) {
-			if (cbs -> credentials)
-				SvREFCNT_dec(cbs -> credentials);
+		remote = GIT_SV_TO_PTR(Remote, self);
 
-			if (cbs -> progress)
-				SvREFCNT_dec(cbs -> progress);
-
-			if (cbs -> completion)
-				SvREFCNT_dec(cbs -> completion);
-
-			if (cbs -> transfer_progress)
-				SvREFCNT_dec(cbs -> transfer_progress);
-
-			if (cbs -> update_tips)
-				SvREFCNT_dec(cbs -> update_tips);
-
-			Safefree(cbs);
-		}
-
-		git_remote_free(GIT_SV_TO_PTR(Remote, self));
+		git_remote_free(remote -> remote);
+		git_clean_remote_callbacks(&remote -> callbacks);
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));
+		Safefree(remote);

@@ -1,6 +1,6 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Repository
 
-SV *
+Repository
 init(class, path, is_bare)
 	SV *class
 	SV *path
@@ -16,11 +16,11 @@ init(class, path, is_bare)
 		);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), repo);
+		RETVAL = repo;
 
 	OUTPUT: RETVAL
 
-SV *
+Repository
 clone(class, url, path, opts)
 	SV *class
 	SV *url
@@ -33,9 +33,12 @@ clone(class, url, path, opts)
 		SV **opt;
 		Repository repo;
 
+		git_raw_remote_callbacks cbs = {0, 0, 0, 0, 0};
 		git_clone_options clone_opts = GIT_CLONE_OPTIONS_INIT;
 
 	CODE:
+		clone_opts.remote_callbacks.payload = &cbs;
+
 		if ((opt = hv_fetchs(opts, "bare", 0)) && SvIV(*opt) != 0)
 			clone_opts.bare = 1;
 
@@ -51,12 +54,8 @@ clone(class, url, path, opts)
 		if ((opt = hv_fetchs(opts, "disable_checkout", 0)) && SvIV(*opt) != 0)
 			clone_opts.checkout_opts.checkout_strategy = GIT_CHECKOUT_NONE;
 
-		xs_git_remote_callbacks cbs;
-		clone_opts.remote_callbacks.payload = &cbs;
-
 		/* Callbacks */
 		if ((opt = hv_fetchs(opts, "callbacks", 0))) {
-			SV **cb;
 			HV *callbacks;
 
 			if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
@@ -64,50 +63,30 @@ clone(class, url, path, opts)
 
 			callbacks = (HV *) SvRV(*opt);
 
-			if ((cb = hv_fetchs(opts, "credentials", 0))) {
-				if (SvTYPE(SvRV(*cb)) != SVt_PVCV)
-					Perl_croak(aTHX_ "Expected a subroutine for credential acquisition callback'");
-
-				cbs.credentials = *cb;
+			if ((cbs.credentials =
+				get_callback_option(opts, "credentials")))
 				clone_opts.remote_callbacks.credentials =
 					git_credentials_cbb;
-			}
 
-			if ((cb = hv_fetchs(callbacks, "progress", 0))) {
-				if (SvTYPE(SvRV(*cb)) != SVt_PVCV)
-					Perl_croak(aTHX_ "Expected a subroutine for progress callback");
-
-				cbs.progress = *cb;
-				clone_opts.remote_callbacks.progress = 
+			if ((cbs.progress =
+				get_callback_option(callbacks, "progress")))
+				clone_opts.remote_callbacks.progress =
 					git_progress_cbb;
-			}
 
-			if ((cb = hv_fetchs(callbacks, "completion", 0))) {
-				if (SvTYPE(SvRV(*cb)) != SVt_PVCV)
-					Perl_croak(aTHX_ "Expected a subroutine for completion callback");
-
-				cbs.completion = *cb;
+			if ((cbs.completion =
+				get_callback_option(callbacks, "completion")))
 				clone_opts.remote_callbacks.completion =
 					git_completion_cbb;
-			}
 
-			if ((cb = hv_fetchs(callbacks, "transfer_progress", 0))) {
-				if (SvTYPE(SvRV(*cb)) != SVt_PVCV)
-					Perl_croak(aTHX_ "Expected a subroutine for transfer progress callback");
-
-				cbs.transfer_progress = *cb;
+			if ((cbs.transfer_progress =
+				get_callback_option(callbacks, "transfer_progress")))
 				clone_opts.remote_callbacks.transfer_progress =
 					git_transfer_progress_cbb;
-			}
 
-			if ((cb = hv_fetchs(callbacks, "update_tips", 0))) {
-				if (SvTYPE(SvRV(*cb)) != SVt_PVCV)
-					Perl_croak(aTHX_ "Expected a subroutine for update tips callback");
-
-				cbs.update_tips = *cb;
+			if ((cbs.update_tips =
+				get_callback_option(callbacks, "update_tips")))
 				clone_opts.remote_callbacks.update_tips =
 					git_update_tips_cbb;
-			}
 		}
 
 		rc = git_clone(
@@ -115,13 +94,15 @@ clone(class, url, path, opts)
 			&clone_opts
 		);
 
+		git_clean_remote_callbacks(&cbs);
+
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), repo);
+		RETVAL = repo;
 
 	OUTPUT: RETVAL
 
-SV *
+Repository
 open(class, path)
 	SV *class
 	SV *path
@@ -134,11 +115,11 @@ open(class, path)
 		rc = git_repository_open(&repo, SvPVbyte_nolen(path));
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), repo);
+		RETVAL = repo;
 
 	OUTPUT: RETVAL
 
-SV *
+Repository
 discover(class, path)
 	SV *class
 	SV *path
@@ -147,22 +128,31 @@ discover(class, path)
 		int rc;
 
 		Repository repo;
-		char found[GIT_PATH_MAX];
 
 	CODE:
+		git_buf buf = GIT_BUF_INIT_CONST(NULL, 0);
+
+		rc = git_buf_grow(&buf, GIT_PATH_MAX);
+		git_check_error(rc);
+
 		rc = git_repository_discover(
-			found, GIT_PATH_MAX, SvPVbyte_nolen(path), 1, NULL
+			&buf, SvPVbyte_nolen(path), 1, NULL
 		);
+
+		if (rc != GIT_OK)
+			git_buf_free(&buf);
+
 		git_check_error(rc);
 
-		rc = git_repository_open(&repo, found);
+		rc = git_repository_open(&repo, (const char*) buf.ptr);
+		git_buf_free(&buf);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), repo);
+		RETVAL = repo;
 
 	OUTPUT: RETVAL
 
-SV *
+Repository
 new(class)
 	SV *class
 
@@ -174,7 +164,7 @@ new(class)
 		rc = git_repository_new(&repo);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), repo);
+		RETVAL = repo;
 
 	OUTPUT: RETVAL
 
@@ -206,7 +196,9 @@ index(self)
 		rc = git_repository_index(&index, GIT_SV_TO_PTR(Repository, self));
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, "Git::Raw::Index", index, SvRV(self));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Index", index, SvRV(self)
+		);
 
 	OUTPUT: RETVAL
 
@@ -221,6 +213,7 @@ head(self, ...)
 
 		Reference head;
 		Repository repo;
+		Signature sig;
 
 	CODE:
 		repo = GIT_SV_TO_PTR(Repository, self);
@@ -228,16 +221,23 @@ head(self, ...)
 		if (items == 2) {
 			Reference new_head = GIT_SV_TO_PTR(Reference, ST(1));
 
+			rc = git_signature_default(&sig, repo);
+			git_check_error(rc);
+
 			rc = git_repository_set_head(
-				repo, git_reference_name(new_head)
+				repo, git_reference_name(new_head),
+				sig, NULL
 			);
+			git_signature_free(sig);
 			git_check_error(rc);
 		}
 
 		rc = git_repository_head(&head, repo);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, "Git::Raw::Reference", head, SvRV(self));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Reference", head, SvRV(self)
+		);
 
 	OUTPUT: RETVAL
 
@@ -255,9 +255,10 @@ lookup(self, id)
 		STRLEN len;
 		const char *id_str;
 
-	CODE:
+	INIT:
 		id_str = SvPVbyte(id, len);
 
+	CODE:
 		rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
@@ -279,7 +280,7 @@ checkout(self, target, opts)
 	PREINIT:
 		int rc;
 
-		git_checkout_opts checkout_opts = GIT_CHECKOUT_OPTS_INIT;
+		git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
 
 	CODE:
 		git_hv_to_checkout_opts(opts, &checkout_opts);
@@ -300,6 +301,7 @@ reset(self, target, opts)
 	PREINIT:
 		int rc;
 
+		Signature sig;
 		SV **opt;
 
 	CODE:
@@ -336,7 +338,11 @@ reset(self, target, opts)
 				else
 					Perl_croak(aTHX_ "Invalid type");
 
-				rc = git_reset(self, git_sv_to_obj(target), reset);
+				rc = git_signature_default(&sig, self);
+				git_check_error(rc);
+
+				rc = git_reset(self, git_sv_to_obj(target), reset, sig, NULL);
+				git_signature_free(sig);
 				git_check_error(rc);
 			}
 		}
@@ -348,9 +354,7 @@ status(self, ...)
 	PROTOTYPE: $;@
 
 	PREINIT:
-		int rc;
-
-		size_t i, count;
+		int rc, i, count;
 
 		HV *status_hv;
 
@@ -374,24 +378,24 @@ status(self, ...)
 		 * tree. Core git does not tell you if the file was renamed in
 		 * the worktree anyway.
 		 */
-
 		if (items > 1) {
 			opt.flags |= GIT_STATUS_OPT_DISABLE_PATHSPEC_MATCH;
 
 			Newx(opt.pathspec.strings, items - 1, char *);
 
-			for (i = 1; i < items; i++)
-				opt.pathspec.strings[i - 1] =
+			for (i = 1; i < items; i++) {
+				size_t index = (size_t) i - 1;
+				opt.pathspec.strings[index] =
 					SvPVbyte_nolen(ST(i));
-
-			opt.pathspec.count = i - 1;
+				opt.pathspec.count = index;
+			}
 		}
 
 		rc = git_status_list_new(&list, self, &opt);
 		Safefree(opt.pathspec.strings);
 		git_check_error(rc);
 
-		count = git_status_list_entrycount(list);
+		count = (int) git_status_list_entrycount(list);
 
 		status_hv = newHV();
 		for (i = 0; i < count; i++) {
@@ -564,14 +568,14 @@ diff(self, ...)
 				if (!SvIOK(*opt))
 					Perl_croak(aTHX_ "Expected an integer for 'context_lines'");
 
-				diff_opts.context_lines = SvIV(*opt);
+				diff_opts.context_lines = (uint16_t) SvIV(*opt);
 			}
 
 			if ((opt = hv_fetchs(opts, "interhunk_lines", 0))) {
 				if (!SvIOK(*opt))
 					Perl_croak(aTHX_ "Expected an integer for 'interhunk_lines'");
 
-				diff_opts.interhunk_lines = SvIV(*opt);
+				diff_opts.interhunk_lines = (uint16_t) SvIV(*opt);
 			}
 
 			if ((opt = hv_fetchs(opts, "paths", 0))) {
@@ -665,8 +669,11 @@ merge(self, ref, opts)
 			&merge_opts.checkout_opts);
 		}
 
-		rc = git_merge(&merge_result, self,
-			(const git_merge_head **) &merge_head, 1, &merge_opts);
+		rc = git_merge(
+			&merge_result, self,
+			(const git_merge_head **) &merge_head,
+			1, &merge_opts
+		);
 		Safefree(merge_opts.checkout_opts.paths.strings);
 		git_check_error(rc);
 
@@ -678,7 +685,7 @@ merge(self, ref, opts)
 		if (git_merge_result_is_fastforward(merge_result)) {
 			git_oid id;
 
-			git_merge_result_fastforward_oid(&id, merge_result);
+			git_merge_result_fastforward_id(&id, merge_result);
 			hv_stores(result, "id", git_oid_to_sv(&id));
 			hv_stores(result, "fast_forward", newSViv(1));
 		} else {
@@ -707,14 +714,17 @@ branches(self)
 	PPCODE:
 		repo = GIT_SV_TO_PTR(Repository, self);
 
-		rc = git_branch_iterator_new(&itr, repo,
-			GIT_BRANCH_LOCAL | GIT_BRANCH_REMOTE);
+		rc = git_branch_iterator_new(
+			&itr, repo, GIT_BRANCH_LOCAL | GIT_BRANCH_REMOTE
+		);
 		git_check_error(rc);
 
 		while ((rc = git_branch_next(&branch, &type, itr)) == 0) {
 			SV *perl_ref;
 
-			GIT_NEW_OBJ(perl_ref, "Git::Raw::Branch", branch, SvRV(self));
+			GIT_NEW_OBJ_WITH_MAGIC(
+				perl_ref, "Git::Raw::Branch", branch, SvRV(self)
+			);
 
 			EXTEND(SP, 1);
 			PUSHs(sv_2mortal(perl_ref));
@@ -736,7 +746,6 @@ remotes(self)
 		int rc;
 		size_t i;
 
-		Remote remote;
 		int num_remotes = 0;
 		git_strarray remotes;
 
@@ -750,11 +759,19 @@ remotes(self)
 
 		for (i = 0; i < remotes.count; i++) {
 			SV *perl_ref;
+			git_remote *r = NULL;
+			Remote remote = NULL;
 
-			rc = git_remote_load(&remote, repo, remotes.strings[i]);
+			rc = git_remote_load(&r, repo, remotes.strings[i]);
 			git_check_error(rc);
 
-			GIT_NEW_OBJ(perl_ref, "Git::Raw::Remote", remote, SvRV(self));
+			Newx(remote, 1, git_raw_remote);
+			git_init_remote_callbacks(&remote -> callbacks);
+			remote -> remote = r;
+
+			GIT_NEW_OBJ_WITH_MAGIC(
+				perl_ref, "Git::Raw::Remote", remote, SvRV(self)
+			);
 
 			EXTEND(SP, 1);
 			PUSHs(sv_2mortal(perl_ref));
@@ -785,7 +802,9 @@ refs(self)
 		while ((rc = git_reference_next(&ref, itr)) == 0) {
 			SV *perl_ref;
 
-			GIT_NEW_OBJ(perl_ref, "Git::Raw::Reference", ref, SvRV(self));
+			GIT_NEW_OBJ_WITH_MAGIC(
+				perl_ref, "Git::Raw::Reference", ref, SvRV(self)
+			);
 
 			EXTEND(SP, 1);
 			PUSHs(sv_2mortal(perl_ref));
@@ -832,6 +851,28 @@ workdir(self, ...)
 
 		path = git_repository_workdir(self);
 		RETVAL = newSVpv(path, 0);
+
+	OUTPUT: RETVAL
+
+SV *
+blame (self, file)
+	SV *self
+	const char *file
+
+	PREINIT:
+		int rc;
+		Blame blame;
+
+		git_blame_options options = GIT_BLAME_OPTIONS_INIT;
+
+	CODE:
+		rc = git_blame_file(
+			&blame, GIT_SV_TO_PTR(Repository, self), file, &options);
+		git_check_error(rc);
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Blame", blame, SvRV(self)
+		);
 
 	OUTPUT: RETVAL
 

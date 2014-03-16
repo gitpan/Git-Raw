@@ -12,10 +12,6 @@ my $config = $repo -> config;
 my $name   = $config -> str('user.name');
 my $email  = $config -> str('user.email');
 
-my $time = time();
-my $off  = 120;
-my $me   = Git::Raw::Signature -> new($name, $email, $time, $off);
-
 my $commit = $repo -> head -> target;
 
 isa_ok $commit, 'Git::Raw::Commit';
@@ -48,6 +44,24 @@ my $look = Git::Raw::Branch -> lookup($repo, $branch_name, 1);
 is $look -> type, 'direct';
 is $look -> name, 'refs/heads/some_branch';
 
+my $reflog = $look -> reflog;
+my @entries = $reflog -> entries;
+is scalar(@entries), 2;
+
+my $signature = Git::Raw::Signature -> default($repo);
+
+is $entries[0] -> {'committer'} -> name, $signature -> name;
+is $entries[0] -> {'committer'} -> email, $signature -> email;
+is $entries[0] -> {'committer'} -> time, $signature -> time;
+is $entries[0] -> {'committer'} -> offset, $signature -> offset;
+ok $entries[0] -> {'message'} =~ /^Branch: renamed/i;
+
+is $entries[1] -> {'committer'} -> name, $signature -> name;
+is $entries[1] -> {'committer'} -> email, $signature -> email;
+is $entries[1] -> {'committer'} -> time, $signature -> time;
+is $entries[1] -> {'committer'} -> offset, $signature -> offset;
+ok $entries[1] -> {'message'} =~ /^Branch: created/i;
+
 my $branches = [ sort { $a -> name cmp $b -> name } $repo -> branches ];
 
 is $branches -> [0] -> type, 'direct';
@@ -57,6 +71,7 @@ is $branches -> [1] -> type, 'direct';
 is $branches -> [1] -> name, 'refs/heads/some_branch';
 
 if ($ENV{NETWORK_TESTING} or $ENV{RELEASE_TESTING}) {
+	is scalar(@$branches), 3;
 	is $branches -> [2] -> type, 'direct';
 	is $branches -> [2] -> name, 'refs/remotes/github/master';
 	ok $branches -> [2] -> is_remote;

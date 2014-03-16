@@ -37,13 +37,6 @@
 # define GIT_EXTERN(type) extern type
 #endif
 
-/** Declare a function as always inlined. */
-#if defined(_MSC_VER)
-# define GIT_INLINE(type) static __inline type
-#else
-# define GIT_INLINE(type) static inline type
-#endif
-
 /** Declare a function's takes printf style arguments. */
 #ifdef __GNUC__
 # define GIT_FORMAT_PRINTF(a,b) __attribute__((format (printf, a, b)))
@@ -101,29 +94,34 @@ GIT_BEGIN_DECL
 GIT_EXTERN(void) git_libgit2_version(int *major, int *minor, int *rev);
 
 /**
- * Combinations of these values describe the capabilities of libgit2.
+ * Combinations of these values describe the features with which libgit2
+ * was compiled
  */
 typedef enum {
-	GIT_CAP_THREADS			= ( 1 << 0 ),
-	GIT_CAP_HTTPS			= ( 1 << 1 ),
-	GIT_CAP_SSH				= ( 1 << 2 ),
-} git_cap_t;
+	GIT_FEATURE_THREADS	= (1 << 0),
+	GIT_FEATURE_HTTPS = (1 << 1),
+	GIT_FEATURE_SSH = (1 << 2),
+} git_feature_t;
 
 /**
  * Query compile time options for libgit2.
  *
- * @return A combination of GIT_CAP_* values.
+ * @return A combination of GIT_FEATURE_* values.
  *
- * - GIT_CAP_THREADS
+ * - GIT_FEATURE_THREADS
  *   Libgit2 was compiled with thread support. Note that thread support is
  *   still to be seen as a 'work in progress' - basic object lookups are
  *   believed to be threadsafe, but other operations may not be.
  *
- * - GIT_CAP_HTTPS
+ * - GIT_FEATURE_HTTPS
  *   Libgit2 supports the https:// protocol. This requires the openssl
  *   library to be found when compiling libgit2.
+ *
+ * - GIT_FEATURE_SSH
+ *   Libgit2 supports the SSH protocol for network operations. This requires
+ *   the libssh2 library to be found when compiling libgit2
  */
-GIT_EXTERN(int) git_libgit2_capabilities(void);
+GIT_EXTERN(int) git_libgit2_features(void);
 
 
 typedef enum {

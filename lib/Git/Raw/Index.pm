@@ -1,8 +1,5 @@
 package Git::Raw::Index;
-{
-  $Git::Raw::Index::VERSION = '0.31';
-}
-
+$Git::Raw::Index::VERSION = '0.32';
 use strict;
 use warnings;
 
@@ -14,7 +11,7 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.31
+version 0.32
 
 =head1 DESCRIPTION
 
@@ -60,6 +57,11 @@ Determine if the index contains entries representing file conflicts.
 =head2 conflict_cleanup( )
 
 Remove all conflicts in the index (entries with a stage greater than 0).
+
+=head2 conflicts( )
+
+Retrieve index entries that represent a conflict. Returns a list of
+C<Git::Raw::Index::Entry> objects.
 
 =head1 AUTHOR
 

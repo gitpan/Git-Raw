@@ -127,57 +127,38 @@ int git_diff_file_content__init_from_diff(
 	return diff_file_content_init_common(fc, &diff->opts);
 }
 
-int git_diff_file_content__init_from_blob(
+int git_diff_file_content__init_from_src(
 	git_diff_file_content *fc,
 	git_repository *repo,
 	const git_diff_options *opts,
-	const git_blob *blob,
+	const git_diff_file_content_src *src,
 	git_diff_file *as_file)
 {
 	memset(fc, 0, sizeof(*fc));
 	fc->repo = repo;
 	fc->file = as_file;
-	fc->blob = blob;
+	fc->blob = src->blob;
 
-	if (!blob) {
+	if (!src->blob && !src->buf) {
 		fc->flags |= GIT_DIFF_FLAG__NO_DATA;
 	} else {
 		fc->flags |= GIT_DIFF_FLAG__LOADED;
-		fc->file->flags |= GIT_DIFF_FLAG_VALID_OID;
-		fc->file->size = git_blob_rawsize(blob);
+		fc->file->flags |= GIT_DIFF_FLAG_VALID_ID;
 		fc->file->mode = GIT_FILEMODE_BLOB;
-		git_oid_cpy(&fc->file->oid, git_blob_id(blob));
 
-		fc->map.len  = (size_t)fc->file->size;
-		fc->map.data = (char *)git_blob_rawcontent(blob);
-	}
+		if (src->blob) {
+			fc->file->size = git_blob_rawsize(src->blob);
+			git_oid_cpy(&fc->file->id, git_blob_id(src->blob));
 
-	return diff_file_content_init_common(fc, opts);
-}
+			fc->map.len  = (size_t)fc->file->size;
+			fc->map.data = (char *)git_blob_rawcontent(src->blob);
+		} else {
+			fc->file->size = src->buflen;
+			git_odb_hash(&fc->file->id, src->buf, src->buflen, GIT_OBJ_BLOB);
 
-int git_diff_file_content__init_from_raw(
-	git_diff_file_content *fc,
-	git_repository *repo,
-	const git_diff_options *opts,
-	const char *buf,
-	size_t buflen,
-	git_diff_file *as_file)
-{
-	memset(fc, 0, sizeof(*fc));
-	fc->repo = repo;
-	fc->file = as_file;
-
-	if (!buf) {
-		fc->flags |= GIT_DIFF_FLAG__NO_DATA;
-	} else {
-		fc->flags |= GIT_DIFF_FLAG__LOADED;
-		fc->file->flags |= GIT_DIFF_FLAG_VALID_OID;
-		fc->file->size = buflen;
-		fc->file->mode = GIT_FILEMODE_BLOB;
-		git_odb_hash(&fc->file->oid, buf, buflen, GIT_OBJ_BLOB);
-
-		fc->map.len  = buflen;
-		fc->map.data = (char *)buf;
+			fc->map.len  = src->buflen;
+			fc->map.data = (char *)src->buf;
+		}
 	}
 
 	return diff_file_content_init_common(fc, opts);
@@ -205,19 +186,19 @@ static int diff_file_content_commit_to_str(
 		}
 
 		/* update OID if we didn't have it previously */
-		if ((fc->file->flags & GIT_DIFF_FLAG_VALID_OID) == 0 &&
+		if ((fc->file->flags & GIT_DIFF_FLAG_VALID_ID) == 0 &&
 			((sm_head = git_submodule_wd_id(sm)) != NULL ||
 			 (sm_head = git_submodule_head_id(sm)) != NULL))
 		{
-			git_oid_cpy(&fc->file->oid, sm_head);
-			fc->file->flags |= GIT_DIFF_FLAG_VALID_OID;
+			git_oid_cpy(&fc->file->id, sm_head);
+			fc->file->flags |= GIT_DIFF_FLAG_VALID_ID;
 		}
 
 		if (GIT_SUBMODULE_STATUS_IS_WD_DIRTY(sm_status))
 			status = "-dirty";
 	}
 
-	git_oid_tostr(oid, sizeof(oid), &fc->file->oid);
+	git_oid_tostr(oid, sizeof(oid), &fc->file->id);
 	if (git_buf_printf(&content, "Subproject commit %s%s\n", oid, status) < 0)
 		return -1;
 
@@ -233,7 +214,7 @@ static int diff_file_content_load_blob(git_diff_file_content *fc)
 	int error = 0;
 	git_odb_object *odb_obj = NULL;
 
-	if (git_oid_iszero(&fc->file->oid))
+	if (git_oid_iszero(&fc->file->id))
 		return 0;
 
 	if (fc->file->mode == GIT_FILEMODE_COMMIT)
@@ -255,7 +236,7 @@ static int diff_file_content_load_blob(git_diff_file_content *fc)
 		git_odb_object_free(odb_obj);
 	} else {
 		error = git_blob_lookup(
-			(git_blob **)&fc->blob, fc->repo, &fc->file->oid);
+			(git_blob **)&fc->blob, fc->repo, &fc->file->id);
 	}
 
 	if (!error) {
@@ -368,10 +349,10 @@ static int diff_file_content_load_workdir(git_diff_file_content *fc)
 		error = diff_file_content_load_workdir_file(fc, &path);
 
 	/* once data is loaded, update OID if we didn't have it previously */
-	if (!error && (fc->file->flags & GIT_DIFF_FLAG_VALID_OID) == 0) {
+	if (!error && (fc->file->flags & GIT_DIFF_FLAG_VALID_ID) == 0) {
 		error = git_odb_hash(
-			&fc->file->oid, fc->map.data, fc->map.len, GIT_OBJ_BLOB);
-		fc->file->flags |= GIT_DIFF_FLAG_VALID_OID;
+			&fc->file->id, fc->map.data, fc->map.len, GIT_OBJ_BLOB);
+		fc->file->flags |= GIT_DIFF_FLAG_VALID_ID;
 	}
 
 	git_buf_free(&path);

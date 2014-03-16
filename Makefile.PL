@@ -56,7 +56,7 @@ if ($^O eq 'MSWin32') {
 	push @srcs, glob 'xs/libgit2/src/{win32,compat}/*.c';
 	push @srcs, 'xs/libgit2/deps/regex/regex.c';
 
-	$inc .= ' -Ideps/regex';
+	$inc .= ' -Ixs/libgit2/deps/regex';
 	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -D__USE_MINGW_ANSI_STDIO=1';
 } else {
 	push @srcs, glob 'xs/libgit2/src/unix/*.c'
@@ -112,7 +112,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.31",
+  "VERSION" => "0.32",
   "test" => {
     "TESTS" => "t/*.t"
   }

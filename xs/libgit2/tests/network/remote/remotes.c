@@ -129,6 +129,29 @@ void test_network_remote_remotes__add_fetchspec(void)
 	cl_assert_equal_b(_refspec->push, false);
 }
 
+void test_network_remote_remotes__dup(void)
+{
+	git_strarray array;
+	git_remote *dup;
+
+	cl_git_pass(git_remote_dup(&dup, _remote));
+
+	cl_assert_equal_s(git_remote_name(dup), git_remote_name(_remote));
+	cl_assert_equal_s(git_remote_url(dup), git_remote_url(_remote));
+	cl_assert_equal_s(git_remote_pushurl(dup), git_remote_pushurl(_remote));
+
+	cl_git_pass(git_remote_get_fetch_refspecs(&array, _remote));
+	cl_assert_equal_i(1, (int)array.count);
+	cl_assert_equal_s("+refs/heads/*:refs/remotes/test/*", array.strings[0]);
+	git_strarray_free(&array);
+
+	cl_git_pass(git_remote_get_push_refspecs(&array, _remote));
+	cl_assert_equal_i(0, (int)array.count);
+	git_strarray_free(&array);
+
+	git_remote_free(dup);
+}
+
 void test_network_remote_remotes__add_pushspec(void)
 {
 	size_t size;
@@ -207,27 +230,20 @@ void test_network_remote_remotes__fnmatch(void)
 
 void test_network_remote_remotes__transform(void)
 {
-	char ref[1024] = {0};
+	git_buf ref = GIT_BUF_INIT;
 
-	cl_git_pass(git_refspec_transform(ref, sizeof(ref), _refspec, "refs/heads/master"));
-	cl_assert_equal_s(ref, "refs/remotes/test/master");
+	cl_git_pass(git_refspec_transform(&ref, _refspec, "refs/heads/master"));
+	cl_assert_equal_s(ref.ptr, "refs/remotes/test/master");
+	git_buf_free(&ref);
 }
 
 void test_network_remote_remotes__transform_destination_to_source(void)
 {
-	char ref[1024] = {0};
+	git_buf ref = GIT_BUF_INIT;
 
-	cl_git_pass(git_refspec_rtransform(ref, sizeof(ref), _refspec, "refs/remotes/test/master"));
-	cl_assert_equal_s(ref, "refs/heads/master");
-}
-
-void test_network_remote_remotes__transform_r(void)
-{
-	git_buf buf = GIT_BUF_INIT;
-
-	cl_git_pass(git_refspec_transform_r(&buf,  _refspec, "refs/heads/master"));
-	cl_assert_equal_s(git_buf_cstr(&buf), "refs/remotes/test/master");
-	git_buf_free(&buf);
+	cl_git_pass(git_refspec_rtransform(&ref, _refspec, "refs/remotes/test/master"));
+	cl_assert_equal_s(ref.ptr, "refs/heads/master");
+	git_buf_free(&ref);
 }
 
 void test_network_remote_remotes__missing_refspecs(void)

@@ -17,9 +17,10 @@ lookup(class, repo, id)
 
 		Repository repo_ptr;
 
-	CODE:
+	INIT:
 		id_str = SvPVbyte(id, len);
 
+	CODE:
 		rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
@@ -28,7 +29,9 @@ lookup(class, repo, id)
 		rc = git_tree_lookup_prefix(&tree, repo_ptr, &oid, len);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), tree, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), tree, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -50,9 +53,11 @@ entries(self)
 	SV *self
 
 	PREINIT:
+		int rc;
 		int i, count;
 
 		Tree self_ptr;
+		Tree_Entry entry;
 		AV *entries = newAV();
 
 	CODE:
@@ -62,12 +67,16 @@ entries(self)
 
 		for (i = 0; i < count; i++) {
 			SV *tmp;
-			TreeEntry entry = (TreeEntry)
+
+			Tree_Entry tmp_entry = (Tree_Entry)
 				git_tree_entry_byindex(self_ptr, i);
 
-			GIT_NEW_OBJ(
-				tmp, "Git::Raw::TreeEntry",
-				git_tree_entry_dup(entry), GIT_SV_TO_REPO(self)
+			rc = git_tree_entry_dup(&entry, tmp_entry);
+			git_check_error(rc);
+
+			GIT_NEW_OBJ_WITH_MAGIC(
+				tmp, "Git::Raw::Tree::Entry",
+				entry, GIT_SV_TO_MAGIC(self)
 			);
 
 			av_push(entries, tmp);
@@ -83,23 +92,28 @@ entry_byname(self, name)
 	SV *name
 
 	PREINIT:
+		int rc;
+
 		STRLEN len;
 		const char *name_str;
 
-		TreeEntry entry;
+		Tree_Entry tmp_entry, entry;
 
 	CODE:
 		name_str = SvPVbyte(name, len);
 
-		entry = (TreeEntry) git_tree_entry_byname(
+		tmp_entry = (Tree_Entry) git_tree_entry_byname(
 			GIT_SV_TO_PTR(Tree, self), name_str
 		);
 
-		if (!entry) Perl_croak(aTHX_ "Invalid name");
+		if (!tmp_entry) Perl_croak(aTHX_ "Invalid name");
 
-		GIT_NEW_OBJ(
-			RETVAL, "Git::Raw::TreeEntry",
-			git_tree_entry_dup(entry), GIT_SV_TO_REPO(self)
+		rc = git_tree_entry_dup(&entry, tmp_entry);
+		git_check_error(rc);
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Tree::Entry",
+			entry, GIT_SV_TO_MAGIC(self)
 		);
 
 	OUTPUT: RETVAL
@@ -115,7 +129,7 @@ entry_bypath(self, path)
 		STRLEN len;
 		const char *path_str;
 
-		TreeEntry entry;
+		Tree_Entry entry;
 
 	CODE:
 		path_str = SvPVbyte(path, len);
@@ -125,7 +139,9 @@ entry_bypath(self, path)
 		);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, "Git::Raw::TreeEntry", entry, GIT_SV_TO_REPO(self));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Tree::Entry", entry, GIT_SV_TO_MAGIC(self)
+		);
 
 	OUTPUT: RETVAL
 
@@ -191,14 +207,14 @@ diff(self, ...)
 				if (!SvIOK(*opt))
 					Perl_croak(aTHX_ "Expected an integer for 'context_lines'");
 
-				diff_opts.context_lines = SvIV(*opt);
+				diff_opts.context_lines = (uint16_t) SvIV(*opt);
 			}
 
 			if ((opt = hv_fetchs(opts, "interhunk_lines", 0))) {
 				if (!SvIOK(*opt))
 					Perl_croak(aTHX_ "Expected an integer for 'interhunk_lines'");
 
-				diff_opts.interhunk_lines = SvIV(*opt);
+				diff_opts.interhunk_lines = (uint16_t) SvIV(*opt);
 			}
 
 			if ((opt = hv_fetchs(opts, "paths", 0))) {
@@ -264,4 +280,4 @@ DESTROY(self)
 
 	CODE:
 		git_tree_free(GIT_SV_TO_PTR(Tree, self));
-		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));

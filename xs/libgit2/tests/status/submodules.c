@@ -140,7 +140,7 @@ void test_status_submodules__moved_head(void)
 	/* move submodule HEAD to c47800c7266a2be04c571c04d5a6614691ea99bd */
 	cl_git_pass(
 		git_oid_fromstr(&oid, "c47800c7266a2be04c571c04d5a6614691ea99bd"));
-	cl_git_pass(git_repository_set_head_detached(smrepo, &oid));
+	cl_git_pass(git_repository_set_head_detached(smrepo, &oid, NULL, NULL));
 
 	/* first do a normal status, which should now include the submodule */
 
@@ -220,4 +220,21 @@ void test_status_submodules__dirty_workdir_only(void)
 	cl_git_pass(
 		git_status_foreach_ext(g_repo, &opts, cb_status__match, &counts));
 	cl_assert_equal_i(6, counts.entry_count);
+}
+
+void test_status_submodules__uninitialized(void)
+{
+	git_repository *cloned_repo;
+	git_status_list *statuslist;
+
+	g_repo = cl_git_sandbox_init("submod2");
+
+	cl_git_pass(git_clone(&cloned_repo, "submod2", "submod2-clone", NULL));
+
+	cl_git_pass(git_status_list_new(&statuslist, cloned_repo, NULL));
+	cl_assert_equal_i(0, git_status_list_entrycount(statuslist));
+
+	git_status_list_free(statuslist);
+	git_repository_free(cloned_repo);
+	cl_git_sandbox_cleanup();
 }

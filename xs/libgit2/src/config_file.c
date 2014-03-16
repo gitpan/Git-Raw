@@ -7,8 +7,8 @@
 
 #include "common.h"
 #include "config.h"
-#include "fileops.h"
 #include "filebuf.h"
+#include "sysdir.h"
 #include "buffer.h"
 #include "buf_text.h"
 #include "git2/config.h"
@@ -1003,7 +1003,7 @@ static int included_path(git_buf *out, const char *dir, const char *path)
 {
 	/* From the user's home */
 	if (path[0] == '~' && path[1] == '/')
-		return git_futils_find_global_file(out, &path[1]);
+		return git_sysdir_find_global_file(out, &path[1]);
 
 	return git_path_join_unrooted(out, path, dir, NULL);
 }
@@ -1072,8 +1072,10 @@ static int config_parse(diskfile_backend *cfg_file, struct reader *reader, git_c
 			git_buf_printf(&buf, "%s.%s", current_section, var_name);
 			git__free(var_name);
 
-			if (git_buf_oom(&buf))
+			if (git_buf_oom(&buf)) {
+				git__free(var_value);
 				return -1;
+			}
 
 			var->entry->name = git_buf_detach(&buf);
 			var->entry->value = var_value;

@@ -18,7 +18,7 @@ static git_clone_options g_options;
 
 void test_online_clone__initialize(void)
 {
-	git_checkout_opts dummy_opts = GIT_CHECKOUT_OPTS_INIT;
+	git_checkout_options dummy_opts = GIT_CHECKOUT_OPTIONS_INIT;
 	git_remote_callbacks dummy_callbacks = GIT_REMOTE_CALLBACKS_INIT;
 
 	g_repo = NULL;
@@ -130,7 +130,7 @@ void test_online_clone__clone_into(void)
 	git_buf path = GIT_BUF_INIT;
 	git_remote *remote;
 	git_reference *head;
-	git_checkout_opts checkout_opts = GIT_CHECKOUT_OPTS_INIT;
+	git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
 	git_remote_callbacks callbacks = GIT_REMOTE_CALLBACKS_INIT;
 
 	bool checkout_progress_cb_was_called = false,
@@ -147,7 +147,7 @@ void test_online_clone__clone_into(void)
 	callbacks.payload = &fetch_progress_cb_was_called;
 	git_remote_set_callbacks(remote, &callbacks);
 
-	cl_git_pass(git_clone_into(g_repo, remote, &checkout_opts, NULL));
+	cl_git_pass(git_clone_into(g_repo, remote, &checkout_opts, NULL, NULL));
 
 	cl_git_pass(git_buf_joinpath(&path, git_repository_workdir(g_repo), "master.txt"));
 	cl_assert_equal_i(true, git_path_isfile(git_buf_cstr(&path)));
@@ -192,30 +192,28 @@ static int cred_failure_cb(
 {
 	GIT_UNUSED(cred); GIT_UNUSED(url); GIT_UNUSED(username_from_url);
 	GIT_UNUSED(allowed_types); GIT_UNUSED(data);
-	return -1;
+	return -172;
 }
 
-void test_online_clone__cred_callback_failure_is_euser(void)
+void test_online_clone__cred_callback_failure_return_code_is_tunnelled(void)
 {
 	const char *remote_url = cl_getenv("GITTEST_REMOTE_URL");
 	const char *remote_user = cl_getenv("GITTEST_REMOTE_USER");
-	const char *remote_default = cl_getenv("GITTEST_REMOTE_DEFAULT");
-	int error;
 
 	if (!remote_url) {
 		printf("GITTEST_REMOTE_URL unset; skipping clone test\n");
 		return;
 	}
 
-	if (!remote_user && !remote_default) {
-		printf("GITTEST_REMOTE_USER and GITTEST_REMOTE_DEFAULT unset; skipping clone test\n");
+	if (!remote_user) {
+		printf("GITTEST_REMOTE_USER unset; skipping clone test\n");
 		return;
 	}
 
 	g_options.remote_callbacks.credentials = cred_failure_cb;
 
-	cl_git_fail(error = git_clone(&g_repo, remote_url, "./foo", &g_options));
-	cl_assert_equal_i(error, GIT_EUSER);
+	/* TODO: this should expect -172. */
+	cl_git_fail_with(git_clone(&g_repo, remote_url, "./foo", &g_options), -1);
 }
 
 void test_online_clone__credentials(void)

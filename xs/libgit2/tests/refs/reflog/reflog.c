@@ -82,7 +82,7 @@ void test_refs_reflog_reflog__append_then_read(void)
 
 	/* Create a new branch pointing at the HEAD */
 	git_oid_fromstr(&oid, current_master_tip);
-	cl_git_pass(git_reference_create(&ref, g_repo, new_ref, &oid, 0));
+	cl_git_pass(git_reference_create(&ref, g_repo, new_ref, &oid, 0, NULL, NULL));
 	git_reference_free(ref);
 
 	cl_git_pass(git_signature_now(&committer, "foo", "foo@bar"));
@@ -114,7 +114,7 @@ void test_refs_reflog_reflog__renaming_the_reference_moves_the_reflog(void)
 	cl_assert_equal_i(false, git_path_isfile(git_buf_cstr(&moved_log_path)));
 
 	cl_git_pass(git_reference_lookup(&master, g_repo, "refs/heads/master"));
-	cl_git_pass(git_reference_rename(&new_master, master, "refs/moved", 0));
+	cl_git_pass(git_reference_rename(&new_master, master, "refs/moved", 0, NULL, NULL));
 	git_reference_free(master);
 
 	cl_assert_equal_i(false, git_path_isfile(git_buf_cstr(&master_log_path)));
@@ -165,7 +165,7 @@ void test_refs_reflog_reflog__cannot_write_a_moved_reflog(void)
 
 	cl_git_pass(git_reflog_write(reflog));
 
-	cl_git_pass(git_reference_rename(&new_master, master, "refs/moved", 0));
+	cl_git_pass(git_reference_rename(&new_master, master, "refs/moved", 0, NULL, NULL));
 	git_reference_free(master);
 
 	cl_git_fail(git_reflog_write(reflog));
@@ -189,11 +189,11 @@ void test_refs_reflog_reflog__write_only_std_locations(void)
 
 	git_oid_fromstr(&id, current_master_tip);
 
-	cl_git_pass(git_reference_create(&ref, g_repo, "refs/heads/foo", &id, 1));
+	cl_git_pass(git_reference_create(&ref, g_repo, "refs/heads/foo", &id, 1, NULL, NULL));
 	git_reference_free(ref);
-	cl_git_pass(git_reference_create(&ref, g_repo, "refs/tags/foo", &id, 1));
+	cl_git_pass(git_reference_create(&ref, g_repo, "refs/tags/foo", &id, 1, NULL, NULL));
 	git_reference_free(ref);
-	cl_git_pass(git_reference_create(&ref, g_repo, "refs/notes/foo", &id, 1));
+	cl_git_pass(git_reference_create(&ref, g_repo, "refs/notes/foo", &id, 1, NULL, NULL));
 	git_reference_free(ref);
 
 	assert_has_reflog(true, "refs/heads/foo");
@@ -210,7 +210,7 @@ void test_refs_reflog_reflog__write_when_explicitly_active(void)
 	git_oid_fromstr(&id, current_master_tip);
 	git_reference_ensure_log(g_repo, "refs/tags/foo");
 
-	cl_git_pass(git_reference_create(&ref, g_repo, "refs/tags/foo", &id, 1));
+	cl_git_pass(git_reference_create(&ref, g_repo, "refs/tags/foo", &id, 1, NULL, NULL));
 	git_reference_free(ref);
 	assert_has_reflog(true, "refs/tags/foo");
 }

@@ -34,7 +34,9 @@ create(class, repo, name, msg, tagger, target)
 		rc = git_tag_lookup(&tag, repo_ptr, &oid);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -62,7 +64,9 @@ lookup(class, repo, id)
 		rc = git_tag_lookup_prefix(&tag, GIT_SV_TO_PTR(Repository, repo), &oid, len);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo)
+		);
 
 	OUTPUT: RETVAL
 
@@ -102,7 +106,7 @@ delete(self)
 		tag_ptr = GIT_SV_TO_PTR(Tag, self);
 
 		repo = INT2PTR(
-			Repository, SvIV((SV *) GIT_SV_TO_REPO(self))
+			Repository, SvIV((SV *) GIT_SV_TO_MAGIC(self))
 		);
 
 		rc = git_tag_delete(repo, git_tag_name(tag_ptr));
@@ -155,11 +159,16 @@ tagger(self)
 	Tag self
 
 	PREINIT:
-		Signature c;
+		int rc;
+		Signature c, r;
 
 	CODE:
 		c = (Signature) git_tag_tagger(self);
-		RETVAL = git_signature_dup(c);
+
+		rc = git_signature_dup(&r, c);
+		git_check_error(rc);
+
+		RETVAL = r;
 
 	OUTPUT: RETVAL
 
@@ -175,7 +184,7 @@ target(self)
 		rc = git_tag_target(&obj, GIT_SV_TO_PTR(Tag, self));
 		git_check_error(rc);
 
-		RETVAL = git_obj_to_sv(obj, self);
+		RETVAL = git_obj_to_sv(obj, GIT_SV_TO_MAGIC(self));
 
 	OUTPUT: RETVAL
 
@@ -185,4 +194,4 @@ DESTROY(self)
 
 	CODE:
 		git_tag_free(GIT_SV_TO_PTR(Tag, self));
-		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));

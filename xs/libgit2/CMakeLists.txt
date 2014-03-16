@@ -15,7 +15,9 @@ PROJECT(libgit2 C)
 CMAKE_MINIMUM_REQUIRED(VERSION 2.6)
 
 # Add find modules to the path
-SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_LIST_DIR}/cmake/Modules/")
+
+INCLUDE(CheckLibraryExists)
 
 # Build options
 #
@@ -55,6 +57,10 @@ IF(MSVC)
 	# By default, libgit2 is built with WinHTTP.  To use the built-in
 	# HTTP transport, invoke CMake with the "-DWINHTTP=OFF" argument.
 	OPTION( WINHTTP			"Use Win32 WinHTTP routines"	ON  )
+
+	ADD_DEFINITIONS(-D_SCL_SECURE_NO_WARNINGS)
+	ADD_DEFINITIONS(-D_CRT_SECURE_NO_DEPRECATE)
+	ADD_DEFINITIONS(-D_CRT_NONSTDC_NO_DEPRECATE)
 ENDIF()
 
 # This variable will contain the libraries we need to put into
@@ -78,7 +84,9 @@ FUNCTION(TARGET_OS_LIBRARIES target)
 	ELSEIF(CMAKE_SYSTEM_NAME MATCHES "(Solaris|SunOS)")
 		TARGET_LINK_LIBRARIES(${target} socket nsl)
 		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lsocket -lnsl" PARENT_SCOPE)
-	ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+	ENDIF()
+	CHECK_LIBRARY_EXISTS(rt clock_gettime "time.h" NEED_LIBRT)
+	IF(NEED_LIBRT)
 		TARGET_LINK_LIBRARIES(${target} rt)
 		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lrt" PARENT_SCOPE)
 	ENDIF()
@@ -136,7 +144,7 @@ ELSE ()
 		LINK_LIBRARIES(${HTTP_PARSER_LIBRARIES})
 		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -lhttp_parser")
 	ELSE()
-		MESSAGE("http-parser was not found or is too old; using bundled 3rd-party sources.")
+		MESSAGE(STATUS "http-parser was not found or is too old; using bundled 3rd-party sources.")
 		INCLUDE_DIRECTORIES(deps/http-parser)
 		FILE(GLOB SRC_HTTP deps/http-parser/*.c deps/http-parser/*.h)
 	ENDIF()
@@ -177,9 +185,9 @@ IF (ZLIB_FOUND)
 		SET(LIBGIT2_PC_REQUIRES "${LIBGIT2_PC_REQUIRES} zlib")
 	ENDIF()
 	# Fake the message CMake would have shown
-	MESSAGE("-- Found zlib: ${ZLIB_LIBRARY}")
+	MESSAGE(STATUS "Found zlib: ${ZLIB_LIBRARY}")
 ELSE()
-	MESSAGE( "zlib was not found; using bundled 3rd-party sources." )
+	MESSAGE(STATUS "zlib was not found; using bundled 3rd-party sources." )
 	INCLUDE_DIRECTORIES(deps/zlib)
 	ADD_DEFINITIONS(-DNO_VIZ -DSTDC -DNO_GZIP)
 	FILE(GLOB SRC_ZLIB deps/zlib/*.c deps/zlib/*.h)
@@ -202,11 +210,8 @@ IF (USE_ICONV)
 ENDIF()
 IF (ICONV_FOUND)
 	ADD_DEFINITIONS(-DGIT_USE_ICONV)
-	IF(ICONV_LIBRARIES MATCHES "libiconv")
-		SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} -liconv")
-	ELSE()
-		SET(LIBGIT2_PC_REQUIRES "${LIBGIT2_PC_REQUIRES} iconv")
-	ENDIF()
+	INCLUDE_DIRECTORIES(${ICONV_INCLUDE_DIR})
+	SET(LIBGIT2_PC_LIBS "${LIBGIT2_PC_LIBS} ${ICONV_LIBRARIES}")
 ENDIF()
 
 # Platform specific compilation flags

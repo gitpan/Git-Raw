@@ -6,7 +6,7 @@
  */
 
 #include "common.h"
-#include "fileops.h"
+#include "sysdir.h"
 #include "config.h"
 #include "git2/config.h"
 #include "git2/sys/config.h"
@@ -458,6 +458,7 @@ int git_config_iterator_glob_new(git_config_iterator **out, const git_config *cf
 	if ((result = regcomp(&iter->regex, regexp, REG_EXTENDED)) < 0) {
 		giterr_set_regex(&iter->regex, result);
 		regfree(&iter->regex);
+		git__free(iter);
 		return -1;
 	}
 
@@ -651,6 +652,7 @@ static int get_entry(
 		key = normalized;
 	}
 
+	res = GIT_ENOTFOUND;
 	git_vector_foreach(&cfg->files, i, internal) {
 		if (!internal || !internal->file)
 			continue;
@@ -927,62 +929,25 @@ int git_config_next(git_config_entry **entry, git_config_iterator *iter)
 
 void git_config_iterator_free(git_config_iterator *iter)
 {
+	if (iter == NULL)
+		return;
+
 	iter->free(iter);
 }
 
-static int git_config__find_file_to_path(
-	char *out, size_t outlen, int (*find)(git_buf *buf))
+int git_config_find_global(git_buf *path)
 {
-	int error = 0;
-	git_buf path = GIT_BUF_INIT;
-
-	if ((error = find(&path)) < 0)
-		goto done;
-
-	if (path.size >= outlen) {
-		giterr_set(GITERR_NOMEMORY, "Buffer is too short for the path");
-		error = GIT_EBUFS;
-		goto done;
-	}
-
-	git_buf_copy_cstr(out, outlen, &path);
-
-done:
-	git_buf_free(&path);
-	return error;
+	return git_sysdir_find_global_file(path, GIT_CONFIG_FILENAME_GLOBAL);
 }
 
-int git_config_find_global_r(git_buf *path)
+int git_config_find_xdg(git_buf *path)
 {
-	return git_futils_find_global_file(path, GIT_CONFIG_FILENAME_GLOBAL);
+	return git_sysdir_find_xdg_file(path, GIT_CONFIG_FILENAME_XDG);
 }
 
-int git_config_find_global(char *global_config_path, size_t length)
+int git_config_find_system(git_buf *path)
 {
-	return git_config__find_file_to_path(
-		global_config_path, length, git_config_find_global_r);
-}
-
-int git_config_find_xdg_r(git_buf *path)
-{
-	return git_futils_find_xdg_file(path, GIT_CONFIG_FILENAME_XDG);
-}
-
-int git_config_find_xdg(char *xdg_config_path, size_t length)
-{
-	return git_config__find_file_to_path(
-		xdg_config_path, length, git_config_find_xdg_r);
-}
-
-int git_config_find_system_r(git_buf *path)
-{
-	return git_futils_find_system_file(path, GIT_CONFIG_FILENAME_SYSTEM);
-}
-
-int git_config_find_system(char *system_config_path, size_t length)
-{
-	return git_config__find_file_to_path(
-		system_config_path, length, git_config_find_system_r);
+	return git_sysdir_find_system_file(path, GIT_CONFIG_FILENAME_SYSTEM);
 }
 
 int git_config__global_location(git_buf *buf)
@@ -991,7 +956,7 @@ int git_config__global_location(git_buf *buf)
 	const char *sep, *start;
 	size_t len;
 
-	if (git_futils_dirs_get(&paths, GIT_FUTILS_DIR_GLOBAL) < 0)
+	if (git_sysdir_get(&paths, GIT_SYSDIR_GLOBAL) < 0)
 		return -1;
 
 	/* no paths, so give up */
@@ -1021,16 +986,16 @@ int git_config_open_default(git_config **out)
 	if ((error = git_config_new(&cfg)) < 0)
 		return error;
 
-	if (!git_config_find_global_r(&buf) || !git_config__global_location(&buf)) {
+	if (!git_config_find_global(&buf) || !git_config__global_location(&buf)) {
 		error = git_config_add_file_ondisk(cfg, buf.ptr,
 			GIT_CONFIG_LEVEL_GLOBAL, 0);
 	}
 
-	if (!error && !git_config_find_xdg_r(&buf))
+	if (!error && !git_config_find_xdg(&buf))
 		error = git_config_add_file_ondisk(cfg, buf.ptr,
 			GIT_CONFIG_LEVEL_XDG, 0);
 
-	if (!error && !git_config_find_system_r(&buf))
+	if (!error && !git_config_find_system(&buf))
 		error = git_config_add_file_ondisk(cfg, buf.ptr,
 			GIT_CONFIG_LEVEL_SYSTEM, 0);
 
@@ -1279,4 +1244,16 @@ cleanup:
 	git_buf_free(&replace);
 
 	return error;
+}
+
+int git_config_init_backend(git_config_backend* backend, int version)
+{
+	if (version != GIT_CONFIG_BACKEND_VERSION) {
+		giterr_set(GITERR_INVALID, "Invalid version %d for git_config_backend", version);
+		return -1;
+	} else {
+		git_config_backend b = GIT_CONFIG_BACKEND_INIT;
+		memcpy(backend, &b, sizeof(b));
+		return 0;
+	}
 }

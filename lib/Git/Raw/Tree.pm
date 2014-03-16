@@ -1,8 +1,5 @@
 package Git::Raw::Tree;
-{
-  $Git::Raw::Tree::VERSION = '0.31';
-}
-
+$Git::Raw::Tree::VERSION = '0.32';
 use strict;
 use warnings;
 
@@ -14,7 +11,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.31
+version 0.32
 
 =head1 DESCRIPTION
 
@@ -36,15 +33,15 @@ Retrieve the id of the tree, as string.
 
 =head2 entries( )
 
-Retrieve a list of L<Git::Raw::TreeEntry> objects.
+Retrieve a list of L<Git::Raw::Tree::Entry> objects.
 
 =head2 entry_byname( $name )
 
-Retrieve a L<Git::Raw::TreeEntry> object by name.
+Retrieve a L<Git::Raw::Tree::Entry> object by name.
 
 =head2 entry_bypath( $path )
 
-Retrieve a L<Git::Raw::TreeEntry> object by path.
+Retrieve a L<Git::Raw::Tree::Entry> object by path.
 
 =head2 diff( [\%opts] )
 

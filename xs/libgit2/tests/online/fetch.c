@@ -48,7 +48,7 @@ static void do_fetch(const char *url, git_remote_autotag_option_t flag, int n)
 	git_remote_set_autotag(remote, flag);
 	cl_git_pass(git_remote_connect(remote, GIT_DIRECTION_FETCH));
 	cl_git_pass(git_remote_download(remote));
-	cl_git_pass(git_remote_update_tips(remote));
+	cl_git_pass(git_remote_update_tips(remote, NULL, NULL));
 	git_remote_disconnect(remote);
 	cl_assert_equal_i(counter, n);
 	cl_assert(bytes_received > 0);
@@ -79,6 +79,21 @@ void test_online_fetch__no_tags_git(void)
 void test_online_fetch__no_tags_http(void)
 {
 	do_fetch("http://github.com/libgit2/TestGitRepository.git", GIT_REMOTE_DOWNLOAD_TAGS_NONE, 3);
+}
+
+void test_online_fetch__fetch_twice(void)
+{
+	git_remote *remote;
+	cl_git_pass(git_remote_create(&remote, _repo, "test", "git://github.com/libgit2/TestGitRepository.git"));
+    	cl_git_pass(git_remote_connect(remote, GIT_DIRECTION_FETCH));
+    	cl_git_pass(git_remote_download(remote));
+    	git_remote_disconnect(remote);
+    	
+    	git_remote_connect(remote, GIT_DIRECTION_FETCH);
+	cl_git_pass(git_remote_download(remote));
+	git_remote_disconnect(remote);
+	
+	git_remote_free(remote);
 }
 
 static int transferProgressCallback(const git_transfer_progress *stats, void *payload)
@@ -117,7 +132,7 @@ void test_online_fetch__doesnt_retrieve_a_pack_when_the_repository_is_up_to_date
 
 	cl_assert_equal_i(false, invoked);
 
-	cl_git_pass(git_remote_update_tips(remote));
+	cl_git_pass(git_remote_update_tips(remote, NULL, NULL));
 	git_remote_disconnect(remote);
 
 	git_remote_free(remote);

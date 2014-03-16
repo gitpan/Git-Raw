@@ -1,10 +1,8 @@
 # Classes:
 * attr
-* filter
 * graph
 * note
 * odb
 * packbuilder
-* reflog
 * submodule
 * transport

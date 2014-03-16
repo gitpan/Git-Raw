@@ -97,25 +97,13 @@ typedef enum {
 	(((S) & GIT_SUBMODULE_STATUS__INDEX_FLAGS) == 0)
 
 #define GIT_SUBMODULE_STATUS_IS_WD_UNMODIFIED(S) \
-	(((S) & GIT_SUBMODULE_STATUS__WD_FLAGS) == 0)
+	(((S) & (GIT_SUBMODULE_STATUS__WD_FLAGS & \
+	~GIT_SUBMODULE_STATUS_WD_UNINITIALIZED)) == 0)
 
 #define GIT_SUBMODULE_STATUS_IS_WD_DIRTY(S) \
 	(((S) & (GIT_SUBMODULE_STATUS_WD_INDEX_MODIFIED | \
 	GIT_SUBMODULE_STATUS_WD_WD_MODIFIED | \
 	GIT_SUBMODULE_STATUS_WD_UNTRACKED)) != 0)
-
-/**
- * Options for submodule recurse.
- *
- * * GIT_SUBMODULE_RECURSE_NO   - do no recurse into submodules
- * * GIT_SUBMODULE_RECURSE_YES  - recurse into submodules
- * * GIT_SUBMODULE_RECURSE_ONDEMAND - recurse into submodules only when commit not already in local clone
- */
-typedef enum {
-	GIT_SUBMODULE_RECURSE_NO = 0,
-	GIT_SUBMODULE_RECURSE_YES = 1,
-	GIT_SUBMODULE_RECURSE_ONDEMAND = 2,
-} git_submodule_recurse_t;
 
 /**
  * Lookup submodule information by name or path.
@@ -282,6 +270,16 @@ GIT_EXTERN(const char *) git_submodule_path(git_submodule *submodule);
  * @return Pointer to the submodule url
  */
 GIT_EXTERN(const char *) git_submodule_url(git_submodule *submodule);
+
+/**
+ * Resolve a submodule url relative to the given repository.
+ *
+ * @param out buffer to store the absolute submodule url in
+ * @param repository Pointer to repository object
+ * @param url Relative url
+ * @return 0 or an error code
+ */
+GIT_EXTERN(int) git_submodule_resolve_url(git_buf *out, git_repository *repo, const char *url);
 
 /**
 * Get the branch for the submodule.

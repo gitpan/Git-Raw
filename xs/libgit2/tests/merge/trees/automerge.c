@@ -121,7 +121,7 @@ void test_merge_trees_automerge__automerge(void)
 	cl_assert((entry = git_index_get_bypath(index, "automergeable.txt", 0)) != NULL);
 	cl_assert(entry->file_size == strlen(AUTOMERGEABLE_MERGED_FILE));
 
-	cl_git_pass(git_object_lookup((git_object **)&blob, repo, &entry->oid, GIT_OBJ_BLOB));
+	cl_git_pass(git_object_lookup((git_object **)&blob, repo, &entry->id, GIT_OBJ_BLOB));
 	cl_assert(memcmp(git_blob_rawcontent(blob), AUTOMERGEABLE_MERGED_FILE, (size_t)entry->file_size) == 0);
 
 	git_index_free(index);
@@ -149,7 +149,7 @@ void test_merge_trees_automerge__favor_ours(void)
 		REMOVED_IN_MASTER_REUC_ENTRY,
 	};
 
-	opts.automerge_flags = GIT_MERGE_AUTOMERGE_FAVOR_OURS;
+	opts.file_favor = GIT_MERGE_FILE_FAVOR_OURS;
 
 	cl_git_pass(merge_trees_from_branches(&index, repo, "master", THEIRS_AUTOMERGE_BRANCH, &opts));
 
@@ -180,7 +180,7 @@ void test_merge_trees_automerge__favor_theirs(void)
 		REMOVED_IN_MASTER_REUC_ENTRY,
 	};
 
-	opts.automerge_flags = GIT_MERGE_AUTOMERGE_FAVOR_THEIRS;
+	opts.file_favor = GIT_MERGE_FILE_FAVOR_THEIRS;
 
 	cl_git_pass(merge_trees_from_branches(&index, repo, "master", THEIRS_AUTOMERGE_BRANCH, &opts));
 

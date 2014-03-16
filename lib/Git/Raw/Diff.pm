@@ -1,8 +1,5 @@
 package Git::Raw::Diff;
-{
-  $Git::Raw::Diff::VERSION = '0.31';
-}
-
+$Git::Raw::Diff::VERSION = '0.32';
 use strict;
 use warnings;
 
@@ -14,7 +11,7 @@ Git::Raw::Diff - Git diff class
 
 =head1 VERSION
 
-version 0.31
+version 0.32
 
 =head1 DESCRIPTION
 
@@ -28,6 +25,14 @@ B<WARNING>: The API of this module is unstable and may change without warning
 =head2 merge( $from )
 
 Merge the given diff with the C<Git::Raw::Diff> C<$from>.
+
+=head2 delta_count( )
+
+Query how many diff records there are in the diff.
+
+=head2 patches( )
+
+Return a list of C<Git::Raw::Patch> objects for the diff.
 
 =head2 print( $format, $callback )
 

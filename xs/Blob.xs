@@ -27,7 +27,9 @@ create(class, repo, buffer)
 		rc = git_blob_lookup(&blob, repo_ptr, &oid);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), blob, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), blob, repo
+		);
 
 	OUTPUT: RETVAL
 
@@ -54,7 +56,9 @@ lookup(class, repo, id)
 		rc = git_blob_lookup_prefix(&blob, GIT_SV_TO_PTR(Repository, repo), &oid, len);
 		git_check_error(rc);
 
-		GIT_NEW_OBJ(RETVAL, SvPVbyte_nolen(class), blob, SvRV(repo));
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, SvPVbyte_nolen(class), blob, repo
+		);
 
 	OUTPUT: RETVAL
 
@@ -67,7 +71,7 @@ content(self)
 
 	CODE:
 		len = git_blob_rawsize(self);
-		RETVAL = newSVpv(git_blob_rawcontent(self), len);
+		RETVAL = newSVpv(git_blob_rawcontent(self), (STRLEN) len);
 
 	OUTPUT: RETVAL
 
@@ -80,7 +84,7 @@ size(self)
 
 	CODE:
 		len = git_blob_rawsize(self);
-		RETVAL = newSViv(len);
+		RETVAL = newSViv((IV) len);
 
 	OUTPUT: RETVAL
 
@@ -121,4 +125,4 @@ DESTROY(self)
 
 	CODE:
 		git_blob_free(GIT_SV_TO_PTR(Blob, self));
-		SvREFCNT_dec(xs_object_magic_get_struct(aTHX_ SvRV(self)));
+		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));

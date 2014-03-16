@@ -1,14 +1,13 @@
 package Git::Raw;
-{
-  $Git::Raw::VERSION = '0.31';
-}
-
+$Git::Raw::VERSION = '0.32';
 use strict;
 use warnings;
 
 require XSLoader;
 XSLoader::load('Git::Raw', $Git::Raw::VERSION);
 
+use Git::Raw::Filter;
+use Git::Raw::Reference;
 use Git::Raw::Repository;
 
 =head1 NAME
@@ -17,7 +16,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.31
+version 0.32
 
 =head1 DESCRIPTION
 

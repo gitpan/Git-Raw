@@ -4,6 +4,7 @@ use Test::More;
 
 use Git::Raw;
 use Cwd qw(abs_path);
+use File::Path qw(make_path rmtree);
 
 my $path = abs_path('t/test_repo');
 my $repo = Git::Raw::Repository -> open($path);
@@ -23,6 +24,7 @@ is $remotes[0] -> name, $name;
 is $remotes[0] -> url, $url;
 
 is $remotes[1], undef;
+@remotes = ();
 
 $name = 'github';
 $url  = 'git://github.com/ghedo/p5-Git-Raw.git';
@@ -53,6 +55,14 @@ isa_ok $head, 'Git::Raw::Commit';
 
 is $head -> author -> name, 'Alessandro Ghedini';
 
+my $reflog = $ref -> reflog;
+my @entries = $reflog -> entries;
+is scalar(@entries), 1;
+
+ok !defined($entries[0] -> {'message'});
+is $entries[0] -> {'old_id'}, '0000000000000000000000000000000000000000';
+is $entries[0] -> {'new_id'}, $ref -> target -> id;
+
 $repo = Git::Raw::Repository -> new();
 $github = Git::Raw::Remote -> create_inmemory($repo, undef, $url);
 
@@ -63,6 +73,7 @@ my $ls = $github -> ls;
 
 is_deeply $ls -> {'HEAD'}, $ls -> {'refs/heads/master'};
 
+make_path ('t/callbacks_repo');
 $path = abs_path('t/callbacks_repo');
 $repo = Git::Raw::Repository -> init ($path, 0);
 
@@ -93,7 +104,20 @@ $github -> download;
 ok $progress;
 ok $transfer_progress;
 
+my $config = $repo -> config;
+
+$name  = 'Git::Raw author';
+$email = 'git-xs@example.com';
+
+is $config -> str('user.name', $name), $name;
+is $config -> str('user.email', $email), $email;
+
 $github -> update_tips;
 ok $update_tips;
+
+$repo = undef;
+$github = undef;
+rmtree $path;
+ok ! -e $path;
 
 done_testing;

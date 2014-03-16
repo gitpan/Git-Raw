@@ -229,16 +229,7 @@ int git_submodule_add_setup(
 	}
 
 	/* resolve parameters */
-
-	if (url[0] == '.' && (url[1] == '/' || (url[1] == '.' && url[2] == '/'))) {
-		if (!(error = lookup_head_remote(&real_url, repo)))
-			error = git_path_apply_relative(&real_url, url);
-	} else if (strchr(url, ':') != NULL || url[0] == '/') {
-		error = git_buf_sets(&real_url, url);
-	} else {
-		giterr_set(GITERR_SUBMODULE, "Invalid format for submodule URL");
-		error = -1;
-	}
+	error = git_submodule_resolve_url(&real_url, repo, url);
 	if (error)
 		goto cleanup;
 
@@ -387,7 +378,7 @@ int git_submodule_add_to_index(git_submodule *sm, int write_index)
 		error = -1;
 		goto cleanup;
 	}
-	git_oid_cpy(&entry.oid, &sm->wd_oid);
+	git_oid_cpy(&entry.id, &sm->wd_oid);
 
 	if ((error = git_commit_lookup(&head, sm_repo, &sm->wd_oid)) < 0)
 		goto cleanup;
@@ -498,6 +489,7 @@ int git_submodule_save(git_submodule *submodule)
 
 	submodule->ignore_default = submodule->ignore;
 	submodule->update_default = submodule->update;
+	submodule->fetch_recurse_default = submodule->fetch_recurse;
 	submodule->flags |= GIT_SUBMODULE_STATUS_IN_CONFIG;
 
 cleanup:
@@ -530,6 +522,25 @@ const char *git_submodule_url(git_submodule *submodule)
 {
 	assert(submodule);
 	return submodule->url;
+}
+
+int git_submodule_resolve_url(git_buf *out, git_repository *repo, const char *url)
+{
+	int error = 0;
+
+	assert(url);
+
+	if (url[0] == '.' && (url[1] == '/' || (url[1] == '.' && url[2] == '/'))) {
+		if (!(error = lookup_head_remote(out, repo)))
+			error = git_path_apply_relative(out, url);
+	} else if (strchr(url, ':') != NULL || url[0] == '/') {
+		error = git_buf_sets(out, url);
+	} else {
+		giterr_set(GITERR_SUBMODULE, "Invalid format for submodule URL");
+		error = -1;
+	}
+
+	return error;
 }
 
 const char *git_submodule_branch(git_submodule *submodule)
@@ -649,6 +660,9 @@ git_submodule_recurse_t git_submodule_set_fetch_recurse_submodules(
 	git_submodule_recurse_t old;
 
 	assert(submodule);
+
+	if (fetch_recurse_submodules == GIT_SUBMODULE_RECURSE_RESET)
+		fetch_recurse_submodules = submodule->fetch_recurse_default;
 
 	old = submodule->fetch_recurse;
 	submodule->fetch_recurse = fetch_recurse_submodules;
@@ -780,7 +794,7 @@ static void submodule_update_from_index_entry(
 		if (already_found)
 			sm->flags |= GIT_SUBMODULE_STATUS__INDEX_MULTIPLE_ENTRIES;
 		else
-			git_oid_cpy(&sm->index_oid, &ie->oid);
+			git_oid_cpy(&sm->index_oid, &ie->id);
 
 		sm->flags |= GIT_SUBMODULE_STATUS_IN_INDEX |
 			GIT_SUBMODULE_STATUS__INDEX_OID_VALID;
@@ -1000,7 +1014,7 @@ static git_submodule *submodule_alloc(git_repository *repo, const char *name)
 	GIT_REFCOUNT_INC(sm);
 	sm->ignore = sm->ignore_default = GIT_SUBMODULE_IGNORE_NONE;
 	sm->update = sm->update_default = GIT_SUBMODULE_UPDATE_CHECKOUT;
-	sm->fetch_recurse = GIT_SUBMODULE_RECURSE_YES;
+	sm->fetch_recurse = sm->fetch_recurse_default = GIT_SUBMODULE_RECURSE_NO;
 	sm->repo   = repo;
 	sm->branch = NULL;
 
@@ -1218,6 +1232,7 @@ static int submodule_load_from_config(
 	else if (strcasecmp(property, "fetchRecurseSubmodules") == 0) {
 		if (git_submodule_parse_recurse(&sm->fetch_recurse, value) < 0)
 			return -1;
+		sm->fetch_recurse_default = sm->fetch_recurse;
 	}
 	else if (strcasecmp(property, "ignore") == 0) {
 		if ((error = git_submodule_parse_ignore(&sm->ignore, value)) < 0)
@@ -1281,7 +1296,7 @@ static int load_submodule_config_from_index(
 			if (!submodule_get(&sm, repo, entry->path, NULL))
 				submodule_update_from_index_entry(sm, entry);
 		} else if (strcmp(entry->path, GIT_MODULES_FILE) == 0)
-			git_oid_cpy(gitmodules_oid, &entry->oid);
+			git_oid_cpy(gitmodules_oid, &entry->id);
 	}
 
 	if (error == GIT_ITEROVER)
@@ -1320,16 +1335,16 @@ static int load_submodule_config_from_head(
 
 			if (S_ISGITLINK(entry->mode))
 				submodule_update_from_head_data(
-					sm, entry->mode, &entry->oid);
+					sm, entry->mode, &entry->id);
 			else
 				sm->flags |= GIT_SUBMODULE_STATUS__HEAD_NOT_SUBMODULE;
 		} else if (S_ISGITLINK(entry->mode)) {
 			if (!submodule_get(&sm, repo, entry->path, NULL))
 				submodule_update_from_head_data(
-					sm, entry->mode, &entry->oid);
+					sm, entry->mode, &entry->id);
 		} else if (strcmp(entry->path, GIT_MODULES_FILE) == 0 &&
 				   git_oid_iszero(gitmodules_oid)) {
-			git_oid_cpy(gitmodules_oid, &entry->oid);
+			git_oid_cpy(gitmodules_oid, &entry->id);
 		}
 	}
 

@@ -83,11 +83,11 @@ int merge_branches(git_merge_result **result, git_repository *repo, const char *
 {
 	git_reference *head_ref, *theirs_ref;
 	git_merge_head *theirs_head;
-	git_checkout_opts head_checkout_opts = GIT_CHECKOUT_OPTS_INIT;
+	git_checkout_options head_checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
 
 	head_checkout_opts.checkout_strategy = GIT_CHECKOUT_FORCE;
 
-	cl_git_pass(git_reference_symbolic_create(&head_ref, repo, "HEAD", ours_branch, 1));
+	cl_git_pass(git_reference_symbolic_create(&head_ref, repo, "HEAD", ours_branch, 1, NULL, NULL));
 	cl_git_pass(git_checkout_head(repo, &head_checkout_opts));
 
 	cl_git_pass(git_reference_lookup(&theirs_ref, repo, theirs_branch));
@@ -112,7 +112,7 @@ void merge__dump_index_entries(git_vector *index_entries)
 		index_entry = index_entries->contents[i];
 
 		printf("%o ", index_entry->mode);
-		printf("%s ", git_oid_allocfmt(&index_entry->oid));
+		printf("%s ", git_oid_allocfmt(&index_entry->id));
 		printf("%d ", git_index_entry_stage(index_entry));
 		printf("%s ", index_entry->path);
 		printf("\n");
@@ -166,7 +166,7 @@ static int index_entry_eq_merge_index_entry(const struct merge_index_entry *expe
 		test_oid = 0;
 
 	if (actual->mode != expected->mode ||
-		(test_oid && git_oid_cmp(&actual->oid, &expected_oid) != 0) ||
+		(test_oid && git_oid_cmp(&actual->id, &expected_oid) != 0) ||
 		git_index_entry_stage(actual) != expected->stage)
 		return 0;
 
