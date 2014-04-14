@@ -1,5 +1,5 @@
 package Git::Raw::Filter::Source;
-$Git::Raw::Filter::Source::VERSION = '0.32';
+$Git::Raw::Filter::Source::VERSION = '0.33';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Filter::Source - Git filter source class
 
 =head1 VERSION
 
-version 0.32
+version 0.33
 
 =head1 DESCRIPTION
 
@@ -32,8 +32,8 @@ Retrieve the path that the filter source data is coming from.
 
 =head2 file_mode( )
 
-Retrieve the file mode of the source file. If the mode is unknown,
-this will return 0.
+Retrieve the file mode of the source file, as an integer. If the mode
+is unknown, this will return 0.
 
 =head2 mode( )
 

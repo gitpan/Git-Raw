@@ -293,8 +293,7 @@ STATIC void git_clean_filter_callbacks(git_filter_callbacks *cbs) {
 	}
 }
 
-STATIC void git_flag_opt(HV *value, const char *name,
-			 int mask, unsigned *out) {
+STATIC void git_flag_opt(HV *value, const char *name, int mask, unsigned *out) {
 	SV **opt;
 
 	if ((opt = hv_fetch(value, name, strlen(name), 0)) && SvIV(*opt))
@@ -391,6 +390,30 @@ STATIC unsigned git_hv_to_checkout_strategy(HV *strategy) {
 		strategy, "skip_unmerged",
 		GIT_CHECKOUT_SKIP_UNMERGED, &out
 	);
+
+	git_flag_opt(strategy, "use_ours", GIT_CHECKOUT_USE_OURS, &out);
+
+	git_flag_opt(strategy, "use_theirs", GIT_CHECKOUT_USE_THEIRS, &out);
+
+	git_flag_opt(
+		strategy, "skip_locked_directories",
+		GIT_CHECKOUT_SKIP_LOCKED_DIRECTORIES, &out);
+
+	git_flag_opt(
+		strategy, "dont_overwrite_ignored",
+		GIT_CHECKOUT_DONT_OVERWRITE_IGNORED, &out);
+
+	git_flag_opt(
+		strategy, "conflict_style_merge",
+		GIT_CHECKOUT_CONFLICT_STYLE_MERGE, &out);
+
+	git_flag_opt(
+		strategy, "conflict_style_diff3",
+		GIT_CHECKOUT_CONFLICT_STYLE_DIFF3, &out);
+
+	git_flag_opt(
+		strategy, "disable_pathspec_match",
+		GIT_CHECKOUT_DISABLE_PATHSPEC_MATCH, &out);
 
 	return out;
 }
@@ -508,12 +531,19 @@ STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, v
 STATIC int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	dSP;
 	int rv;
-	Tag tag;
+	git_object *tag;
+
 	SV *repo, *cb_arg;
 	git_foreach_payload *pl = payload;
 
-	int rc = git_tag_lookup(&tag, pl -> repo_ptr, oid);
+	int rc = git_object_lookup(&tag, pl -> repo_ptr, oid, GIT_OBJ_ANY);
 	git_check_error(rc);
+
+	if (git_object_type(tag) != GIT_OBJ_TAG) {
+		git_object_free(tag);
+
+		return 0;
+	}
 
 	ENTER;
 	SAVETMPS;
@@ -586,7 +616,7 @@ STATIC int git_checkout_notify_cbb(git_checkout_notify_t why, const char *path, 
 }
 
 STATIC void git_checkout_progress_cbb(const char *path, size_t completed_steps,
-				      size_t total_steps, void *payload) {
+                                      size_t total_steps, void *payload) {
 	dSP;
 
 	SV *coderef = payload;
@@ -909,7 +939,7 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 		size_t count = 0;
 
 		if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-			Perl_croak(aTHX_ "Invalid type");
+			Perl_croak(aTHX_ "Invalid type for 'paths'");
 
 		while ((path = av_fetch((AV *) SvRV(*opt), count, 0))) {
 			if (SvOK(*path)) {
@@ -924,11 +954,39 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 		}
 	}
 
+	if ((opt = hv_fetchs(opts, "target_directory", 0))) {
+		if (!SvPOK(*opt))
+			Perl_croak(aTHX_ "Invalid type for 'target_directory'");
+
+		checkout_opts -> target_directory = SvPVbyte_nolen(*opt);
+	}
+
+	if ((opt = hv_fetchs(opts, "ancestor_label", 0))) {
+		if (!SvPOK(*opt))
+			Perl_croak(aTHX_ "Invalid type for 'ancestor_label'");
+
+		checkout_opts -> ancestor_label = SvPVbyte_nolen(*opt);
+	}
+
+	if ((opt = hv_fetchs(opts, "our_label", 0))) {
+		if (!SvPOK(*opt))
+			Perl_croak(aTHX_ "Invalid type for 'our_label'");
+
+		checkout_opts -> our_label = SvPVbyte_nolen(*opt);
+	}
+
+	if ((opt = hv_fetchs(opts, "their_label", 0))) {
+		if (!SvPOK(*opt))
+			Perl_croak(aTHX_ "Invalid type for 'their_label'");
+
+		checkout_opts -> their_label = SvPVbyte_nolen(*opt);
+	}
+
 	if ((opt = hv_fetchs(opts, "callbacks", 0))) {
 		HV *callbacks;
 
 		if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
-			Perl_croak(aTHX_ "Invalid type");
+			Perl_croak(aTHX_ "Invalid type for 'callbacks'");
 
 		callbacks = (HV *) SvRV(*opt);
 
@@ -976,7 +1034,7 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 	}
 }
 
-STATIC void git_hv_to_merge_tree_opts(HV *opts, git_merge_tree_opts *merge_tree_opts) {
+STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
 	SV **opt;
 
 	if ((opt = hv_fetchs(opts, "flags", 0))) {
@@ -991,7 +1049,7 @@ STATIC void git_hv_to_merge_tree_opts(HV *opts, git_merge_tree_opts *merge_tree_
 				const char *f = SvPVbyte_nolen(*flag);
 
 				if (strcmp(f, "find_renames") == 0)
-					merge_tree_opts -> flags |= GIT_MERGE_TREE_FIND_RENAMES;
+					merge_options -> flags |= GIT_MERGE_TREE_FIND_RENAMES;
 				else
 					Perl_croak(aTHX_ "Invalid 'flags' value");
 			} else
@@ -999,33 +1057,36 @@ STATIC void git_hv_to_merge_tree_opts(HV *opts, git_merge_tree_opts *merge_tree_
 		}
 	}
 
-	if ((opt = hv_fetchs(opts, "automerge", 0))) {
+	if ((opt = hv_fetchs(opts, "favor", 0))) {
 		if (SvPOK(*opt)) {
-			const char *auto_merge = SvPVbyte_nolen(*opt);
-			if (strcmp(auto_merge, "favor_ours") == 0)
-				merge_tree_opts -> file_favor =
+			const char *favor = SvPVbyte_nolen(*opt);
+			if (strcmp(favor, "ours") == 0)
+				merge_options -> file_favor =
 					GIT_MERGE_FILE_FAVOR_OURS;
-			else if (strcmp(auto_merge, "favor_theirs") == 0)
-				merge_tree_opts -> file_favor =
+			else if (strcmp(favor, "theirs") == 0)
+				merge_options -> file_favor =
 					GIT_MERGE_FILE_FAVOR_THEIRS;
+			else if (strcmp(favor, "union") == 0)
+				merge_options -> file_favor =
+					GIT_MERGE_FILE_FAVOR_UNION;
 			else
-				Perl_croak(aTHX_ "Invalid 'automerge' value");
+				Perl_croak(aTHX_ "Invalid 'favor' value");
 		} else
-			Perl_croak(aTHX_ "Invalid type for 'automerge' value");
+			Perl_croak(aTHX_ "Invalid type for 'favor' value");
 	}
 
 	if ((opt = hv_fetchs(opts, "rename_threshold", 0))) {
 		if (!SvIOK(*opt) || SvIV(*opt) < 0)
 			Perl_croak(aTHX_ "Invalid type");
 
-		merge_tree_opts -> rename_threshold = SvIV(*opt);
+		merge_options -> rename_threshold = SvIV(*opt);
 	}
 
 	if ((opt = hv_fetchs(opts, "target_limit", 0))) {
 		if (!SvIOK(*opt) || SvIV(*opt) < 0)
 			Perl_croak(aTHX_ "Invalid type");
 
-		merge_tree_opts -> target_limit = SvIV(*opt);
+		merge_options -> target_limit = SvIV(*opt);
 	}
 }
 

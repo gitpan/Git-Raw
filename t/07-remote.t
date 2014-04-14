@@ -27,7 +27,7 @@ is $remotes[1], undef;
 @remotes = ();
 
 $name = 'github';
-$url  = 'git://github.com/ghedo/p5-Git-Raw.git';
+$url  = 'git://github.com/libgit2/TestGitRepository.git';
 
 # FIXME: remote rename
 # is $github -> name($name), $name;
@@ -53,7 +53,7 @@ is $ref -> type, 'direct';
 my $head = $ref -> target;
 isa_ok $head, 'Git::Raw::Commit';
 
-is $head -> author -> name, 'Alessandro Ghedini';
+is $head -> author -> name, 'A U Thor';
 
 my $reflog = $ref -> reflog;
 my @entries = $reflog -> entries;
@@ -64,7 +64,7 @@ is $entries[0] -> {'old_id'}, '0000000000000000000000000000000000000000';
 is $entries[0] -> {'new_id'}, $ref -> target -> id;
 
 $repo = Git::Raw::Repository -> new();
-$github = Git::Raw::Remote -> create_inmemory($repo, undef, $url);
+$github = Git::Raw::Remote -> create_anonymous($repo, $url, undef);
 
 $github -> connect('fetch');
 is $github -> is_connected, 1;

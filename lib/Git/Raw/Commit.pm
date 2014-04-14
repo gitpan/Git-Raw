@@ -1,5 +1,5 @@
 package Git::Raw::Commit;
-$Git::Raw::Commit::VERSION = '0.32';
+$Git::Raw::Commit::VERSION = '0.33';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.32
+version 0.33
 
 =head1 SYNOPSIS
 
@@ -101,6 +101,12 @@ Retrieve the L<Git::Raw::Tree> the commit points to.
 =head2 parents( )
 
 Retrieve the list of parents of the commit.
+
+=head2 merge( $commit, [ \%merge_opts ])
+
+Merge C<$commit> into this commit. See C<Git::Raw::Repository-E<gt>merge()>
+for valid C<%merge_opts> values. Returns a C<Git::Raw::Index> object
+containing the merge result.
 
 =head1 AUTHOR
 

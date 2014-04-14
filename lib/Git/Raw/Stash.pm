@@ -1,5 +1,5 @@
 package Git::Raw::Stash;
-$Git::Raw::Stash::VERSION = '0.32';
+$Git::Raw::Stash::VERSION = '0.33';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Stash - Git stash class
 
 =head1 VERSION
 
-version 0.32
+version 0.33
 
 =head1 DESCRIPTION
 

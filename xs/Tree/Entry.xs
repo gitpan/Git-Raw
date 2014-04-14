@@ -27,6 +27,15 @@ name(self)
 	OUTPUT: RETVAL
 
 SV *
+file_mode(self)
+	Tree_Entry self
+
+	CODE:
+		RETVAL = newSViv(git_tree_entry_filemode(self));
+
+	OUTPUT: RETVAL
+
+SV *
 object(self)
 	SV *self
 
@@ -46,7 +55,7 @@ object(self)
 		rc = git_tree_entry_to_object(&obj, repo, entry);
 		git_check_error(rc);
 
-		RETVAL = git_obj_to_sv(obj, self);
+		RETVAL = git_obj_to_sv(obj, GIT_SV_TO_MAGIC(self));
 
 	OUTPUT: RETVAL
 

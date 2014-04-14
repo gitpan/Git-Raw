@@ -1,5 +1,5 @@
 package Git::Raw::Config;
-$Git::Raw::Config::VERSION = '0.32';
+$Git::Raw::Config::VERSION = '0.33';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Config - Git config class
 
 =head1 VERSION
 
-version 0.32
+version 0.33
 
 =head1 DESCRIPTION
 
@@ -25,6 +25,12 @@ B<WARNING>: The API of this module is unstable and may change without warning
 =head2 new( )
 
 Create a new config object.
+
+=head2 default( )
+
+Retrieve the global, XDG and system configuration and open them into a single
+prioritized config object that can be used when accessing default config data
+outside a repository
 
 =head2 add_file( $path, $level )
 

@@ -1,5 +1,5 @@
 package Git::Raw::Tag;
-$Git::Raw::Tag::VERSION = '0.32';
+$Git::Raw::Tag::VERSION = '0.33';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.32
+version 0.33
 
 =head1 SYNOPSIS
 
@@ -35,7 +35,7 @@ version 0.32
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Tag> represents a Git tag.
+A C<Git::Raw::Tag> represents an annotated Git tag.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
@@ -44,8 +44,8 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 =head2 create( $repo, $name, $msg, $tagger, $target )
 
-Create a new tag given a name, a message, a L<Git::Raw::Signature> representing
-the tagger and a target object.
+Create a new annotated tag given a name, a message, a
+L<Git::Raw::Signature> representing the tagger and a target object.
 
 =head2 lookup( $repo, $id )
 

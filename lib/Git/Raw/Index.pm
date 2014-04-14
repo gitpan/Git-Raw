@@ -1,5 +1,5 @@
 package Git::Raw::Index;
-$Git::Raw::Index::VERSION = '0.32';
+$Git::Raw::Index::VERSION = '0.33';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.32
+version 0.33
 
 =head1 DESCRIPTION
 
@@ -22,9 +22,14 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 =head1 METHODS
 
-=head2 add( $file )
+=head2 add( $entry )
 
-Add C<$file> to the index.
+Add C<$entry> to the index. C<$entry> should either be the path of a file
+or alternatively a C<Git::Raw::Index::Entry>.
+
+=head2 remove( $path )
+
+Remove C<$path> from the index.
 
 =head2 clear( )
 
@@ -42,13 +47,30 @@ Write the index to disk.
 
 Replace the index contente with C<$tree>.
 
-=head2 write_tree( )
+=head2 write_tree( [$repo] )
 
-Create a new tree from the index and write it to disk.
+Create a new tree from the index and write it to disk. C<$repo> optionally
+indicates which C<Git::Raw::Repository> the tree should be written to.
 
-=head2 remove( $path )
+=head2 checkout( [\%checkout_opts] )
 
-Remove C<$path> from the index.
+Update files in the working tree to match the contents of the index.
+See C<Git::Raw::Repository-E<gt>checkout()> for valid
+C<%checkout_opts> values.
+
+=head2 entries( )
+
+Retrieve index entries. Returns a list of C<Git::Raw::Index::Entry> objects.
+
+=head2 add_conflict( $ancestor, $ours, $theirs )
+
+Add or update index entries to represent a conflict. C<$ancestor>,
+C<$ours> and C<$theirs> should be C<Git::Raw::Index::Entry> objects, or
+be L<undef>.
+
+=head2 remove_conflict( $file )
+
+Remove C<$file> from the index.
 
 =head2 has_conflicts( )
 

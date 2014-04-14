@@ -1,6 +1,6 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Config
 
-SV *
+Config
 new(class)
 	SV *class
 
@@ -12,7 +12,7 @@ new(class)
 		rc = git_config_new(&cfg);
 		git_check_error(rc);
 
-		RETVAL = sv_setref_pv(newSV(0), SvPVbyte_nolen(class), cfg);
+		RETVAL = cfg;
 
 	OUTPUT: RETVAL
 
@@ -179,6 +179,22 @@ refresh(self)
 	CODE:
 		rc = git_config_refresh(self);
 		git_check_error(rc);
+
+Config
+default(class)
+	SV *class
+
+	PREINIT:
+		int rc;
+		Config cfg;
+
+	CODE:
+		rc = git_config_open_default(&cfg);
+		git_check_error(rc);
+
+		RETVAL = cfg;
+
+	OUTPUT: RETVAL
 
 void
 delete(self, name)

@@ -48,18 +48,18 @@ if (check_lib(lib => 'ssh2')) {
 	print "SSH support disabled\n";
 }
 
-my @deps = glob 'xs/libgit2/deps/{http-parser,zlib}/*.c';
-my @srcs = glob 'xs/libgit2/src/{*.c,transports/*.c,xdiff/*.c}';
-push @srcs, 'xs/libgit2/src/hash/hash_generic.c';
+my @deps = glob 'deps/libgit2/deps/{http-parser,zlib}/*.c';
+my @srcs = glob 'deps/libgit2/src/{*.c,transports/*.c,xdiff/*.c}';
+push @srcs, 'deps/libgit2/src/hash/hash_generic.c';
 
 if ($^O eq 'MSWin32') {
-	push @srcs, glob 'xs/libgit2/src/{win32,compat}/*.c';
-	push @srcs, 'xs/libgit2/deps/regex/regex.c';
+	push @srcs, glob 'deps/libgit2/src/{win32,compat}/*.c';
+	push @srcs, 'deps/libgit2/deps/regex/regex.c';
 
-	$inc .= ' -Ixs/libgit2/deps/regex';
+	$inc .= ' -Ideps/libgit2/deps/regex';
 	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -D__USE_MINGW_ANSI_STDIO=1';
 } else {
-	push @srcs, glob 'xs/libgit2/src/unix/*.c'
+	push @srcs, glob 'deps/libgit2/src/unix/*.c'
 }
 
 my @objs = map { substr ($_, 0, -1) . 'o' } (@deps, @srcs);
@@ -82,7 +82,7 @@ my %WriteMakefileArgs = (
   "ABSTRACT" => "Perl bindings to the Git linkable library (libgit2)",
   "AUTHOR" => "Alessandro Ghedini <alexbio\@cpan.org>",
   "BUILD_REQUIRES" => {},
-  "CCFLAGS" => " -Wall -Wno-unused-variable",
+  "CCFLAGS" => " -Wall -Wno-unused-variable -Wdeclaration-after-statement",
   "CONFIGURE_REQUIRES" => {
     "Devel::CheckLib" => 0,
     "ExtUtils::MakeMaker" => "6.63_03"
@@ -90,7 +90,7 @@ my %WriteMakefileArgs = (
   "DEFINE" => "-DNO_VIZ -DSTDC -DNO_GZIP -D_FILE_OFFSET_BITS=64 -D_GNU_SOURCE",
   "DISTNAME" => "Git-Raw",
   "EXE_FILES" => [],
-  "INC" => "-I. -Ixs/libgit2 -Ixs/libgit2/src -Ixs/libgit2/include -Ixs/libgit2/deps/http-parser -Ixs/libgit2/deps/zlib",
+  "INC" => "-I. -Ideps/libgit2 -Ideps/libgit2/src -Ideps/libgit2/include -Ideps/libgit2/deps/http-parser -Ideps/libgit2/deps/zlib",
   "LIBS" => "-lrt",
   "LICENSE" => "perl",
   "NAME" => "Git::Raw",
@@ -112,7 +112,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.32",
+  "VERSION" => "0.33",
   "test" => {
     "TESTS" => "t/*.t"
   }
