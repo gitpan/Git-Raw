@@ -27,7 +27,7 @@ create(class, repo, msg, author, committer, parents, tree, ...)
 			SV *sv_update_ref = ST(7);
 
 			if (SvOK(sv_update_ref))
-				update_ref = SvPVbyte_nolen(sv_update_ref);
+				update_ref = git_ensure_pv(sv_update_ref, "update_ref");
 			else
 				update_ref = NULL;
 		}
@@ -51,7 +51,7 @@ create(class, repo, msg, author, committer, parents, tree, ...)
 
 		rc = git_commit_create(
 			&oid, repo_ptr, update_ref, author, committer, NULL,
-			SvPVbyte_nolen(msg), tree, count,
+			git_ensure_pv(msg, "msg"), tree, count,
 			(const git_commit **) commit_parents
 		);
 
@@ -85,7 +85,7 @@ lookup(class, repo, id)
 		const char *id_str;
 
 	INIT:
-		id_str = SvPVbyte(id, len);
+		id_str = git_ensure_pv_with_len(id, "id", &len);
 
 	CODE:
 		rc = git_oid_fromstrn(&oid, id_str, len);
@@ -105,12 +105,8 @@ SV *
 id(self)
 	Commit self
 
-	PREINIT:
-		const git_oid *oid;
-
 	CODE:
-		oid = git_commit_id(self);
-		RETVAL = git_oid_to_sv((git_oid *) oid);
+		RETVAL = git_oid_to_sv(git_commit_id(self));
 
 	OUTPUT: RETVAL
 
@@ -120,6 +116,7 @@ message(self)
 
 	PREINIT:
 		const char *msg;
+
 	CODE:
 		msg = git_commit_message(self);
 		RETVAL = newSVpv(msg, 0);
@@ -279,13 +276,8 @@ merge(self, commit, ...)
 		repo_ptr = INT2PTR(Repository, SvIV((SV *) repo));
 
 		if (items == 3) {
-			SV *opts = ST(2);
-
-			if (!SvROK(opts) || SvTYPE(SvRV(opts)) != SVt_PVHV)
-				Perl_croak(aTHX_ "Invalid type for 'merge_opts'");
-
-			git_hv_to_merge_opts((HV *) SvRV(opts),
-				&merge_opts);
+			HV *opts = git_ensure_hv(ST(2), "merge_opts");
+			git_hv_to_merge_opts(opts, &merge_opts);
 		}
 
 		rc = git_merge_commits(
@@ -297,6 +289,33 @@ merge(self, commit, ...)
 
 		GIT_NEW_OBJ_WITH_MAGIC(
 			RETVAL, "Git::Raw::Index", index, repo
+		);
+
+	OUTPUT: RETVAL
+
+SV *
+ancestor(self, gen)
+	SV *self
+	unsigned int gen
+
+	PREINIT:
+		int rc;
+
+		SV *repo;
+		Commit anc;
+
+	CODE:
+		repo = GIT_SV_TO_MAGIC(self);
+
+		rc = git_commit_nth_gen_ancestor(
+				&anc,
+				GIT_SV_TO_PTR(Commit, self),
+				gen
+		);
+		git_check_error(rc);
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Commit", anc, repo
 		);
 
 	OUTPUT: RETVAL

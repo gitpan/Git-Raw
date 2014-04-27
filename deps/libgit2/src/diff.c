@@ -318,6 +318,31 @@ static const char *diff_mnemonic_prefix(
 	return pfx;
 }
 
+static void diff_set_ignore_case(git_diff *diff, bool ignore_case)
+{
+	if (!ignore_case) {
+		diff->opts.flags &= ~GIT_DIFF_IGNORE_CASE;
+
+		diff->strcomp    = git__strcmp;
+		diff->strncomp   = git__strncmp;
+		diff->pfxcomp    = git__prefixcmp;
+		diff->entrycomp  = git_index_entry_cmp;
+
+		git_vector_set_cmp(&diff->deltas, git_diff_delta__cmp);
+	} else {
+		diff->opts.flags |= GIT_DIFF_IGNORE_CASE;
+
+		diff->strcomp    = git__strcasecmp;
+		diff->strncomp   = git__strncasecmp;
+		diff->pfxcomp    = git__prefixcmp_icase;
+		diff->entrycomp  = git_index_entry_icmp;
+
+		git_vector_set_cmp(&diff->deltas, git_diff_delta__casecmp);
+	}
+
+	git_vector_sort(&diff->deltas);
+}
+
 static git_diff *diff_list_alloc(
 	git_repository *repo,
 	git_iterator *old_iter,
@@ -344,24 +369,10 @@ static git_diff *diff_list_alloc(
 
 	/* Use case-insensitive compare if either iterator has
 	 * the ignore_case bit set */
-	if (!git_iterator_ignore_case(old_iter) &&
-		!git_iterator_ignore_case(new_iter)) {
-		diff->opts.flags &= ~GIT_DIFF_IGNORE_CASE;
-
-		diff->strcomp    = git__strcmp;
-		diff->strncomp   = git__strncmp;
-		diff->pfxcomp    = git__prefixcmp;
-		diff->entrycomp  = git_index_entry__cmp;
-	} else {
-		diff->opts.flags |= GIT_DIFF_IGNORE_CASE;
-
-		diff->strcomp    = git__strcasecmp;
-		diff->strncomp   = git__strncasecmp;
-		diff->pfxcomp    = git__prefixcmp_icase;
-		diff->entrycomp  = git_index_entry__cmp_icase;
-
-		git_vector_set_cmp(&diff->deltas, git_diff_delta__casecmp);
-	}
+	diff_set_ignore_case(
+		diff,
+		git_iterator_ignore_case(old_iter) ||
+		git_iterator_ignore_case(new_iter));
 
 	return diff;
 }
@@ -773,72 +784,6 @@ static bool entry_is_prefixed(
 			item->path[pathlen] == '/');
 }
 
-static int diff_scan_inside_untracked_dir(
-	git_diff *diff, diff_in_progress *info, git_delta_t *delta_type)
-{
-	int error = 0;
-	git_buf base = GIT_BUF_INIT;
-	bool is_ignored;
-
-	*delta_type = GIT_DELTA_IGNORED;
-	git_buf_sets(&base, info->nitem->path);
-
-	/* advance into untracked directory */
-	if ((error = git_iterator_advance_into(&info->nitem, info->new_iter)) < 0) {
-
-		/* skip ahead if empty */
-		if (error == GIT_ENOTFOUND) {
-			giterr_clear();
-			error = git_iterator_advance(&info->nitem, info->new_iter);
-		}
-
-		goto done;
-	}
-
-	/* look for actual untracked file */
-	while (info->nitem != NULL &&
-		   !diff->pfxcomp(info->nitem->path, git_buf_cstr(&base))) {
-		is_ignored = git_iterator_current_is_ignored(info->new_iter);
-
-		/* need to recurse into non-ignored directories */
-		if (!is_ignored && S_ISDIR(info->nitem->mode)) {
-			error = git_iterator_advance_into(&info->nitem, info->new_iter);
-
-			if (!error)
-				continue;
-			else if (error == GIT_ENOTFOUND) {
-				error = 0;
-				is_ignored = true; /* treat empty as ignored */
-			} else
-				break; /* real error, must stop */
-		}
-
-		/* found a non-ignored item - treat parent dir as untracked */
-		if (!is_ignored) {
-			*delta_type = GIT_DELTA_UNTRACKED;
-			break;
-		}
-
-		if ((error = git_iterator_advance(&info->nitem, info->new_iter)) < 0)
-			break;
-	}
-
-	/* finish off scan */
-	while (info->nitem != NULL &&
-		   !diff->pfxcomp(info->nitem->path, git_buf_cstr(&base))) {
-		if ((error = git_iterator_advance(&info->nitem, info->new_iter)) < 0)
-			break;
-	}
-
-done:
-	git_buf_free(&base);
-
-	if (error == GIT_ITEROVER)
-		error = 0;
-
-	return error;
-}
-
 static int handle_unmatched_new_item(
 	git_diff *diff, diff_in_progress *info)
 {
@@ -894,6 +839,7 @@ static int handle_unmatched_new_item(
 			DIFF_FLAG_ISNT_SET(diff, GIT_DIFF_ENABLE_FAST_UNTRACKED_DIRS))
 		{
 			git_diff_delta *last;
+			git_iterator_status_t untracked_state;
 
 			/* attempt to insert record for this directory */
 			if ((error = diff_delta__from_one(diff, delta_type, nitem)) != 0)
@@ -905,11 +851,14 @@ static int handle_unmatched_new_item(
 				return git_iterator_advance(&info->nitem, info->new_iter);
 
 			/* iterate into dir looking for an actual untracked file */
-			if (diff_scan_inside_untracked_dir(diff, info, &delta_type) < 0)
-				return -1;
+			if ((error = git_iterator_advance_over_with_status(
+					&info->nitem, &untracked_state, info->new_iter)) < 0 &&
+				error != GIT_ITEROVER)
+				return error;
 
-			/* it iteration changed delta type, the update the record */
-			if (delta_type == GIT_DELTA_IGNORED) {
+			/* if we found nothing or just ignored items, update the record */
+			if (untracked_state == GIT_ITERATOR_STATUS_IGNORED ||
+				untracked_state == GIT_ITERATOR_STATUS_EMPTY) {
 				last->status = GIT_DELTA_IGNORED;
 
 				/* remove the record if we don't want ignored records */
@@ -1183,39 +1132,25 @@ int git_diff_tree_to_index(
 	const git_diff_options *opts)
 {
 	int error = 0;
-	bool reset_index_ignore_case = false;
+	bool index_ignore_case = false;
 
 	assert(diff && repo);
 
 	if (!index && (error = diff_load_index(&index, repo)) < 0)
 		return error;
 
-	if (index->ignore_case) {
-		git_index__set_ignore_case(index, false);
-		reset_index_ignore_case = true;
-	}
+	index_ignore_case = index->ignore_case;
 
 	DIFF_FROM_ITERATORS(
-		git_iterator_for_tree(&a, old_tree, 0, pfx, pfx),
-		git_iterator_for_index(&b, index, 0, pfx, pfx)
+		git_iterator_for_tree(
+			&a, old_tree, GIT_ITERATOR_DONT_IGNORE_CASE, pfx, pfx),
+		git_iterator_for_index(
+			&b, index, GIT_ITERATOR_DONT_IGNORE_CASE, pfx, pfx)
 	);
 
-	if (reset_index_ignore_case) {
-		git_index__set_ignore_case(index, true);
-
-		if (!error) {
-			git_diff *d = *diff;
-
-			d->opts.flags |= GIT_DIFF_IGNORE_CASE;
-			d->strcomp    = git__strcasecmp;
-			d->strncomp   = git__strncasecmp;
-			d->pfxcomp    = git__prefixcmp_icase;
-			d->entrycomp  = git_index_entry__cmp_icase;
-
-			git_vector_set_cmp(&d->deltas, git_diff_delta__casecmp);
-			git_vector_sort(&d->deltas);
-		}
-	}
+	/* if index is in case-insensitive order, re-sort deltas to match */
+	if (!error && index_ignore_case)
+		diff_set_ignore_case(*diff, true);
 
 	return error;
 }
@@ -1427,6 +1362,217 @@ int git_diff__paired_foreach(
 	return error;
 }
 
+int git_diff__commit(
+	git_diff **diff,
+	git_repository *repo,
+	const git_commit *commit,
+	const git_diff_options *opts)
+{
+	git_commit *parent = NULL;
+	git_diff *commit_diff = NULL;
+	git_tree *old_tree = NULL, *new_tree = NULL;
+	size_t parents;
+	int error = 0;
+
+	if ((parents = git_commit_parentcount(commit)) > 1) {
+		char commit_oidstr[GIT_OID_HEXSZ + 1];
+
+		error = -1;
+		giterr_set(GITERR_INVALID, "Commit %s is a merge commit",
+			git_oid_tostr(commit_oidstr, GIT_OID_HEXSZ + 1, git_commit_id(commit)));
+		goto on_error;
+	}
+
+	if (parents > 0)
+		if ((error = git_commit_parent(&parent, commit, 0)) < 0 ||
+			(error = git_commit_tree(&old_tree, parent)) < 0)
+				goto on_error;
+
+	if ((error = git_commit_tree(&new_tree, commit)) < 0 ||
+		(error = git_diff_tree_to_tree(&commit_diff, repo, old_tree, new_tree, opts)) < 0)
+			goto on_error;
+
+	*diff = commit_diff;
+
+on_error:
+	git_tree_free(new_tree);
+	git_tree_free(old_tree);
+	git_commit_free(parent);
+
+	return error;
+}
+
+int git_diff_format_email__append_header_tobuf(
+	git_buf *out,
+	const git_oid *id,
+	const git_signature *author,
+	const char *summary,
+	size_t patch_no,
+	size_t total_patches,
+	bool exclude_patchno_marker)
+{
+	char idstr[GIT_OID_HEXSZ + 1];
+	char date_str[GIT_DATE_RFC2822_SZ];
+	int error = 0;
+
+	git_oid_fmt(idstr, id);
+	idstr[GIT_OID_HEXSZ] = '\0';
+
+	if ((error = git__date_rfc2822_fmt(date_str, sizeof(date_str), &author->when)) < 0)
+		return error;
+
+	error = git_buf_printf(out,
+				"From %s Mon Sep 17 00:00:00 2001\n" \
+				"From: %s <%s>\n" \
+				"Date: %s\n" \
+				"Subject: ",
+				idstr,
+				author->name, author->email,
+				date_str);
+
+	if (error < 0)
+		return error;
+
+	if (!exclude_patchno_marker) {
+		if (total_patches == 1) {
+			error = git_buf_puts(out, "[PATCH] ");
+		} else {
+			error = git_buf_printf(out, "[PATCH %"PRIuZ"/%"PRIuZ"] ", patch_no, total_patches);
+		}
+
+		if (error < 0)
+			return error;
+	}
+
+	error = git_buf_printf(out, "%s\n\n", summary);
+
+	return error;
+}
+
+int git_diff_format_email__append_patches_tobuf(
+	git_buf *out,
+	git_diff *diff)
+{
+	size_t i, deltas;
+	int error = 0;
+
+	deltas = git_diff_num_deltas(diff);
+
+	for (i = 0; i < deltas; ++i) {
+		git_patch *patch = NULL;
+
+		if ((error = git_patch_from_diff(&patch, diff, i)) >= 0)
+			error = git_patch_to_buf(out, patch);
+
+		git_patch_free(patch);
+
+		if (error < 0)
+			break;
+	}
+
+	return error;
+}
+
+int git_diff_format_email(
+	git_buf *out,
+	git_diff *diff,
+	const git_diff_format_email_options *opts)
+{
+	git_diff_stats *stats = NULL;
+	char *summary = NULL, *loc = NULL;
+	bool ignore_marker;
+	unsigned int format_flags = 0;
+	int error;
+
+	assert(out && diff && opts);
+	assert(opts->summary && opts->id && opts->author);
+
+	GITERR_CHECK_VERSION(opts, GIT_DIFF_FORMAT_EMAIL_OPTIONS_VERSION, "git_format_email_options");
+
+	if ((ignore_marker = opts->flags & GIT_DIFF_FORMAT_EMAIL_EXCLUDE_SUBJECT_PATCH_MARKER) == false) {
+		if (opts->patch_no > opts->total_patches) {
+			giterr_set(GITERR_INVALID, "patch %"PRIuZ" out of range. max %"PRIuZ, opts->patch_no, opts->total_patches);
+			return -1;
+		}
+
+		if (opts->patch_no == 0) {
+			giterr_set(GITERR_INVALID, "invalid patch no %"PRIuZ". should be >0", opts->patch_no);
+			return -1;
+		}
+	}
+
+	/* the summary we receive may not be clean.
+	 * it could potentially contain new line characters
+	 * or not be set, sanitize, */
+	if ((loc = strpbrk(opts->summary, "\r\n")) != NULL) {
+		size_t offset = 0;
+
+		if ((offset = (loc - opts->summary)) == 0) {
+			giterr_set(GITERR_INVALID, "summary is empty");
+			error = -1;
+		}
+
+		summary = git__calloc(offset + 1, sizeof(char));
+		GITERR_CHECK_ALLOC(summary);
+		strncpy(summary, opts->summary, offset);
+	}
+
+	error = git_diff_format_email__append_header_tobuf(out,
+				opts->id, opts->author, summary == NULL ? opts->summary : summary,
+				opts->patch_no, opts->total_patches, ignore_marker);
+
+	if (error < 0)
+		goto on_error;
+
+	format_flags = GIT_DIFF_STATS_FULL | GIT_DIFF_STATS_INCLUDE_SUMMARY;
+
+	if ((error = git_buf_puts(out, "---\n")) < 0 ||
+		(error = git_diff_get_stats(&stats, diff)) < 0 ||
+		(error = git_diff_stats_to_buf(out, stats, format_flags, 0)) < 0 ||
+		(error = git_buf_putc(out, '\n')) < 0 ||
+		(error = git_diff_format_email__append_patches_tobuf(out, diff)) < 0)
+			goto on_error;
+
+	error = git_buf_puts(out, "--\nlibgit2 " LIBGIT2_VERSION "\n\n");
+
+on_error:
+	git__free(summary);
+	git_diff_stats_free(stats);
+
+	return error;
+}
+
+int git_diff_commit_as_email(
+	git_buf *out,
+	git_repository *repo,
+	git_commit *commit,
+	size_t patch_no,
+	size_t total_patches,
+	git_diff_format_email_flags_t flags,
+	const git_diff_options *diff_opts)
+{
+	git_diff *diff = NULL;
+	git_diff_format_email_options opts = GIT_DIFF_FORMAT_EMAIL_OPTIONS_INIT;
+	int error;
+
+	assert (out && repo && commit);
+
+	opts.flags = flags;
+	opts.patch_no = patch_no;
+	opts.total_patches = total_patches;
+	opts.id = git_commit_id(commit);
+	opts.summary = git_commit_summary(commit);
+	opts.author = git_commit_author(commit);
+
+	if ((error = git_diff__commit(&diff, repo, commit, diff_opts)) < 0)
+		return error;
+
+	error = git_diff_format_email(out, diff, &opts);
+
+	git_diff_free(diff);
+	return error;
+}
+
 int git_diff_init_options(git_diff_options* opts, int version)
 {
 	if (version != GIT_DIFF_OPTIONS_VERSION) {
@@ -1446,6 +1592,18 @@ int git_diff_find_init_options(git_diff_find_options* opts, int version)
 		return -1;
 	} else {
 		git_diff_find_options o = GIT_DIFF_FIND_OPTIONS_INIT;
+		memcpy(opts, &o, sizeof(o));
+		return 0;
+	}
+}
+
+int git_diff_format_email_init_options(git_diff_format_email_options* opts, int version)
+{
+	if (version != GIT_DIFF_FORMAT_EMAIL_OPTIONS_VERSION) {
+		giterr_set(GITERR_INVALID, "Invalid version %d for git_diff_format_email_options", version);
+		return -1;
+	} else {
+		git_diff_format_email_options o = GIT_DIFF_FORMAT_EMAIL_OPTIONS_INIT;
 		memcpy(opts, &o, sizeof(o));
 		return 0;
 	}

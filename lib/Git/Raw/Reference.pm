@@ -1,5 +1,5 @@
 package Git::Raw::Reference;
-$Git::Raw::Reference::VERSION = '0.33';
+$Git::Raw::Reference::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 DESCRIPTION
 
@@ -42,6 +42,12 @@ afterwards.
 =head2 name( )
 
 Retrieve the name of the reference.
+
+=head2 shorthand( )
+
+Get the reference's short name. This will transform the reference name into a
+"human-readable" version. If no shortname is appropriate, it will return the
+full name.
 
 =head2 type( )
 
@@ -79,6 +85,14 @@ Check if the reference is a branch.
 =head2 is_remote( )
 
 Check if the reference is remote.
+
+=head2 is_tag( )
+
+Check if the reference lives in the L<"refs/tags"> namespace.
+
+=head2 is_note( )
+
+Check if the reference lives in the L<"refs/notes"> namespace.
 
 =head1 AUTHOR
 

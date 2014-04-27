@@ -1,5 +1,5 @@
 package Git::Raw::Walker;
-$Git::Raw::Walker::VERSION = '0.33';
+$Git::Raw::Walker::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 SYNOPSIS
 
@@ -64,6 +64,17 @@ starting a revision walk.
 
 Push HEAD of the repository to the list of commits to be used as roots when
 starting a revision walk.
+
+=head2 push_range( $start, $end )
+
+Push and hide the respective endpoints of the given range. C<$start> and C<$end>
+should be L<"commitish">, that is, it should be a C<Git::Raw::Commit> or
+C<Git::Raw::Reference> object, or alternatively a commit id or commit id prefix.
+
+=head2 push_range( $range )
+
+Push and hide the respective endpoints of the given range. C<$range> should be
+of the form L<"start_commit_id..end_commit_id">.
 
 =head2 hide( $commit )
 

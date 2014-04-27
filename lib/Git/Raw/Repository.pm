@@ -1,5 +1,5 @@
 package Git::Raw::Repository;
-$Git::Raw::Repository::VERSION = '0.33';
+$Git::Raw::Repository::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 SYNOPSIS
 
@@ -25,7 +25,7 @@ version 0.33
           my ($total_objects, $received_objects, $local_objects, $total_deltas,
             $indexed_deltas, $received_bytes) = @_;
 
-          print "Objects: $received_objects/$total_objecs", "\n";
+          print "Objects: $received_objects/$total_objects", "\n";
           print "Received: ", int($received_bytes/1024), "KB", "\n";
         }
       }
@@ -86,7 +86,7 @@ The callback to be called any time authentication is required to connect to the
 remote repository. The callback receives a string containing the URL of the
 remote, and it must return a L<Git::Raw::Cred> object.
 
-=item * "progress"
+=item * "sideband_progress"
 
 Textual progress from the remote. Text send over the progress side-band will be
 passed to this function (this is the 'counting objects' output). The callback
@@ -348,9 +348,10 @@ Example:
 
 =head2 merge_base( @objects )
 
-Find the merge base between C<@objects>. Each element in C<@objects> should
-either be a C<Git::Raw::Reference> or a C<Git::Raw::Commit>. A minimum
-of 2 objects should be provided.
+Find the merge base between C<@objects>. Each element in C<@objects> should be
+peelable to a C<Git::Raw::Commit> object, that is, it should be a
+C<Git::Raw::Commit> or C<Git::Raw::Reference> object, or alternatively a commit
+id or commit id prefix.
 
 =head2 merge_analysis( $reference )
 
@@ -476,6 +477,10 @@ Reverse the sides of the diff.
 
 Include ignored files in the diff.
 
+=item * "include_typechange"
+
+Enable the generation of typechange delta records.
+
 =item * "recurse_ignored_dirs"
 
 Even if C<"include_ignored"> is specified, an entire ignored directory
@@ -496,6 +501,10 @@ This flag adds all files under untracked directories as untracked entries, too.
 
 Ignore file mode changes.
 
+=item * "ignore_case"
+
+Use case insensitive filename comparisons.
+
 =item * "ignore_submodules"
 
 Treat all submodules as unmodified.
@@ -511,6 +520,27 @@ Ignore changes in amount of whitespace.
 =item * "ignore_whitespace_eol"
 
 Ignore whitespace at end of line.
+
+=item * "skip_binary_check"
+
+Disable updating of the binary flag in delta records.
+
+=item * "enable_fast_untracked_dirs"
+
+When diff finds an untracked directory, to match the behavior of core git, it
+scans the contents for ignored and untracked files. If all contents are ignore,
+then the directory is ignored. If any contents are not ignored, then the
+directory is untracked.  This is extra work that may not matter in many cases.
+This flag turns off that scan and immediately labels an untracked directory
+as untracked (changing the behavior to not match core git).
+
+=item * "show_untracked_content"
+
+Include the content of untracked files. This implies L<"include_untracked">.
+
+=item * "show_unmodified"
+
+Include the names of unmodified files.
 
 =item * "patience"
 
@@ -570,11 +600,12 @@ Create a new L<Git::Raw::Branch>. Shortcut for C<Git::Raw::Branch-E<gt>create()>
 
 sub branch { return Git::Raw::Branch -> create(@_) }
 
-=head2 branches( )
+=head2 branches( [$type] )
 
-Retrieve a list of L<Git::Raw::Branch> objects.
+Retrieve a list of L<Git::Raw::Branch> objects. Possible values for C<$type>
+include L<"local">, L<"remote"> or L<"all">.
 
-=head2 commit( $msg, $author, $committer, [@parents], $tree [, $update_ref ] )
+=head2 commit( $msg, $author, $committer, \@parents, $tree [, $update_ref ] )
 
 Create a new L<Git::Raw::Commit>. Shortcut for C<Git::Raw::Commit-E<gt>create()>.
 
@@ -699,6 +730,10 @@ Repository is applying patches or rebasing.
 Remove all the metadata associated with an ongoing command like merge, revert,
 cherry-pick, etc.
 
+=head2 message( )
+
+Retrieve the content of git's prepared message i.e. L<".git/MERGE_MSG">.
+
 =head2 is_empty( )
 
 Check if the repository is empty.
@@ -711,9 +746,16 @@ Check if the repository is bare.
 
 Check if the repository is a shallow clone.
 
+=head2 is_head_detached( )
+
+Check if the repository's HEAD is detached, that is, it points directly to
+a commit.
+
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

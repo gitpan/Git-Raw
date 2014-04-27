@@ -1,5 +1,5 @@
 package Git::Raw::Branch;
-$Git::Raw::Branch::VERSION = '0.33';
+$Git::Raw::Branch::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Branch - Git branch class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 SYNOPSIS
 
@@ -50,7 +50,18 @@ object, an additional C<Git::Raw::Branch-E<gt>lookup()> is needed.
 =head2 upstream( )
 
 Retrieve the reference supporting the remote tracking branch, given the local
-branch.
+branch. If there is no corresponding supporting reference, this function will
+return C<undef>.
+
+=head2 upstream_name( )
+
+Return the name of the reference supporting the remote tracking branch, given
+the the local branch.
+
+=head2 remote_name( )
+
+Return the name of remote that the remote tracking branch belongs to, given
+the local branch.
 
 =head2 is_head( )
 

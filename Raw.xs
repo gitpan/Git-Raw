@@ -21,6 +21,12 @@ typedef struct {
 } git_raw_remote_callbacks;
 
 typedef struct {
+	SV *packbuilder_progress;
+	SV *transfer_progress;
+	SV *status;
+} git_raw_push_callbacks;
+
+typedef struct {
 	SV *initialize;
 	SV *shutdown;
 	SV *check;
@@ -34,15 +40,16 @@ typedef git_blob * Blob;
 typedef git_reference * Branch;
 typedef git_commit * Commit;
 typedef git_config * Config;
-typedef git_cred * Cred;
 typedef git_diff * Diff;
 typedef git_diff_delta * Diff_Delta;
 typedef git_diff_file * Diff_File;
 typedef git_diff_hunk * Diff_Hunk;
+typedef git_diff_stats * Diff_Stats;
 typedef git_index * Index;
 typedef git_index_entry * Index_Entry;
 typedef git_patch * Patch;
-typedef git_push * Push;
+typedef git_pathspec * PathSpec;
+typedef git_pathspec_match_list * PathSpec_MatchList;
 typedef git_reference * Reference;
 typedef git_reflog * Reflog;
 typedef git_refspec * RefSpec;
@@ -70,6 +77,39 @@ typedef struct {
 } git_raw_remote;
 
 typedef git_raw_remote * Remote;
+
+/* This will get fixed upstream */
+typedef int (*git_push_status_cb)(const char *ref, const char *msg, void *data);
+
+typedef struct {
+	git_push *push;
+	git_raw_push_callbacks callbacks;
+} git_raw_push;
+
+typedef git_raw_push * Push;
+
+typedef struct {
+	git_cred *cred;
+	SV *callback;
+} git_raw_cred;
+
+typedef git_raw_cred * Cred;
+
+#ifndef GIT_SSH
+/* Reduces further conditional compile problems */
+typedef struct _LIBSSH2_USERAUTH_KBDINT_PROMPT
+{
+	char* text;
+	unsigned int length;
+	unsigned char echo;
+} LIBSSH2_USERAUTH_KBDINT_PROMPT;
+
+typedef struct _LIBSSH2_USERAUTH_KBDINT_RESPONSE
+{
+	char* text;
+	unsigned int length;
+} LIBSSH2_USERAUTH_KBDINT_RESPONSE;
+#endif
 
 STATIC MGVTBL null_mg_vtbl = {
 	NULL, /* get */
@@ -214,21 +254,70 @@ STATIC SV *git_oid_to_sv(const git_oid *oid) {
 	return newSVpv(out, 0);
 }
 
-STATIC SV *get_callback_option(HV *callbacks, const char *name) {
-	SV **opt;
+STATIC git_oid *git_sv_to_commitish(Repository repo, SV *sv, git_oid *oid) {
+	git_oid *result = NULL;
+	git_reference *ref = NULL;
+	git_object *obj = NULL;
 
-	if ((opt = hv_fetch(callbacks, name, strlen(name), 0))) {
-		SV *cb = *opt;
+	if (sv_isobject(sv)) {
+		if (sv_derived_from(sv, "Git::Raw::Reference")) {
+			int rc = git_reference_peel(&obj,
+				GIT_SV_TO_PTR(Reference, sv),
+				GIT_OBJ_COMMIT
+			);
+			git_check_error(rc);
 
-		if (SvTYPE(SvRV(cb)) != SVt_PVCV)
-			Perl_croak(aTHX_ "Expected a subroutine for '%s' callback", name);
+			git_oid_cpy(oid, git_object_id(obj));
+		} else if (sv_derived_from(sv, "Git::Raw::Commit")) {
+			git_oid_cpy(oid, git_commit_id(GIT_SV_TO_PTR(Commit, sv)));
+		} else
+			goto on_error;
+	} else {
+		STRLEN len;
+		const char *commitish_name = NULL;
 
-		SvREFCNT_inc(cb);
+		/* substr() may return a SVt_PVLV, need to perform some
+		 * force majeur */
+		if (SvPOK(sv)) {
+			commitish_name = SvPVbyte(sv, len);
+		} else if (SvTYPE(sv) == SVt_PVLV) {
+			commitish_name = SvPVbyte_force(sv, len);
+		}
 
-		return cb;
+		if (commitish_name) {
+			/* first try and see if its a commit id, otherwise see if its
+			 * a reference */
+			if (git_oid_fromstrn(oid, commitish_name, len) >= 0) {
+				if (len < GIT_OID_MINPREFIXLEN)
+					goto on_error;
+
+				if (len != GIT_OID_HEXSZ) {
+					if (git_object_lookup_prefix(&obj, repo, oid,
+						len, GIT_OBJ_COMMIT) < 0)
+						goto on_error;
+
+					git_oid_cpy(oid, git_object_id(obj));
+				}
+			} else {
+				if (git_reference_lookup(&ref, repo, commitish_name) < 0 &&
+					git_reference_dwim(&ref, repo, commitish_name) < 0)
+						goto on_error;
+
+				if (git_reference_peel(&obj, ref, GIT_OBJ_COMMIT) < 0)
+					goto on_error;
+
+				git_oid_cpy(oid, git_object_id(obj));
+			}
+		} else
+			goto on_error;
 	}
 
-	return NULL;
+	result = oid;
+
+on_error:
+	git_object_free(obj);
+	git_reference_free(ref);
+	return result;
 }
 
 STATIC void git_init_remote_callbacks(git_raw_remote_callbacks *cbs) {
@@ -266,6 +355,29 @@ STATIC void git_clean_remote_callbacks(git_raw_remote_callbacks *cbs) {
 	}
 }
 
+STATIC void git_init_push_callbacks(git_raw_push_callbacks *cbs) {
+	cbs -> packbuilder_progress = NULL;
+	cbs -> transfer_progress = NULL;
+	cbs -> status = NULL;
+}
+
+STATIC void git_clean_push_callbacks(git_raw_push_callbacks *cbs) {
+	if (cbs -> packbuilder_progress) {
+		SvREFCNT_dec(cbs -> packbuilder_progress);
+		cbs -> packbuilder_progress = NULL;
+	}
+
+	if (cbs -> transfer_progress) {
+		SvREFCNT_dec(cbs -> transfer_progress);
+		cbs -> transfer_progress = NULL;
+	}
+
+	if (cbs -> status) {
+		SvREFCNT_dec(cbs -> status);
+		cbs -> status = NULL;
+	}
+}
+
 STATIC void git_clean_filter_callbacks(git_filter_callbacks *cbs) {
 	if (cbs -> initialize) {
 		SvREFCNT_dec(cbs -> initialize);
@@ -293,11 +405,124 @@ STATIC void git_clean_filter_callbacks(git_filter_callbacks *cbs) {
 	}
 }
 
-STATIC void git_flag_opt(HV *value, const char *name, int mask, unsigned *out) {
+STATIC SV *git_hv_sv_entry(HV *hv, const char *name) {
 	SV **opt;
 
-	if ((opt = hv_fetch(value, name, strlen(name), 0)) && SvIV(*opt))
+	if ((opt = hv_fetch(hv, name, strlen(name), 0)))
+		return *opt;
+
+	return NULL;
+}
+
+STATIC SV *git_hv_int_entry(HV *hv, const char *name) {
+	SV **opt;
+
+	if ((opt = hv_fetch(hv, name, strlen(name), 0))) {
+		if (!SvIOK(*opt))
+			Perl_croak(aTHX_ "Expected an integer for '%s'", name);
+
+		return *opt;
+	}
+
+	return NULL;
+}
+
+STATIC SV *git_hv_string_entry(HV *hv, const char *name) {
+	SV **opt;
+
+	if ((opt = hv_fetch(hv, name, strlen(name), 0))) {
+		if (!SvPOK(*opt))
+			Perl_croak(aTHX_ "Expected a string for '%s'", name);
+
+		return *opt;
+	}
+
+	return NULL;
+}
+
+STATIC AV *git_ensure_av(SV *sv, const char *identifier) {
+	if (!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV)
+		Perl_croak(aTHX_ "Invalid type for '%s', expected a list", identifier);
+
+	return (AV *) SvRV(sv);
+}
+
+STATIC HV *git_ensure_hv(SV *sv, const char *identifier) {
+	if (!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVHV)
+		Perl_croak(aTHX_ "Invalid type for '%s', expected a hash", identifier);
+
+	return (HV *) SvRV(sv);
+}
+
+STATIC SV *git_ensure_cv(SV *sv, const char *identifier) {
+	if (!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVCV)
+		Perl_croak(aTHX_ "Invalid type for '%s', expected a code reference", identifier);
+
+	return sv;
+}
+
+STATIC const char *git_ensure_pv_with_len(SV *sv, const char *identifier, STRLEN *len) {
+	const char *pv = NULL;
+	STRLEN real_len;
+
+	if (SvPOK(sv)) {
+		pv = SvPVbyte(sv, real_len);
+	} else if (SvTYPE(sv) == SVt_PVLV) {
+		pv = SvPVbyte_force(sv, real_len);
+	} else
+		Perl_croak(aTHX_ "Invalid type for '%s', expected a string", identifier);
+
+	if (len)
+		*len = real_len;
+
+	return pv;
+}
+
+STATIC const char *git_ensure_pv(SV *sv, const char *identifier) {
+	return git_ensure_pv_with_len(sv, identifier, NULL);
+}
+
+STATIC SV *git_hv_code_entry(HV *hv, const char *name) {
+	SV **opt;
+
+	if ((opt = hv_fetch(hv, name, strlen(name), 0)))
+		return git_ensure_cv(*opt, name);
+
+	return NULL;
+}
+
+STATIC HV *git_hv_hash_entry(HV *hv, const char *name) {
+	SV **opt;
+
+	if ((opt = hv_fetch(hv, name, strlen(name), 0)))
+		return git_ensure_hv(*opt, name);
+
+	return NULL;
+}
+
+STATIC AV *git_hv_list_entry(HV *hv, const char *name) {
+	SV **opt;
+
+	if ((opt = hv_fetch(hv, name, strlen(name), 0)))
+		return git_ensure_av(*opt, name);
+
+	return NULL;
+}
+
+STATIC void git_flag_opt(HV *value, const char *name, int mask, unsigned *out) {
+	SV *opt;
+
+	if ((opt = git_hv_int_entry(value, name)) && SvIV(opt))
 		*out |= mask;
+}
+
+STATIC SV *get_callback_option(HV *callbacks, const char *name) {
+	SV *cb = NULL;
+
+	if ((cb = git_hv_code_entry(callbacks, name)))
+		SvREFCNT_inc(cb);
+
+	return cb;
 }
 
 STATIC unsigned git_hv_to_diff_flag(HV *flags) {
@@ -306,6 +531,12 @@ STATIC unsigned git_hv_to_diff_flag(HV *flags) {
 	git_flag_opt(flags, "reverse", GIT_DIFF_REVERSE, &out);
 
 	git_flag_opt(flags, "include_ignored", GIT_DIFF_INCLUDE_IGNORED, &out);
+
+	git_flag_opt(flags, "include_typechange", GIT_DIFF_INCLUDE_TYPECHANGE, &out);
+
+	git_flag_opt(
+		flags, "include_typechange_trees",
+		GIT_DIFF_INCLUDE_TYPECHANGE_TREES, &out);
 
 	git_flag_opt(
 		flags, "recurse_ignored_dirs",
@@ -323,6 +554,8 @@ STATIC unsigned git_hv_to_diff_flag(HV *flags) {
 	);
 
 	git_flag_opt(flags, "ignore_filemode", GIT_DIFF_IGNORE_FILEMODE, &out);
+
+	git_flag_opt(flags, "ignore_case", GIT_DIFF_IGNORE_CASE, &out);
 
 	git_flag_opt(
 		flags, "ignore_submodules",
@@ -344,9 +577,92 @@ STATIC unsigned git_hv_to_diff_flag(HV *flags) {
 		GIT_DIFF_IGNORE_WHITESPACE_EOL, &out
 	);
 
+	git_flag_opt(
+		flags, "skip_binary_check",
+		GIT_DIFF_SKIP_BINARY_CHECK, &out
+	);
+
+	git_flag_opt(
+		flags, "enable_fast_untracked_dirs",
+		GIT_DIFF_ENABLE_FAST_UNTRACKED_DIRS, &out
+	);
+
+	git_flag_opt(
+		flags, "show_untracked_content",
+		GIT_DIFF_SHOW_UNTRACKED_CONTENT, &out
+	);
+
+	git_flag_opt(
+		flags, "show_unmodified",
+		GIT_DIFF_SHOW_UNMODIFIED, &out
+	);
+
 	git_flag_opt(flags, "patience", GIT_DIFF_PATIENCE, &out);
 
 	git_flag_opt(flags, "minimal", GIT_DIFF_MINIMAL, &out);
+
+	return out;
+}
+
+STATIC unsigned git_hv_to_diff_find_flag(HV *flags) {
+	unsigned out = 0;
+
+	git_flag_opt(flags, "renames", GIT_DIFF_FIND_RENAMES, &out);
+
+	git_flag_opt(
+		flags,
+		"renames_from_rewrites",
+		GIT_DIFF_FIND_RENAMES_FROM_REWRITES, &out
+	);
+
+	git_flag_opt(flags, "copies", GIT_DIFF_FIND_COPIES, &out);
+
+	git_flag_opt(
+		flags,
+		"copies_from_unmodified",
+		GIT_DIFF_FIND_COPIES_FROM_UNMODIFIED, &out
+	);
+
+	git_flag_opt(flags, "rewrites", GIT_DIFF_FIND_REWRITES, &out);
+
+	git_flag_opt(flags, "break_rewrites", GIT_DIFF_BREAK_REWRITES, &out);
+
+	git_flag_opt(flags, "untracked", GIT_DIFF_FIND_FOR_UNTRACKED, &out);
+
+	git_flag_opt(flags, "all", GIT_DIFF_FIND_ALL, &out);
+
+	git_flag_opt(
+		flags,
+		"ignore_leading_whitespace",
+		GIT_DIFF_FIND_IGNORE_LEADING_WHITESPACE, &out
+	);
+
+	git_flag_opt(
+		flags,
+		"ignore_whitespace",
+		GIT_DIFF_FIND_IGNORE_WHITESPACE, &out
+	);
+
+	git_flag_opt(
+		flags,
+		"dont_ignore_whitespace", GIT_DIFF_FIND_DONT_IGNORE_WHITESPACE, &out
+	);
+
+	git_flag_opt(
+		flags,
+		"exact_match_only", GIT_DIFF_FIND_EXACT_MATCH_ONLY, &out
+	);
+
+	git_flag_opt(
+		flags,
+		"break_rewrites_for_renames_only", GIT_DIFF_BREAK_REWRITES_FOR_RENAMES_ONLY,
+		&out
+	);
+
+	git_flag_opt(flags,
+		"remove_unmodified", GIT_DIFF_FIND_REMOVE_UNMODIFIED,
+		&out
+	);
 
 	return out;
 }
@@ -480,15 +796,15 @@ typedef struct {
 
 STATIC int git_config_foreach_cbb(const git_config_entry *entry, void *payload) {
 	dSP;
-	int rv;
+	int rv = 0;
 
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVpv(entry -> name, 0));
-	PUSHs(newSVpv(entry -> value, 0));
-	PUSHs(newSVuv(entry -> level));
+	mXPUSHs(newSVpv(entry -> name, 0));
+	mXPUSHs(newSVpv(entry -> value, 0));
+	mXPUSHs(newSVuv(entry -> level));
 	PUTBACK;
 
 	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
@@ -505,15 +821,15 @@ STATIC int git_config_foreach_cbb(const git_config_entry *entry, void *payload) 
 
 STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *payload) {
 	dSP;
-	int rv;
+	int rv = 0;
 
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVuv(i));
-	PUSHs(newSVpv(msg, 0));
-	PUSHs(git_oid_to_sv((git_oid *) oid));
+	mXPUSHs(newSVuv(i));
+	mXPUSHs(newSVpv(msg, 0));
+	mXPUSHs(git_oid_to_sv((git_oid *) oid));
 	PUTBACK;
 
 	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
@@ -530,7 +846,7 @@ STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, v
 
 STATIC int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	dSP;
-	int rv;
+	int rv = 0;
 	git_object *tag;
 
 	SV *repo, *cb_arg;
@@ -555,7 +871,7 @@ STATIC int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	xs_object_magic_attach_struct(aTHX_ SvRV(cb_arg), SvREFCNT_inc_NN(repo));
 
 	PUSHMARK(SP);
-	PUSHs(cb_arg);
+	XPUSHs(cb_arg);
 	PUTBACK;
 
 	call_sv(pl -> cb, G_SCALAR);
@@ -574,7 +890,7 @@ STATIC int git_checkout_notify_cbb(git_checkout_notify_t why, const char *path, 
 	const git_diff_file *target, const git_diff_file *workdir, void *payload) {
 	dSP;
 
-	int rv;
+	int rv = 0;
 	AV *w = newAV();
 
 	if (why & GIT_CHECKOUT_NOTIFY_NONE)
@@ -599,8 +915,8 @@ STATIC int git_checkout_notify_cbb(git_checkout_notify_t why, const char *path, 
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVpv(path, 0));
-	PUSHs(sv_2mortal(newRV_noinc((SV *) w)));
+	mXPUSHs(newSVpv(path, 0));
+	mXPUSHs(newRV_noinc((SV *) w));
 	PUTBACK;
 
 	call_sv(payload, G_SCALAR);
@@ -625,9 +941,9 @@ STATIC void git_checkout_progress_cbb(const char *path, size_t completed_steps,
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVpv(path, 0));
-	PUSHs(newSViv(completed_steps));
-	PUSHs(newSViv(total_steps));
+	mXPUSHs(newSVpv(path, 0));
+	mXPUSHs(newSViv(completed_steps));
+	mXPUSHs(newSViv(total_steps));
 	PUTBACK;
 
 	call_sv(coderef, G_DISCARD);
@@ -645,7 +961,7 @@ STATIC int git_progress_cbb(const char *str, int len, void *cbs) {
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVpv(str, len));
+	mXPUSHs(newSVpv(str, len));
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> progress, G_DISCARD);
@@ -684,7 +1000,7 @@ STATIC int git_completion_cbb(git_remote_completion_type type, void *cbs) {
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(ct);
+	mXPUSHs(ct);
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> completion, G_DISCARD);
@@ -704,15 +1020,80 @@ STATIC int git_transfer_progress_cbb(const git_transfer_progress *stats, void *c
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSViv(stats -> total_objects));
-	PUSHs(newSViv(stats -> received_objects));
-	PUSHs(newSViv(stats -> local_objects));
-	PUSHs(newSViv(stats -> total_deltas));
-	PUSHs(newSViv(stats -> indexed_deltas));
-	PUSHs(newSVuv(stats -> received_bytes));
+	mXPUSHs(newSViv(stats -> total_objects));
+	mXPUSHs(newSViv(stats -> received_objects));
+	mXPUSHs(newSViv(stats -> local_objects));
+	mXPUSHs(newSViv(stats -> total_deltas));
+	mXPUSHs(newSViv(stats -> indexed_deltas));
+	mXPUSHs(newSVuv(stats -> received_bytes));
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> transfer_progress, G_DISCARD);
+
+	SPAGAIN;
+
+	FREETMPS;
+	LEAVE;
+
+	return 0;
+}
+
+STATIC int git_push_transfer_progress_cbb(unsigned int current, unsigned int total, size_t bytes, void *cbs) {
+	dSP;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(newSVuv(current));
+	mXPUSHs(newSVuv(total));
+	mXPUSHs(newSVuv(bytes));
+	PUTBACK;
+
+	call_sv(((git_raw_push_callbacks *) cbs) -> transfer_progress, G_DISCARD);
+
+	SPAGAIN;
+
+	FREETMPS;
+	LEAVE;
+
+	return 0;
+}
+
+STATIC int git_packbuilder_progress_cbb(int stage, unsigned int current, unsigned int total, void *cbs) {
+	dSP;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(newSViv(stage));
+	mXPUSHs(newSVuv(current));
+	mXPUSHs(newSVuv(total));
+	PUTBACK;
+
+	call_sv(((git_raw_push_callbacks *) cbs) -> packbuilder_progress, G_DISCARD);
+
+	SPAGAIN;
+
+	FREETMPS;
+	LEAVE;
+
+	return 0;
+}
+
+STATIC int git_push_status_cbb(const char *ref, const char *msg, void *cbs) {
+	dSP;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(newSVpv(ref, 0));
+	mXPUSHs(newSVpv(msg, 0));
+	PUTBACK;
+
+	call_sv(((git_raw_push_callbacks *) cbs) -> status, G_DISCARD);
 
 	SPAGAIN;
 
@@ -730,9 +1111,9 @@ STATIC int git_update_tips_cbb(const char *name, const git_oid *a,
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVpv(name, 0));
-	PUSHs(a != NULL ? git_oid_to_sv(a) : &PL_sv_undef);
-	PUSHs(b != NULL ? git_oid_to_sv(b) : &PL_sv_undef);
+	mXPUSHs(newSVpv(name, 0));
+	XPUSHs(a != NULL ? sv_2mortal(git_oid_to_sv(a)) : &PL_sv_undef);
+	XPUSHs(b != NULL ? sv_2mortal(git_oid_to_sv(b)) : &PL_sv_undef);
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> update_tips, G_DISCARD);
@@ -748,34 +1129,88 @@ STATIC int git_update_tips_cbb(const char *name, const git_oid *a,
 STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 		const char *usr_from_url, unsigned int allow, void *cbs) {
 	dSP;
-	SV *creds;
+	int count, rv = 0;
+	Cred creds;
 
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(newSVpv(url, 0));
+	mXPUSHs(newSVpv(url, 0));
+	mXPUSHs(newSVpv(usr_from_url, 0));
 	PUTBACK;
 
-	call_sv(((git_raw_remote_callbacks *) cbs) -> credentials, G_SCALAR);
+	count = call_sv(((git_raw_remote_callbacks *) cbs) -> credentials, G_EVAL|G_SCALAR);
 
 	SPAGAIN;
 
-	creds = POPs;
-
-	*cred = GIT_SV_TO_PTR(Cred, creds);
+	if (SvTRUE(ERRSV)) {
+		rv = -1;
+		(void) POPs;
+	} else if (count == 0) {
+		rv = -1;
+	} else {
+		creds = GIT_SV_TO_PTR(Cred, POPs);
+		*cred = creds -> cred;
+	}
 
 	FREETMPS;
 	LEAVE;
 
-	return 0;
+	return rv;
 }
 
-int git_filter_init_cbb(git_filter *filter)
+STATIC void git_ssh_interactive_cbb(const char *name, int name_len, const char *instruction, int instruction_len,
+			int num_prompts, const LIBSSH2_USERAUTH_KBDINT_PROMPT *prompts, LIBSSH2_USERAUTH_KBDINT_RESPONSE *responses, void **abstract) {
+	dSP;
+
+	int i, count;
+	SV *cb = *abstract;
+
+	if (num_prompts == 0)
+		return;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(newSVpv(name, name_len));
+	mXPUSHs(newSVpv(instruction, instruction_len));
+	for (i = 0; i < num_prompts; ++i) {
+		HV *prompt = newHV();
+		hv_stores(prompt, "text", newSVpvn(prompts[i].text, prompts[i].length));
+		hv_stores(prompt, "echo", newSViv(prompts[i].echo));
+		mXPUSHs(newRV_noinc((SV*)prompt));
+	}
+	PUTBACK;
+
+	count = call_sv(cb, G_ARRAY);
+
+	SPAGAIN;
+
+	if (count != num_prompts)
+		Perl_croak(aTHX_ "Expected %d response(s) got %d", num_prompts, count);
+
+	for (i = 1; i <= count; ++i) {
+		STRLEN len;
+		SV *r = POPs;
+		const char *response = SvPV(r, len);
+		int index = num_prompts - i;
+
+		New(0, responses[index].text, len, char);
+		Copy(response, responses[index].text, len, char);
+		responses[index].length = len;
+	}
+
+	FREETMPS;
+	LEAVE;
+}
+
+STATIC int git_filter_init_cbb(git_filter *filter)
 {
 	dSP;
 
-	int rv;
+	int rv = 0;
 
 	ENTER;
 	SAVETMPS;
@@ -800,7 +1235,7 @@ int git_filter_init_cbb(git_filter *filter)
 	return rv;
 }
 
-void git_filter_shutdown_cbb(git_filter *filter)
+STATIC void git_filter_shutdown_cbb(git_filter *filter)
 {
 	dSP;
 
@@ -818,12 +1253,12 @@ void git_filter_shutdown_cbb(git_filter *filter)
 	LEAVE;
 }
 
-int git_filter_check_cbb(git_filter *filter, void **payload,
+STATIC int git_filter_check_cbb(git_filter *filter, void **payload,
 	const git_filter_source *src, const char **attr_values)
 {
 	dSP;
 
-	int rv;
+	int rv = 0;
 	SV *filter_source = NULL;
 
 	GIT_NEW_OBJ(
@@ -834,7 +1269,7 @@ int git_filter_check_cbb(git_filter *filter, void **payload,
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(filter_source);
+	mXPUSHs(filter_source);
 	PUTBACK;
 
 	call_sv(((git_raw_filter *) filter) -> callbacks.check, G_EVAL|G_SCALAR);
@@ -851,12 +1286,10 @@ int git_filter_check_cbb(git_filter *filter, void **payload,
 	FREETMPS;
 	LEAVE;
 
-	SvREFCNT_dec(filter_source);
-
 	return rv;
 }
 
-int git_filter_apply_cbb(git_filter *filter, void **payload,
+STATIC int git_filter_apply_cbb(git_filter *filter, void **payload,
 	git_buf *to, const git_buf *from, const git_filter_source *src)
 {
 	dSP;
@@ -873,9 +1306,9 @@ int git_filter_apply_cbb(git_filter *filter, void **payload,
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	PUSHs(filter_source);
-	PUSHs(newSVpv(from -> ptr, from -> size));
-	PUSHs(newRV_noinc(result));
+	mXPUSHs(filter_source);
+	mXPUSHs(newSVpv(from -> ptr, from -> size));
+	mXPUSHs(newRV_noinc(result));
 	PUTBACK;
 
 	call_sv(((git_raw_filter *) filter) -> callbacks.apply, G_EVAL|G_SCALAR);
@@ -889,9 +1322,6 @@ int git_filter_apply_cbb(git_filter *filter, void **payload,
 		rv = POPi;
 	}
 
-	FREETMPS;
-	LEAVE;
-
 	if (rv == GIT_OK) {
 		STRLEN len;
 		const char *ptr = SvPV(result, len);
@@ -899,13 +1329,13 @@ int git_filter_apply_cbb(git_filter *filter, void **payload,
 		git_buf_set(to, ptr, len);
 	}
 
-	SvREFCNT_dec(result);
-	SvREFCNT_dec(filter_source);
+	FREETMPS;
+	LEAVE;
 
 	return rv;
 }
 
-void git_filter_cleanup_cbb(git_filter *filter, void *payload)
+STATIC void git_filter_cleanup_cbb(git_filter *filter, void *payload)
 {
 	dSP;
 
@@ -926,26 +1356,24 @@ void git_filter_cleanup_cbb(git_filter *filter, void *payload)
 
 STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opts) {
 	char **paths = NULL;
-	SV **opt;
+	SV *opt;
+	HV *hopt;
+	AV *lopt;
 
-	if ((opt = hv_fetchs(opts, "checkout_strategy", 0)))
+	if ((hopt = git_hv_hash_entry(opts, "checkout_strategy")))
 		checkout_opts -> checkout_strategy =
-			git_hv_to_checkout_strategy(
-				(HV *) SvRV(*opt)
-			);
+			git_hv_to_checkout_strategy(hopt);
 
-	if ((opt = hv_fetchs(opts, "paths", 0))) {
+	if ((lopt = git_hv_list_entry(opts, "paths"))) {
 		SV **path;
 		size_t count = 0;
 
-		if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-			Perl_croak(aTHX_ "Invalid type for 'paths'");
+		while ((path = av_fetch(lopt, count, 0))) {
+			if (!SvOK(*path))
+				continue;
 
-		while ((path = av_fetch((AV *) SvRV(*opt), count, 0))) {
-			if (SvOK(*path)) {
-				Renew(paths, count+1, char *);
-				paths[count++] = SvPVbyte_nolen(*path);
-			}
+			Renew(paths, count+1, char *);
+			paths[count++] = SvPVbyte_nolen(*path);
 		}
 
 		if (count > 0) {
@@ -954,58 +1382,32 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 		}
 	}
 
-	if ((opt = hv_fetchs(opts, "target_directory", 0))) {
-		if (!SvPOK(*opt))
-			Perl_croak(aTHX_ "Invalid type for 'target_directory'");
+	if ((opt = git_hv_string_entry(opts, "target_directory")))
+		checkout_opts -> target_directory = SvPVbyte_nolen(opt);
 
-		checkout_opts -> target_directory = SvPVbyte_nolen(*opt);
-	}
+	if ((opt = git_hv_string_entry(opts, "ancestor_label")))
+		checkout_opts -> ancestor_label = SvPVbyte_nolen(opt);
 
-	if ((opt = hv_fetchs(opts, "ancestor_label", 0))) {
-		if (!SvPOK(*opt))
-			Perl_croak(aTHX_ "Invalid type for 'ancestor_label'");
+	if ((opt = git_hv_string_entry(opts, "our_label")))
+		checkout_opts -> our_label = SvPVbyte_nolen(opt);
 
-		checkout_opts -> ancestor_label = SvPVbyte_nolen(*opt);
-	}
+	if ((opt = git_hv_string_entry(opts, "their_label")))
+		checkout_opts -> their_label = SvPVbyte_nolen(opt);
 
-	if ((opt = hv_fetchs(opts, "our_label", 0))) {
-		if (!SvPOK(*opt))
-			Perl_croak(aTHX_ "Invalid type for 'our_label'");
-
-		checkout_opts -> our_label = SvPVbyte_nolen(*opt);
-	}
-
-	if ((opt = hv_fetchs(opts, "their_label", 0))) {
-		if (!SvPOK(*opt))
-			Perl_croak(aTHX_ "Invalid type for 'their_label'");
-
-		checkout_opts -> their_label = SvPVbyte_nolen(*opt);
-	}
-
-	if ((opt = hv_fetchs(opts, "callbacks", 0))) {
-		HV *callbacks;
-
-		if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
-			Perl_croak(aTHX_ "Invalid type for 'callbacks'");
-
-		callbacks = (HV *) SvRV(*opt);
-
+	if ((hopt = git_hv_hash_entry(opts, "callbacks"))) {
 		if ((checkout_opts -> progress_payload =
-				get_callback_option(callbacks, "progress")))
+				get_callback_option(hopt, "progress")))
 			checkout_opts -> progress_cb = git_checkout_progress_cbb;
 
 		if ((checkout_opts -> notify_payload =
-				get_callback_option(callbacks, "notify"))) {
+				get_callback_option(hopt, "notify"))) {
 			checkout_opts -> notify_cb      = git_checkout_notify_cbb;
 
-			if ((opt = hv_fetchs(opts, "notify", 0))) {
+			if ((lopt = git_hv_list_entry(opts, "notify"))) {
 				size_t count = 0;
 				SV **flag;
 
-				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-					Perl_croak(aTHX_ "Invalid type for 'notify'");
-
-				while ((flag = av_fetch((AV *) SvRV(*opt), count++, 0))) {
+				while ((flag = av_fetch(lopt, count++, 0))) {
 					if (SvPOK(*flag)) {
 						const char *f = SvPVbyte_nolen(*flag);
 
@@ -1035,16 +1437,14 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 }
 
 STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
-	SV **opt;
+	AV *lopt;
+	SV *opt;
 
-	if ((opt = hv_fetchs(opts, "flags", 0))) {
+	if ((lopt = git_hv_list_entry(opts, "flags"))) {
 		size_t count = 0;
 		SV **flag;
 
-		if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-			Perl_croak(aTHX_ "Invalid type for 'flags'");
-
-		while ((flag = av_fetch((AV *) SvRV(*opt), count++, 0))) {
+		while ((flag = av_fetch(lopt, count++, 0))) {
 			if (SvPOK(*flag)) {
 				const char *f = SvPVbyte_nolen(*flag);
 
@@ -1057,40 +1457,32 @@ STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
 		}
 	}
 
-	if ((opt = hv_fetchs(opts, "favor", 0))) {
-		if (SvPOK(*opt)) {
-			const char *favor = SvPVbyte_nolen(*opt);
-			if (strcmp(favor, "ours") == 0)
-				merge_options -> file_favor =
-					GIT_MERGE_FILE_FAVOR_OURS;
-			else if (strcmp(favor, "theirs") == 0)
-				merge_options -> file_favor =
-					GIT_MERGE_FILE_FAVOR_THEIRS;
-			else if (strcmp(favor, "union") == 0)
-				merge_options -> file_favor =
-					GIT_MERGE_FILE_FAVOR_UNION;
-			else
-				Perl_croak(aTHX_ "Invalid 'favor' value");
-		} else
-			Perl_croak(aTHX_ "Invalid type for 'favor' value");
+	if ((opt = git_hv_string_entry(opts, "favor"))) {
+		const char *favor = SvPVbyte_nolen(opt);
+		if (strcmp(favor, "ours") == 0)
+			merge_options -> file_favor =
+				GIT_MERGE_FILE_FAVOR_OURS;
+		else if (strcmp(favor, "theirs") == 0)
+			merge_options -> file_favor =
+				GIT_MERGE_FILE_FAVOR_THEIRS;
+		else if (strcmp(favor, "union") == 0)
+			merge_options -> file_favor =
+				GIT_MERGE_FILE_FAVOR_UNION;
+		else
+			Perl_croak(aTHX_ "Invalid 'favor' value");
 	}
 
-	if ((opt = hv_fetchs(opts, "rename_threshold", 0))) {
-		if (!SvIOK(*opt) || SvIV(*opt) < 0)
-			Perl_croak(aTHX_ "Invalid type");
+	if ((opt = git_hv_int_entry(opts, "rename_threshold")))
+		merge_options -> rename_threshold = SvIV(opt);
 
-		merge_options -> rename_threshold = SvIV(*opt);
-	}
-
-	if ((opt = hv_fetchs(opts, "target_limit", 0))) {
-		if (!SvIOK(*opt) || SvIV(*opt) < 0)
-			Perl_croak(aTHX_ "Invalid type");
-
-		merge_options -> target_limit = SvIV(*opt);
-	}
+	if ((opt = git_hv_int_entry(opts, "target_limit")))
+		merge_options -> target_limit = SvIV(opt);
 }
 
 MODULE = Git::Raw			PACKAGE = Git::Raw
+
+BOOT:
+	git_threads_init();
 
 INCLUDE: xs/Blame.xs
 INCLUDE: xs/Blame/Hunk.xs
@@ -1103,11 +1495,15 @@ INCLUDE: xs/Diff.xs
 INCLUDE: xs/Diff/Delta.xs
 INCLUDE: xs/Diff/File.xs
 INCLUDE: xs/Diff/Hunk.xs
+INCLUDE: xs/Diff/Stats.xs
 INCLUDE: xs/Filter.xs
 INCLUDE: xs/Filter/Source.xs
+INCLUDE: xs/Graph.xs
 INCLUDE: xs/Index.xs
 INCLUDE: xs/Index/Entry.xs
 INCLUDE: xs/Patch.xs
+INCLUDE: xs/PathSpec.xs
+INCLUDE: xs/PathSpec/MatchList.xs
 INCLUDE: xs/Push.xs
 INCLUDE: xs/Reference.xs
 INCLUDE: xs/Reflog.xs

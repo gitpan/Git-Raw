@@ -102,19 +102,17 @@ name(self, ...)
 
 	PREINIT:
 		int rc;
-		char *name;
+		const char *name;
 
 	CODE:
 		if (items == 2) {
-			name = SvPVbyte_nolen(ST(1));
+			name = git_ensure_pv(ST(1), "name");
 
 			rc = git_remote_rename(self -> remote, name, NULL, NULL);
 			git_check_error(rc);
 		}
 
-		name = (char *) git_remote_name(self -> remote);
-
-		RETVAL = newSVpv(name, 0);
+		RETVAL = newSVpv(git_remote_name(self -> remote), 0);
 
 	OUTPUT: RETVAL
 
@@ -130,7 +128,7 @@ url(self, ...)
 
 	CODE:
 		if (items == 2) {
-			url = SvPVbyte_nolen(ST(1));
+			url = git_ensure_pv(ST(1), "url");
 
 			rc = git_remote_set_url(self -> remote, url);
 			git_check_error(rc);
@@ -139,9 +137,32 @@ url(self, ...)
 			git_check_error(rc);
 		}
 
-		url = git_remote_url(self -> remote);
+		RETVAL = newSVpv(git_remote_url(self -> remote), 0);
 
-		RETVAL = newSVpv(url, 0);
+	OUTPUT: RETVAL
+
+SV *
+pushurl(self, ...)
+	Remote self
+
+	PROTOTYPE: $;$
+
+	PREINIT:
+		int rc;
+		const char *pushurl;
+
+	CODE:
+		if (items == 2) {
+			pushurl = git_ensure_pv(ST(1), "pushurl");
+
+			rc = git_remote_set_pushurl(self -> remote, pushurl);
+			git_check_error(rc);
+
+			rc = git_remote_save(self -> remote);
+			git_check_error(rc);
+		}
+
+		RETVAL = newSVpv(git_remote_pushurl(self -> remote), 0);
 
 	OUTPUT: RETVAL
 
@@ -167,6 +188,84 @@ add_push(self, spec)
 
 	CODE:
 		rc = git_remote_add_push(self -> remote, SvPVbyte_nolen(spec));
+		git_check_error(rc);
+
+void
+clear_refspecs(self)
+	Remote self
+
+	CODE:
+		git_remote_clear_refspecs(self -> remote);
+
+void
+refspecs(self)
+	SV *self
+
+	PREINIT:
+		int rc;
+		size_t i, count;
+
+		Remote remote_ptr;
+
+	PPCODE:
+		remote_ptr = GIT_SV_TO_PTR(Remote, self);
+
+		count = git_remote_refspec_count(remote_ptr -> remote);
+		EXTEND(SP, count);
+
+		for (i = 0; i < count; ++i) {
+			const git_refspec *refspec;
+			SV *tmp;
+
+			refspec = git_remote_get_refspec(
+				remote_ptr -> remote,
+				i
+			);
+
+			GIT_NEW_OBJ_WITH_MAGIC(
+				tmp, "Git::Raw::RefSpec", (git_refspec *) refspec, SvRV(self)
+			);
+
+			PUSHs(sv_2mortal(tmp));
+		}
+
+		XSRETURN(count);
+
+SV *
+refspec_count(self)
+	Remote self
+
+	CODE:
+		RETVAL = newSVuv(git_remote_refspec_count(self -> remote));
+
+	OUTPUT: RETVAL
+
+void
+check_cert(self, value)
+	Remote self
+	SV *value
+
+	CODE:
+		if (!SvIOK(value))
+			Perl_croak(aTHX_ "Expected an integer for 'value'");
+
+		git_remote_check_cert(self -> remote, SvIV(value));
+
+void
+fetch(self)
+	Remote self
+
+	PREINIT:
+		int rc;
+
+		Signature sig;
+
+	CODE:
+		rc = git_signature_default(&sig, git_remote_owner(self -> remote));
+		git_check_error(rc);
+
+		rc = git_remote_fetch(self -> remote, sig, NULL);
+		git_signature_free(sig);
 		git_check_error(rc);
 
 void
@@ -260,8 +359,8 @@ callbacks(self, callbacks)
 			rcallbacks.credentials = git_credentials_cbb;
 
 		if ((remote -> callbacks.progress =
-			get_callback_option(callbacks, "progress")))
-			rcallbacks.progress = git_progress_cbb;
+			get_callback_option(callbacks, "sideband_progress")))
+			rcallbacks.sideband_progress = git_progress_cbb;
 
 		if ((remote -> callbacks.completion =
 			get_callback_option(callbacks, "completion")))
@@ -332,6 +431,34 @@ is_connected(self)
 
 	CODE:
 		RETVAL = newSViv(git_remote_connected(self -> remote));
+
+	OUTPUT: RETVAL
+
+SV *
+is_url_valid(class, url)
+	SV *class
+	SV *url
+
+	PREINIT:
+		int r;
+
+	CODE:
+		r = git_remote_valid_url(git_ensure_pv(url, "url"));
+		RETVAL = newSViv(r);
+
+	OUTPUT: RETVAL
+
+SV *
+is_url_supported(class, url)
+	SV *class
+	SV *url
+
+	PREINIT:
+		int r;
+
+	CODE:
+		r = git_remote_supported_url(git_ensure_pv(url, "url"));
+		RETVAL = newSViv(r);
 
 	OUTPUT: RETVAL
 

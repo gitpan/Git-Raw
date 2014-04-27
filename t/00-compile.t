@@ -2,9 +2,9 @@ use 5.006;
 use strict;
 use warnings;
 
-# this test was generated with Dist::Zilla::Plugin::Test::Compile 2.040
+# this test was generated with Dist::Zilla::Plugin::Test::Compile 2.039
 
-use Test::More  tests => 30 + ($ENV{AUTHOR_TESTING} ? 1 : 0);
+use Test::More  tests => 34 + ($ENV{AUTHOR_TESTING} ? 1 : 0);
 
 
 
@@ -21,11 +21,15 @@ my @module_files = (
     'Git/Raw/Diff/Delta.pm',
     'Git/Raw/Diff/File.pm',
     'Git/Raw/Diff/Hunk.pm',
+    'Git/Raw/Diff/Stats.pm',
     'Git/Raw/Filter.pm',
     'Git/Raw/Filter/Source.pm',
+    'Git/Raw/Graph.pm',
     'Git/Raw/Index.pm',
     'Git/Raw/Index/Entry.pm',
     'Git/Raw/Patch.pm',
+    'Git/Raw/PathSpec.pm',
+    'Git/Raw/PathSpec/MatchList.pm',
     'Git/Raw/Push.pm',
     'Git/Raw/RefSpec.pm',
     'Git/Raw/Reference.pm',

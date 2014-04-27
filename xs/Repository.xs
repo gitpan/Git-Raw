@@ -31,6 +31,7 @@ clone(class, url, path, opts)
 		int rc;
 
 		SV **opt;
+		HV *callbacks;
 		Repository repo;
 
 		git_raw_remote_callbacks cbs = {0, 0, 0, 0, 0};
@@ -55,22 +56,15 @@ clone(class, url, path, opts)
 			clone_opts.checkout_opts.checkout_strategy = GIT_CHECKOUT_NONE;
 
 		/* Callbacks */
-		if ((opt = hv_fetchs(opts, "callbacks", 0))) {
-			HV *callbacks;
-
-			if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
-				Perl_croak(aTHX_ "Invalid type");
-
-			callbacks = (HV *) SvRV(*opt);
-
+		if ((callbacks = git_hv_hash_entry(opts, "callbacks"))) {
 			if ((cbs.credentials =
-				get_callback_option(opts, "credentials")))
+				get_callback_option(callbacks, "credentials")))
 				clone_opts.remote_callbacks.credentials =
 					git_credentials_cbb;
 
 			if ((cbs.progress =
-				get_callback_option(callbacks, "progress")))
-				clone_opts.remote_callbacks.progress =
+				get_callback_option(callbacks, "sideband_progress")))
+				clone_opts.remote_callbacks.sideband_progress =
 					git_progress_cbb;
 
 			if ((cbs.completion =
@@ -302,23 +296,22 @@ reset(self, target, opts)
 		int rc;
 
 		Signature sig;
-		SV **opt;
+		SV *opt;
+		AV *lopt;
 
 	CODE:
-		if ((opt = hv_fetchs(opts, "paths", 0))) {
+		if ((lopt = git_hv_list_entry(opts, "paths"))) {
 			SV **path;
 
-			size_t count = 0;
+			size_t i = 0, count = 0;
 			git_strarray paths = {0, 0};
 
-			if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-				Perl_croak(aTHX_ "Expected a list of 'paths'");
+			while ((path = av_fetch(lopt, i++, 0))) {
+				if (!SvOK(*path))
+					continue;
 
-			while ((path = av_fetch((AV *) SvRV(*opt), count, 0))) {
-				if (SvOK(*path)) {
-					Renew(paths.strings, count + 1, char *);
-					paths.strings[count++] = SvPVbyte_nolen(*path);
-				}
+				Renew(paths.strings, count + 1, char *);
+				paths.strings[count++] = SvPVbyte_nolen(*path);
 			}
 
 			paths.count = count;
@@ -326,25 +319,23 @@ reset(self, target, opts)
 			rc = git_reset_default(self, git_sv_to_obj(target), &paths);
 			Safefree(paths.strings);
 			git_check_error(rc);
-		} else {
-			if ((opt = hv_fetchs(opts, "type", 0))) {
-				git_reset_t reset;
-				const char *type_str = SvPVbyte_nolen(*opt);
+		} else if ((opt = git_hv_string_entry(opts, "type"))) {
+			git_reset_t reset;
+			const char *type_str = SvPVbyte_nolen(opt);
 
-				if (strcmp(type_str, "soft") == 0)
-					reset = GIT_RESET_SOFT;
-				else if (strcmp(type_str, "mixed") == 0)
-					reset = GIT_RESET_MIXED;
-				else
-					Perl_croak(aTHX_ "Invalid type");
+			if (strcmp(type_str, "soft") == 0)
+				reset = GIT_RESET_SOFT;
+			else if (strcmp(type_str, "mixed") == 0)
+				reset = GIT_RESET_MIXED;
+			else
+				Perl_croak(aTHX_ "Invalid type");
 
-				rc = git_signature_default(&sig, self);
-				git_check_error(rc);
+			rc = git_signature_default(&sig, self);
+			git_check_error(rc);
 
-				rc = git_reset(self, git_sv_to_obj(target), reset, sig, NULL);
-				git_signature_free(sig);
-				git_check_error(rc);
-			}
+			rc = git_reset(self, git_sv_to_obj(target), reset, sig, NULL);
+			git_signature_free(sig);
+			git_check_error(rc);
 		}
 
 HV *
@@ -520,76 +511,49 @@ diff(self, ...)
 		git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
 
 	CODE:
-		if (items > 2)
-			Perl_croak(aTHX_ "Wrong number of arguments");
-
 		rc = git_repository_index(&index, self);
 		git_check_error(rc);
 
 		if (items == 2) {
-			SV **opt;
+			SV *opt;
+			AV *lopt;
+			HV *hopt;
 			HV *opts;
 
-			if (!SvROK(ST(1)) || SvTYPE(SvRV(ST(1))) != SVt_PVHV)
-				Perl_croak(aTHX_ "Invalid type");
+			opts = git_ensure_hv(ST(1), "options");
 
-			opts = (HV *) SvRV(ST(1));
-			if ((opt = hv_fetchs(opts, "tree", 0))) {
-				tree = GIT_SV_TO_PTR(Tree, *opt);
+			if ((opt = git_hv_sv_entry(opts, "tree")) && SvOK(opt))
+				tree = GIT_SV_TO_PTR(Tree, opt);
+
+			if ((hopt = git_hv_hash_entry(opts, "flags")))
+				diff_opts.flags |= git_hv_to_diff_flag(hopt);
+
+			if ((hopt = git_hv_hash_entry(opts, "prefix"))) {
+				SV *ab;
+
+				if ((ab = git_hv_string_entry(hopt, "a")))
+					diff_opts.old_prefix = SvPVbyte_nolen(ab);
+
+				if ((ab = git_hv_string_entry(hopt, "b")))
+					diff_opts.new_prefix = SvPVbyte_nolen(ab);
 			}
 
-			if ((opt = hv_fetchs(opts, "flags", 0))) {
-				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
-					Perl_croak(aTHX_ "Expected a list of 'flags'");
+			if ((opt = git_hv_int_entry(opts, "context_lines")))
+				diff_opts.context_lines = (uint16_t) SvIV(opt);
 
-				diff_opts.flags |=
-					git_hv_to_diff_flag((HV *) SvRV(*opt));
-			}
+			if ((opt = git_hv_int_entry(opts, "interhunk_lines")))
+				diff_opts.interhunk_lines = (uint16_t) SvIV(opt);
 
-			if ((opt = hv_fetchs(opts, "prefix", 0))) {
-				SV **ab;
-
-				if ((ab = hv_fetchs((HV *) SvRV(*opt), "a", 0))) {
-					if (!SvPOK(*ab))
-						Perl_croak(aTHX_ "Expected a string for prefix");
-
-					diff_opts.old_prefix = SvPVbyte_nolen(*ab);
-				}
-
-				if ((ab = hv_fetchs((HV *) SvRV(*opt), "b", 0))) {
-					if (!SvPOK(*ab))
-						Perl_croak(aTHX_ "Expected a string for prefix");
-
-					diff_opts.new_prefix = SvPVbyte_nolen(*ab);
-				}
-			}
-
-			if ((opt = hv_fetchs(opts, "context_lines", 0))) {
-				if (!SvIOK(*opt))
-					Perl_croak(aTHX_ "Expected an integer for 'context_lines'");
-
-				diff_opts.context_lines = (uint16_t) SvIV(*opt);
-			}
-
-			if ((opt = hv_fetchs(opts, "interhunk_lines", 0))) {
-				if (!SvIOK(*opt))
-					Perl_croak(aTHX_ "Expected an integer for 'interhunk_lines'");
-
-				diff_opts.interhunk_lines = (uint16_t) SvIV(*opt);
-			}
-
-			if ((opt = hv_fetchs(opts, "paths", 0))) {
+			if ((lopt = git_hv_list_entry(opts, "paths"))) {
 				SV **path;
-				size_t count = 0;
+				size_t i = 0, count = 0;
 
-				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-					Perl_croak(aTHX_ "Expected a list of 'paths'");
+				while ((path = av_fetch(lopt, i++, 0))) {
+					if (!SvOK(*path))
+						continue;
 
-				while ((path = av_fetch((AV *) SvRV(*opt), count, 0))) {
-					if (SvOK(*path)) {
-						Renew(paths, count + 1, char *);
-						paths[count++] = SvPVbyte_nolen(*path);
-					}
+					Renew(paths, count + 1, char *);
+					paths[count++] = SvPVbyte_nolen(*path);
 				}
 
 				if (count > 0) {
@@ -636,34 +600,9 @@ merge_base(self, ...)
 		count = items - 1;
 		Renew(oids, count, git_oid);
 		for (i = 0; i < count; ++i) {
-			SV *item = ST(i + 1);
-
-			if (sv_isobject(item)) {
-				if (sv_derived_from(item, "Git::Raw::Reference")) {
-					git_object *obj = NULL;
-
-					rc = git_reference_peel(&obj,
-						GIT_SV_TO_PTR(Reference, item),
-						GIT_OBJ_COMMIT);
-
-					/* Need to ensure we don't leak, git_check_error()
-					 * may croak */
-					if (rc != GIT_OK)
-						Safefree(oids);
-					git_check_error(rc);
-
-					git_oid_cpy(oids + i, git_object_id(obj));
-					git_object_free(obj);
-
-				} else if (sv_derived_from(item, "Git::Raw::Commit")) {
-					const git_oid *commit_id =
-						git_commit_id(GIT_SV_TO_PTR(Commit, item));
-					git_oid_cpy(oids + i, commit_id);
-				} else {
-					Safefree(oids);
-					Perl_croak(aTHX_ "Expected a 'Git::Raw::Commit' "
-						"or 'Git::Raw::Reference'");
-				}
+			if (git_sv_to_commitish(self, ST(i + 1), oids + i) == NULL) {
+				Safefree(oids);
+				Perl_croak(aTHX_ "Could not resolve 'object' to a commit id");
 			}
 		}
 
@@ -732,21 +671,13 @@ merge(self, ref, ...)
 		git_check_error(rc);
 
 		if (items >= 3) {
-			SV *opts = ST(2);
-			if (!SvROK(opts) || SvTYPE(SvRV(opts)) != SVt_PVHV)
-				Perl_croak(aTHX_ "Invalid type for 'merge_opts'");
-
-			git_hv_to_merge_opts((HV *) SvRV(opts),
-				&merge_opts);
+			HV *opts = git_ensure_hv(ST(2), "merge_opts");
+			git_hv_to_merge_opts(opts, &merge_opts);
 		}
 
 		if (items >= 4) {
-			SV *opts = ST(3);
-			if (!SvROK(opts) || SvTYPE(SvRV(opts)) != SVt_PVHV)
-				Perl_croak(aTHX_ "Invalid type for 'checkout_opts'");
-
-			git_hv_to_checkout_opts((HV *) SvRV(opts),
-				&checkout_opts);
+			HV *opts = git_ensure_hv(ST(3), "checkout_opts");
+			git_hv_to_checkout_opts(opts, &checkout_opts);
 		}
 
 		rc = git_merge(
@@ -758,9 +689,10 @@ merge(self, ref, ...)
 		git_check_error(rc);
 
 void
-branches(self)
+branches(self, ...)
 	SV *self
 
+	PROTOTYPE: $;$
 	PREINIT:
 		int rc;
 
@@ -773,11 +705,28 @@ branches(self)
 		Repository repo;
 
 	PPCODE:
+		type = GIT_BRANCH_ALL;
+
+		if (items == 2) {
+			const char *type_str = NULL;
+
+			if (!SvPOK(ST(1)))
+				Perl_croak(aTHX_ "Expected a string for 'type'");
+
+			type_str = SvPVbyte_nolen(ST(1));
+			if (strcmp(type_str, "local") == 0)
+				type = GIT_BRANCH_LOCAL;
+			else if (strcmp(type_str, "remote") == 0)
+				type = GIT_BRANCH_REMOTE;
+			else if (strcmp(type_str, "all") == 0)
+				type = GIT_BRANCH_ALL;
+			else
+				Perl_croak(aTHX_ "Unknown branch type '%s'", type_str);
+		}
+
 		repo = GIT_SV_TO_PTR(Repository, self);
 
-		rc = git_branch_iterator_new(
-			&itr, repo, GIT_BRANCH_LOCAL | GIT_BRANCH_REMOTE
-		);
+		rc = git_branch_iterator_new(&itr, repo, type);
 		git_check_error(rc);
 
 		while ((rc = git_branch_next(&branch, &type, itr)) == 0) {
@@ -904,9 +853,14 @@ workdir(self, ...)
 
 	CODE:
 		if (items == 2) {
-			const char *new_path = SvPVbyte_nolen(ST(1));
+			const char *new_dir = NULL;
 
-			rc = git_repository_set_workdir(self, new_path, 1);
+			if (!SvPOK(ST(1)))
+				Perl_croak(aTHX_ "Expected a string for 'new_dir'");
+
+			new_dir = SvPVbyte_nolen(ST(1));
+
+			rc = git_repository_set_workdir(self, new_dir, 1);
 			git_check_error(rc);
 		}
 
@@ -1009,6 +963,26 @@ state_cleanup(self)
 		git_check_error(rc);
 
 SV *
+message(self)
+	Repository self
+
+	PREINIT:
+		int rc;
+
+		git_buf buf = GIT_BUF_INIT_CONST(NULL, 0);
+
+	CODE:
+		rc = git_repository_message(&buf, self);
+		if (rc != GIT_OK)
+			git_buf_free(&buf);
+		git_check_error(rc);
+
+		RETVAL = newSVpv(buf.ptr, 0);
+		git_buf_free(&buf);
+
+	OUTPUT: RETVAL
+
+SV *
 is_bare(self)
 	Repository self
 
@@ -1032,6 +1006,15 @@ is_shallow(self)
 
 	CODE:
 		RETVAL = newSViv(git_repository_is_shallow(self));
+
+	OUTPUT: RETVAL
+
+SV *
+is_head_detached(self)
+	Repository self
+
+	CODE:
+		RETVAL = newSViv(git_repository_head_detached(self));
 
 	OUTPUT: RETVAL
 

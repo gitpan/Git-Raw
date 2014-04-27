@@ -1,13 +1,21 @@
 use strict;
 use warnings;
+use Config;
 
 use Devel::CheckLib;
 
 my $def = '';
 my $lib = '';
 my $inc = '';
+my $ccflags = '';
 
 my %os_specific = (
+	'darwin' => {
+		'ssh2' => {
+			'inc' => ['/opt/local/include'],
+			'lib' => ['/opt/local/lib']
+		}
+	},
 	'freebsd' => {
 		'ssh2' => {
 			'inc' => ['/usr/local/include'],
@@ -15,6 +23,15 @@ my %os_specific = (
 		}
 	}
 );
+
+my $ssh2_libpath;
+my $ssh2_incpath;
+if (my $os_params = $os_specific{$^O}) {
+	if (my $ssh2 = $os_params -> {'ssh2'}) {
+		$ssh2_libpath = $ssh2 -> {'lib'};
+		$ssh2_incpath = $ssh2 -> {'inc'};
+	}
+}
 
 if (check_lib(lib => 'ssl')) {
 	$def .= ' -DGIT_SSL';
@@ -25,19 +42,12 @@ if (check_lib(lib => 'ssl')) {
 	print "SSL support disabled\n";
 }
 
-if (check_lib(lib => 'ssh2')) {
-	my $os = $^O;
-
-	if (my $os_params = $os_specific{$os}) {
-		if (my $ssh2 = $os_params -> {'ssh2'}) {
-			if (my $ssh2inc = $ssh2 -> {'inc'}) {
-				$inc .= ' -I'.join (' -I', @$ssh2inc);
-			}
-
-			if (my $ssh2lib = $ssh2 -> {'lib'}) {
-				$lib .= ' -L'.join (' -L', @$ssh2lib);
-			}
-		}
+if (check_lib(lib => 'ssh2', libpath => $ssh2_libpath, incpath => $ssh2_incpath)) {
+	if ($ssh2_libpath) {
+		$lib .= ' -L'.join (' -L', @$ssh2_libpath);
+	}
+	if ($ssh2_incpath) {
+		$inc .= ' -I'.join (' -I', @$ssh2_incpath);
 	}
 
 	$def .= ' -DGIT_SSH';
@@ -46,6 +56,26 @@ if (check_lib(lib => 'ssh2')) {
 	print "SSH support enabled\n";
 } else {
 	print "SSH support disabled\n";
+}
+
+if ($Config{usethreads}) {
+	if (check_lib(lib => 'pthread')) {
+		$def .= ' -DGIT_THREADS';
+		$lib .= ' -lpthread';
+
+		print "Threads support enabled\n";
+	} else {
+		if ($^O eq 'MSWin32') {
+			$def .= ' -DGIT_THREADS';
+		} else {
+			print "Threads support disabled\n";
+		}
+	}
+}
+
+# building with a 32-bit perl on a 64-bit OS may require this
+if ($Config{longsize} == 4) {
+	$ccflags .= ' -m32';
 }
 
 my @deps = glob 'deps/libgit2/deps/{http-parser,zlib}/*.c';
@@ -57,9 +87,18 @@ if ($^O eq 'MSWin32') {
 	push @srcs, 'deps/libgit2/deps/regex/regex.c';
 
 	$inc .= ' -Ideps/libgit2/deps/regex';
-	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -D__USE_MINGW_ANSI_STDIO=1';
+	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -DGIT_WIN32 -D__USE_MINGW_ANSI_STDIO=1';
 } else {
 	push @srcs, glob 'deps/libgit2/src/unix/*.c'
+}
+
+if ($^O eq 'darwin') {
+	$ccflags .= ' -Wno-deprecated-declarations -Wno-unused-const-variable -Wno-unused-function';
+}
+
+# real-time library is required for Solaris and Linux
+if ($^O =~ /sun/ || $^O =~ /solaris/ || $^O eq 'linux') {
+	$lib .= ' -lrt';
 }
 
 my @objs = map { substr ($_, 0, -1) . 'o' } (@deps, @srcs);
@@ -82,7 +121,7 @@ my %WriteMakefileArgs = (
   "ABSTRACT" => "Perl bindings to the Git linkable library (libgit2)",
   "AUTHOR" => "Alessandro Ghedini <alexbio\@cpan.org>",
   "BUILD_REQUIRES" => {},
-  "CCFLAGS" => " -Wall -Wno-unused-variable -Wdeclaration-after-statement",
+  "CCFLAGS" => "-Wall -Wno-unused-variable -Wdeclaration-after-statement",
   "CONFIGURE_REQUIRES" => {
     "Devel::CheckLib" => 0,
     "ExtUtils::MakeMaker" => "6.63_03"
@@ -91,7 +130,6 @@ my %WriteMakefileArgs = (
   "DISTNAME" => "Git-Raw",
   "EXE_FILES" => [],
   "INC" => "-I. -Ideps/libgit2 -Ideps/libgit2/src -Ideps/libgit2/include -Ideps/libgit2/deps/http-parser -Ideps/libgit2/deps/zlib",
-  "LIBS" => "-lrt",
   "LICENSE" => "perl",
   "NAME" => "Git::Raw",
   "OBJECT" => "\$(O_FILES)",
@@ -112,17 +150,18 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.33",
+  "VERSION" => "0.34",
   "test" => {
     "TESTS" => "t/*.t"
   }
 );
 
 
-$WriteMakefileArgs{DEFINE} .= $def;
-$WriteMakefileArgs{LIBS}   .= $lib;
-$WriteMakefileArgs{INC}    .= $inc;
-$WriteMakefileArgs{OBJECT} .= ' ' . join ' ', @objs;
+$WriteMakefileArgs{DEFINE}  .= $def;
+$WriteMakefileArgs{LIBS}    .= $lib;
+$WriteMakefileArgs{INC}     .= $inc;
+$WriteMakefileArgs{CCFLAGS} .= $ccflags;
+$WriteMakefileArgs{OBJECT}  .= ' ' . join ' ', @objs;
 
 unless (eval { ExtUtils::MakeMaker->VERSION(6.56) }) {
 	my $br = delete $WriteMakefileArgs{BUILD_REQUIRES};

@@ -18,7 +18,8 @@ lookup(class, repo, id)
 		Repository repo_ptr;
 
 	INIT:
-		id_str = SvPVbyte(id, len);
+		len = 0;
+		id_str = git_ensure_pv_with_len(id, "id", &len);
 
 	CODE:
 		rc = git_oid_fromstrn(&oid, id_str, len);
@@ -39,12 +40,8 @@ SV *
 id(self)
 	Tree self
 
-	PREINIT:
-		const git_oid *oid;
-
 	CODE:
-		oid = git_tree_id(self);
-		RETVAL = git_oid_to_sv((git_oid *) oid);
+		RETVAL = git_oid_to_sv(git_tree_id(self));
 
 	OUTPUT: RETVAL
 
@@ -94,16 +91,12 @@ entry_byname(self, name)
 	PREINIT:
 		int rc;
 
-		STRLEN len;
-		const char *name_str;
-
 		Tree_Entry tmp_entry, entry;
 
 	CODE:
-		name_str = SvPVbyte(name, len);
-
 		tmp_entry = (Tree_Entry) git_tree_entry_byname(
-			GIT_SV_TO_PTR(Tree, self), name_str
+			GIT_SV_TO_PTR(Tree, self),
+			git_ensure_pv(name, "name")
 		);
 
 		if (!tmp_entry) Perl_croak(aTHX_ "Invalid name");
@@ -126,16 +119,12 @@ entry_bypath(self, path)
 	PREINIT:
 		int rc;
 
-		STRLEN len;
-		const char *path_str;
-
 		Tree_Entry entry;
 
 	CODE:
-		path_str = SvPVbyte(path, len);
-
 		rc = git_tree_entry_bypath(
-			&entry, GIT_SV_TO_PTR(Tree, self), path_str
+			&entry, GIT_SV_TO_PTR(Tree, self),
+			git_ensure_pv(path, "path")
 		);
 		git_check_error(rc);
 
@@ -162,73 +151,47 @@ diff(self, ...)
 		git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
 
 	CODE:
-		if (items > 2)
-			Perl_croak(aTHX_ "Wrong number of arguments");
-
 		if (items == 2) {
-			SV **opt;
+			SV *opt;
+			AV *lopt;
+			HV *hopt;
+
 			HV *opts;
 
-			if (!SvROK(ST(1)) || SvTYPE(SvRV(ST(1))) != SVt_PVHV)
-				Perl_croak(aTHX_ "Invalid type");
+			opts = git_ensure_hv(ST(1), "options");
 
-			opts = (HV *) SvRV(ST(1));
-			if ((opt = hv_fetchs(opts, "tree", 0))) {
-				tree = GIT_SV_TO_PTR(Tree, *opt);
+			if ((opt = git_hv_sv_entry(opts, "tree")))
+				tree = GIT_SV_TO_PTR(Tree, opt);
+
+			if ((hopt = git_hv_hash_entry(opts, "flags")))
+				diff_opts.flags |= git_hv_to_diff_flag(hopt);
+
+			if ((hopt = git_hv_hash_entry(opts, "prefix"))) {
+				SV *ab;
+
+				if ((ab = git_hv_string_entry(hopt, "a")))
+					diff_opts.old_prefix = SvPVbyte_nolen(ab);
+
+				if ((ab = git_hv_string_entry(hopt, "b")))
+					diff_opts.new_prefix = SvPVbyte_nolen(ab);
 			}
 
-			if ((opt = hv_fetchs(opts, "flags", 0))) {
-				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVHV)
-					Perl_croak(aTHX_ "Expected a list of 'flags'");
+			if ((opt = git_hv_int_entry(opts, "context_lines")))
+				diff_opts.context_lines = (uint16_t) SvIV(opt);
 
-				diff_opts.flags |=
-					git_hv_to_diff_flag((HV *) SvRV(*opt));
-			}
+			if ((opt = git_hv_int_entry(opts, "interhunk_lines")))
+				diff_opts.interhunk_lines = (uint16_t) SvIV(opt);
 
-			if ((opt = hv_fetchs(opts, "prefix", 0))) {
-				SV **ab;
-
-				if ((ab = hv_fetchs((HV *) SvRV(*opt), "a", 0))) {
-					if (!SvPOK(*ab))
-						Perl_croak(aTHX_ "Expected a string for prefix");
-
-					diff_opts.old_prefix = SvPVbyte_nolen(*ab);
-				}
-
-				if ((ab = hv_fetchs((HV *) SvRV(*opt), "b", 0))) {
-					if (!SvPOK(*ab))
-						Perl_croak(aTHX_ "Expected a string for prefix");
-
-					diff_opts.new_prefix = SvPVbyte_nolen(*ab);
-				}
-			}
-
-			if ((opt = hv_fetchs(opts, "context_lines", 0))) {
-				if (!SvIOK(*opt))
-					Perl_croak(aTHX_ "Expected an integer for 'context_lines'");
-
-				diff_opts.context_lines = (uint16_t) SvIV(*opt);
-			}
-
-			if ((opt = hv_fetchs(opts, "interhunk_lines", 0))) {
-				if (!SvIOK(*opt))
-					Perl_croak(aTHX_ "Expected an integer for 'interhunk_lines'");
-
-				diff_opts.interhunk_lines = (uint16_t) SvIV(*opt);
-			}
-
-			if ((opt = hv_fetchs(opts, "paths", 0))) {
+			if ((lopt = git_hv_list_entry(opts, "paths"))) {
 				SV **path;
-				size_t count = 0;
+				size_t i = 0, count = 0;
 
-				if (!SvROK(*opt) || SvTYPE(SvRV(*opt)) != SVt_PVAV)
-					Perl_croak(aTHX_ "Expected a list of 'paths'");
+				while ((path = av_fetch(lopt, i++, 0))) {
+					if (!SvOK(*path))
+						continue;
 
-				while ((path = av_fetch((AV *) SvRV(*opt), count, 0))) {
-					if (SvOK(*path)) {
-						Renew(paths, count + 1, char *);
-						paths[count++] = SvPVbyte_nolen(*path);
-					}
+					Renew(paths, count + 1, char *);
+					paths[count++] = SvPVbyte_nolen(*path);
 				}
 
 				if (count > 0) {
@@ -276,7 +239,8 @@ merge(self, ancestor_tree, their_tree, ...)
 
 	CODE:
 		if (items == 4) {
-			git_hv_to_merge_opts((HV *) SvRV(ST(3)), &merge_opts);
+			HV *opts = git_ensure_hv(ST(3), "options");
+			git_hv_to_merge_opts(opts, &merge_opts);
 		}
 
 		if (SvOK(ancestor_tree))

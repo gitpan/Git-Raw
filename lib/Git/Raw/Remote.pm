@@ -1,5 +1,5 @@
 package Git::Raw::Remote;
-$Git::Raw::Remote::VERSION = '0.33';
+$Git::Raw::Remote::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 SYNOPSIS
 
@@ -78,6 +78,15 @@ be updated and returned.
 Retrieve the URL of the remote. If C<$url> is passed, the remote's URL will be
 updated and returned.
 
+=head2 pushurl( [ $url ] )
+
+Retrieve the push URL for the remote. If C<$url> is passed, teh rmeote's push
+URL will be updated and returned.
+
+=head2 check_cert( $value )
+
+Set whether to check the server's certificate (applies to HTTPS only).
+
 =head2 add_fetch( $spec )
 
 Add a fetch spec to the remote.
@@ -85,6 +94,18 @@ Add a fetch spec to the remote.
 =head2 add_push( $spec )
 
 Add a push spec to the remote.
+
+=head2 clear_refspecs( )
+
+Clear the remote's refspecs.
+
+=head2 refspec_count( )
+
+Retrieve the refspec count.
+
+=head2 refspecs( )
+
+Retrieve the remote's refspecs. Returns a list of C<Git::Raw::RefSpec> objects.
 
 =head2 ls( )
 
@@ -118,7 +139,7 @@ The callback to be called any time authentication is required to connect to the
 remote repository. The callback receives a string containing the URL of the
 remote, and it must return a L<Git::Raw::Cred> object.
 
-=item * "progress"
+=item * "sideband_progress"
 
 Textual progress from the remote. Text send over the progress side-band will be
 passed to this function (this is the 'counting objects' output). The callback
@@ -144,6 +165,11 @@ reference that was updated, and the two OID's C<a> before and after C<b> the upd
 
 =back
 
+=head2 fetch( )
+
+Download new data and update tips. Convenience function to connect to a remote,
+download the data, disconnect and update the remote-tracking branches.
+
 =head2 connect( $direction )
 
 Connect to the remote. The direction can be either C<"fetch"> or C<"push">.
@@ -167,6 +193,15 @@ Update the tips to the new status.
 =head2 is_connected( )
 
 Check if the remote is connected.
+
+=head2 is_url_valid( $url )
+
+Check whether C<$url> is a valid remote URL.
+
+=head2 is_url_supported( $url )
+
+Check whether C<$url> the passed URL is supported by this version of the
+library.
 
 =head1 AUTHOR
 

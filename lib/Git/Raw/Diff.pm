@@ -1,5 +1,5 @@
 package Git::Raw::Diff;
-$Git::Raw::Diff::VERSION = '0.33';
+$Git::Raw::Diff::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Diff - Git diff class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 DESCRIPTION
 
@@ -29,6 +29,99 @@ Merge the given diff with the C<Git::Raw::Diff> C<$from>.
 =head2 delta_count( )
 
 Query how many diff records there are in the diff.
+
+=head2 find_similar( [\%options] )
+
+Transform the diff marking file renames, copies, etc.  Valid fields for the
+C<%options> hash include:
+
+=over 4
+
+=item * "flags"
+
+Flags for finding similar files. Valid values include:
+
+=over 8
+
+=item * "renames"
+
+Look for renames.
+
+=item * "renames_from_rewrites"
+
+Consider old side of modifies files for renames.
+
+=item * "copies"
+
+Look for copies.
+
+=item * "copies_from_unmodified"
+
+Consider unmodified files as copy sources.
+
+=item * "rewrites"
+
+Mark significant rewrites for split.
+
+=item * "break_rewrites"
+
+Actually split large rewrites into delete/add pairs.
+
+=item * "untracked"
+
+Find renames/copies for untracked items in the working directory.
+
+=item * "all"
+
+Turn on all finding features.
+
+=item * "ignore_leading_whitespace"
+
+Measure similarity ignoring leading whitespace (default).
+
+=item * "ignore_whitespace"
+
+Measure similarity ignoring all whitespace.
+
+=item * "dont_ignore_whitespace"
+
+Measure similarity including all data.
+
+=item * "exact_match_only"
+
+Measure similarity only by comparing SHAs (fast and cheap).
+
+=item * "break_rewrites_for_renames_only"
+
+Do not break rewrites unless they contribute to a rename.
+
+=item * "remove_unmodified"
+
+Remove any unmodified deltas after C<find_similar> is done.
+
+=back
+
+=item * "rename_threshold"
+
+Similarity to consider a file renamed (default 50).
+
+=item * "rename_from_rewrite_threshold"
+
+Similarity of modified to be eligible rename source (default 50).
+
+=item * "copy_threshold"
+
+Similarity to consider a file a copy (default 50).
+
+=item * "break_rewrite_threshold"
+
+Similarity to split modify into delete/add pair (default 60).
+
+=item * "rename_limit"
+
+Maximum similarity sources to examine for a file (default 200).
+
+=back
 
 =head2 patches( )
 
@@ -69,9 +162,15 @@ Like C<git diff --name-status>.
 
 =back
 
+=head2 stats( )
+
+Accumlated diff statistics for all patches in the diff.
+
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

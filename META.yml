@@ -3,124 +3,124 @@ abstract: 'Perl bindings to the Git linkable library (libgit2)'
 author:
   - 'Alessandro Ghedini <alexbio@cpan.org>'
 build_requires:
-  Capture::Tiny: '0'
-  Cwd: '0'
-  File::Copy: '0'
-  File::Path: '2.07'
-  File::Slurp: '0'
-  File::Spec: '0'
-  IO::Handle: '0'
-  IPC::Open3: '0'
-  Test::More: '0'
-  Time::Local: '0'
-  perl: '5.006'
+  Capture::Tiny: 0
+  Cwd: 0
+  File::Copy: 0
+  File::Path: 2.07
+  File::Slurp: 0
+  File::Spec: 0
+  IO::Handle: 0
+  IPC::Open3: 0
+  Test::More: 0
+  Time::Local: 0
+  perl: 5.006
 configure_requires:
-  Devel::CheckLib: '0'
+  Devel::CheckLib: 0
   ExtUtils::MakeMaker: 6.63_03
 dynamic_config: 0
-generated_by: 'Dist::Zilla version 5.013, CPAN::Meta::Converter version 2.140640'
+generated_by: 'Dist::Zilla version 5.014, CPAN::Meta::Converter version 2.140640'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
-  version: '1.4'
+  version: 1.4
 name: Git-Raw
 requires:
-  XSLoader: '0'
-  strict: '0'
-  warnings: '0'
+  XSLoader: 0
+  strict: 0
+  warnings: 0
 resources:
   bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/ghedo/p5-Git-Raw.git
-version: '0.33'
+version: 0.34
 x_Dist_Zilla:
   perl:
-    version: '5.018002'
+    version: 5.016001
   plugins:
     -
       class: Dist::Zilla::Plugin::GatherDir
       name: '@Author::ALEXBIO/GatherDir'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::PruneCruft
       name: '@Author::ALEXBIO/PruneCruft'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::ManifestSkip
       name: '@Author::ALEXBIO/ManifestSkip'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::MetaYAML
       name: '@Author::ALEXBIO/MetaYAML'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::License
       name: '@Author::ALEXBIO/License'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::Readme
       name: '@Author::ALEXBIO/Readme'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::ExtraTests
       name: '@Author::ALEXBIO/ExtraTests'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::ExecDir
       name: '@Author::ALEXBIO/ExecDir'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::ShareDir
       name: '@Author::ALEXBIO/ShareDir'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::Manifest
       name: '@Author::ALEXBIO/Manifest'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::TestRelease
       name: '@Author::ALEXBIO/TestRelease'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::ConfirmRelease
       name: '@Author::ALEXBIO/ConfirmRelease'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::GitHub::Meta
       name: '@Author::ALEXBIO/@GitHub/GitHub::Meta'
-      version: '0.36'
+      version: 0.36
     -
       class: Dist::Zilla::Plugin::GitHub::Update
       name: '@Author::ALEXBIO/@GitHub/GitHub::Update'
-      version: '0.36'
+      version: 0.36
     -
       class: Dist::Zilla::Plugin::Git::NextVersion
       name: '@Author::ALEXBIO/Git::NextVersion'
-      version: '2.020'
+      version: 2.020
     -
       class: Dist::Zilla::Plugin::MetaConfig
       name: '@Author::ALEXBIO/MetaConfig'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::MetaJSON
       name: '@Author::ALEXBIO/MetaJSON'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::AutoPrereqs
       name: '@Author::ALEXBIO/AutoPrereqs'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::PodVersion
       name: '@Author::ALEXBIO/PodVersion'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::PkgVersion
       name: '@Author::ALEXBIO/PkgVersion'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::NextRelease
       name: '@Author::ALEXBIO/NextRelease'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::Test::Compile
       config:
@@ -131,43 +131,43 @@ x_Dist_Zilla:
           script_finder:
             - ':ExecFiles'
       name: '@Author::ALEXBIO/Test::Compile'
-      version: '2.040'
+      version: 2.039
     -
       class: Dist::Zilla::Plugin::Test::CheckManifest
       name: '@Author::ALEXBIO/Test::CheckManifest'
-      version: '0.04'
+      version: 0.04
     -
       class: Dist::Zilla::Plugin::PodSyntaxTests
       name: '@Author::ALEXBIO/PodSyntaxTests'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::PodCoverageTests
       name: '@Author::ALEXBIO/PodCoverageTests'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::Git::Commit
       name: '@Author::ALEXBIO/Git::Commit'
-      version: '2.020'
+      version: 2.020
     -
       class: Dist::Zilla::Plugin::Git::Tag
       name: '@Author::ALEXBIO/Git::Tag'
-      version: '2.020'
+      version: 2.020
     -
       class: Dist::Zilla::Plugin::Git::Push
       name: '@Author::ALEXBIO/Git::Push'
-      version: '2.020'
+      version: 2.020
     -
       class: Dist::Zilla::Plugin::UploadToCPAN
       name: '@Author::ALEXBIO/UploadToCPAN'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::InstallRelease
       name: '@Author::ALEXBIO/InstallRelease'
-      version: '0.008'
+      version: 0.008
     -
       class: Dist::Zilla::Plugin::Clean
       name: '@Author::ALEXBIO/Clean'
-      version: '0.07'
+      version: 0.07
     -
       class: Dist::Zilla::Plugin::Prereqs
       config:
@@ -175,49 +175,52 @@ x_Dist_Zilla:
           phase: configure
           type: requires
       name: ConfigureRequires
-      version: '5.013'
+      version: 5.014
     -
       class: inc::MakeMaker
+      config:
+        Dist::Zilla::Role::TestRunner:
+          default_jobs: 1
       name: MakeMaker
       version: ~
     -
       class: Dist::Zilla::Plugin::PruneFiles
       name: PruneFiles
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':InstallModules'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':IncModules'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':TestFiles'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':ExecFiles'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':ShareFiles'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':MainModule'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':AllFiles'
-      version: '5.013'
+      version: 5.014
     -
       class: Dist::Zilla::Plugin::FinderCode
       name: ':NoFiles'
-      version: '5.013'
+      version: 5.014
   zilla:
     class: Dist::Zilla::Dist::Builder
     config:
-      is_trial: '0'
-    version: '5.013'
+      is_trial: 1
+    version: 5.014

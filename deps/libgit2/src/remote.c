@@ -663,7 +663,7 @@ int git_remote_connect(git_remote *remote, git_direction direction)
 		return error;
 
 	if (t->set_callbacks &&
-		(error = t->set_callbacks(t, remote->callbacks.progress, NULL, remote->callbacks.payload)) < 0)
+		(error = t->set_callbacks(t, remote->callbacks.sideband_progress, NULL, remote->callbacks.payload)) < 0)
 		goto on_error;
 
 	if (!remote->check_cert)
@@ -1246,11 +1246,18 @@ int git_remote_set_callbacks(git_remote *remote, const git_remote_callbacks *cal
 
 	if (remote->transport && remote->transport->set_callbacks)
 		return remote->transport->set_callbacks(remote->transport,
-			remote->callbacks.progress,
+			remote->callbacks.sideband_progress,
 			NULL,
 			remote->callbacks.payload);
 
 	return 0;
+}
+
+const git_remote_callbacks *git_remote_get_callbacks(git_remote *remote)
+{
+	assert(remote);
+
+	return &remote->callbacks;
 }
 
 int git_remote_set_transport(git_remote *remote, git_transport *transport)

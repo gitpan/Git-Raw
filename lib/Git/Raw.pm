@@ -1,5 +1,5 @@
 package Git::Raw;
-$Git::Raw::VERSION = '0.33';
+$Git::Raw::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -10,13 +10,19 @@ use Git::Raw::Filter;
 use Git::Raw::Reference;
 use Git::Raw::Repository;
 
+=for HTML
+<a href="https://travis-ci.org/ghedo/p5-Git-Raw">
+	<img src="https://travis-ci.org/ghedo/p5-Git-Raw.svg?branch=master" align="right">
+</a>
+=cut
+
 =head1 NAME
 
 Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 DESCRIPTION
 
@@ -31,6 +37,8 @@ B<WARNING>: The API of this module is unstable and may change without warning
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

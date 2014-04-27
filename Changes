@@ -1,5 +1,87 @@
 Revision history for Git-Raw
 
+0.34      2014-04-27 12:38:41SAST+0200 Africa/Johannesburg (TRIAL RELEASE)
+
+ - Add Repository -> message() method (GH#72) (thanks, @jacquesg!)
+ - Add Reference methods (GH#73) (thanks, @jacquesg!):
+    + Reference -> shorthand()
+    + Reference -> is_tag()
+    + Reference -> is_note()
+ - Enable libgit2 threading support (GH#74) (thanks, @jacquesg!)
+ - Add support for push callbacks (GH#75) (thanks, @jacquesg!)
+ - Update to libgit2 4f9d541 (GH#76) (GH#78) (GH#85) (thanks, @jacquesg!)
+ - Add support for SSH interactive login (GH#78) (thanks, @jacquesg!)
+ - Add Push -> update_tips() method (GH#79) (thanks, @jacquesg!)
+ - Make clone tests more robust (GH#79) (thanks, @jacquesg!)
+ - Add Repository -> is_head_detached() (GH#83) (thanks, @jacquesg!)
+ - Allow "tree" parameter to be undef in Repository -> tree()
+   (GH#81) (thanks, @jacquesg!)
+ - Added additional diff flags (GH#86):
+    + include_typechange
+    + include_typechange_trees
+    + ignore_case
+    + skip_binary_check
+    + enable_fast_untracked_dirs
+    + show_untracked_content
+    + show_unmodified
+ - Repository -> branches() now takes an optional branch
+    type argument (GH#85)
+ - Add Remote methods (GH#87):
+    + Remote -> pushurl()
+    + Remote -> check_cert()
+    + Remote -> clear_refspecs()
+    + Remote -> refspec_count()
+    + Remote -> refspecs()
+    + Remote -> fetch()
+    + Remote -> is_url_valid()
+    + Remote -> is_url_supported()
+ - Add RefSpec methods (GH#87):
+    + RefSpec -> dst_matches()
+    + RefSpec -> src_matches()
+    + RefSpec -> string()
+    + RefSpec -> direction()
+    + RefSpec -> transform()
+    + RefSpec -> rtransform()
+    + RefSpec -> is_force()
+ - Add Branch methods (GH#84):
+    + Branch -> remote_name()
+    + Branch -> upstream_name()
+ - The Reference returned by Branch -> remote() now has enough information
+    to be used as a real Reference. Previously it didn't capture the owning
+    Repository. (GH#84)
+ - Add Commit methods (GH#88):
+    + Commit -> ancestor()
+ - Add Graph methods (GH#88):
+    + Graph -> is_ancestor_of()
+ - Repository -> merge_base() now accepts a "commitish" (GH#88)
+ - Add Diff methods (GH#77):
+    + Diff -> find_similar()
+    + Diff -> stats()
+ - Add Diff::Stats methods (GH#77):
+    + Diff::Stats -> insertions()
+    + Diff::Stats -> deletions()
+    + Diff::Stats -> files_changed()
+    + Diff::Stats -> buffer()
+ - Add PathSpec methods (GH#89):
+    + PathSpec -> new()
+    + PathSpec -> match()
+ - Add PathSpec::MatchList methods (GH#89):
+    + PathSpec::MatchList -> count()
+    + PathSpec::MatchList -> entries()
+    + PathSpec::MatchList -> failed_count()
+    + PathSpec::MatchList -> failed_entries()
+ - Fixed branch test cases:
+    There may be a 1-2 second difference in time between commiting and
+	comparing against the current signature.
+ - Fixed internal callback leaks (GH#90)
+ - Cred -> sshkey() now doesn't require a passphrase (GH#90)
+ - 'progress' callback for Repository -> clone() and Remote -> set_callbacks()
+    has been renamed to 'sideband_progress' (incompatible change).
+ - Add Walker methods (GH#91):
+    + Walker -> push_range()
+ - Compiler options should be determined in Makefile.PL context (GH#91)
+    Fixes problems building a 32-bit perl on a 64-bit system
+
 0.33      2014-04-14 12:28:23+02:00 Europe/Rome
 
  - Fix segfaults caused by invalid object creation (GH#66) (thanks, @pipcet!)

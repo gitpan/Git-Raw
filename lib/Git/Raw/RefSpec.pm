@@ -1,5 +1,5 @@
 package Git::Raw::RefSpec;
-$Git::Raw::RefSpec::VERSION = '0.33';
+$Git::Raw::RefSpec::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::RefSpec - Git refspec class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 DESCRIPTION
 
@@ -24,13 +24,46 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 Retrieve the destination specifier of the refspec.
 
+=head2 dst_matches( $name )
+
+Check if the refspec's destination descriptor matches the reference named
+by C<$name>.
+
 =head2 src( )
 
 Retrieve the source specifier of the refspec.
 
+=head2 src_matches( $name )
+
+Check if the refspec's source descriptor matches the reference named
+by C<$name>.
+
+=head2 string( )
+
+Get the refspec's string.
+
+=head2 direction( )
+
+Get the refspec's direction. It is either L<"fetch"> or L<"push">.
+
+=head2 transform( $name )
+
+Transform C<$name> to its target following the refspec's rules.
+
+=head2 rtransform( $name )
+
+Transform the target reference C<$name> to its source reference name following
+the refspec's rules.
+
+=head2 is_force( )
+
+Get the refspec's force update setting.
+
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

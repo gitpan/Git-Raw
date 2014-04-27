@@ -1,5 +1,5 @@
 package Git::Raw::Cred;
-$Git::Raw::Cred::VERSION = '0.33';
+$Git::Raw::Cred::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Cred - Git credentials class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 DESCRIPTION
 
@@ -24,11 +24,11 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 Create a new credential object with the given username and password.
 
-=head2 sshkey( $user, $public, $private, $pass )
+=head2 sshkey( $user, $public, $private [, $pass ] )
 
 Create a new credential object given a SSH public and private key files, and
-the password of the private key. If the SSH support has not been enabled at
-build-time, this method will always return C<undef>.
+optionall the password of the private key. If the SSH support has not been
+enabled at build-time, this method will always return C<undef>.
 
 =head2 sshagent( $user )
 
@@ -36,9 +36,36 @@ Create a new credential object used for querying an ssh-agent. If the SSH
 support has not been enabled at build-time, this method will always return
 C<undef>.
 
+=head2 sshinteractive( $user, $callback )
+
+Create a new credential object based on interactive authentication. The
+callback C<$callback> will be invoked when the remote-side issues a challenge.
+It receives the following parameters: C<$name>, C<$instruction> and
+C<@prompts>. Any of the parameters passed to the callback may be undefined.
+Each C<$prompt> entry in C<@prompts> is a hash reference that may contain:
+
+=over 4
+
+=item * "text"
+
+Text for the prompt.
+
+=item * "echo"
+
+Parameter indicating whether the response of the challenge is safe
+to be echoed.
+
+=back
+
+The callback should return a list of responses, one for each prompt.
+If the SSH support has not been enabled at build-time, this method will always
+return C<undef>.
+
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

@@ -1,5 +1,5 @@
 package Git::Raw::Commit;
-$Git::Raw::Commit::VERSION = '0.33';
+$Git::Raw::Commit::VERSION = '0.34'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.33
+version 0.34
 
 =head1 SYNOPSIS
 
@@ -108,9 +108,16 @@ Merge C<$commit> into this commit. See C<Git::Raw::Repository-E<gt>merge()>
 for valid C<%merge_opts> values. Returns a C<Git::Raw::Index> object
 containing the merge result.
 
+=head2 ancestor( $gen )
+
+Retrieve the C<Git::Raw::Commit> object that is the C<$gen>'th generation
+ancestor of this commit, following only the first parents.
+
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 
