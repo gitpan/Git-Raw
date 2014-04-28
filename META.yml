@@ -15,8 +15,10 @@ build_requires:
   Time::Local: 0
   perl: 5.006
 configure_requires:
-  Devel::CheckLib: 0
+  Devel::CheckLib: 0.6
   ExtUtils::MakeMaker: 6.63_03
+  File::Basename: 2.74
+  Getopt::Long: 2.35
 dynamic_config: 0
 generated_by: 'Dist::Zilla version 5.014, CPAN::Meta::Converter version 2.140640'
 license: perl
@@ -32,7 +34,7 @@ resources:
   bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/ghedo/p5-Git-Raw.git
-version: 0.34
+version: 0.35
 x_Dist_Zilla:
   perl:
     version: 5.016001
@@ -222,5 +224,5 @@ x_Dist_Zilla:
   zilla:
     class: Dist::Zilla::Dist::Builder
     config:
-      is_trial: 1
+      is_trial: 0
     version: 5.014

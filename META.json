@@ -16,8 +16,10 @@
    "prereqs" : {
       "configure" : {
          "requires" : {
-            "Devel::CheckLib" : "0",
-            "ExtUtils::MakeMaker" : "6.63_03"
+            "Devel::CheckLib" : "0.6",
+            "ExtUtils::MakeMaker" : "6.63_03",
+            "File::Basename" : "2.74",
+            "Getopt::Long" : "2.35"
          }
       },
       "develop" : {
@@ -50,7 +52,7 @@
          }
       }
    },
-   "release_status" : "testing",
+   "release_status" : "stable",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/ghedo/p5-Git-Raw/issues"
@@ -62,7 +64,7 @@
          "web" : "https://github.com/ghedo/p5-Git-Raw"
       }
    },
-   "version" : "0.34",
+   "version" : "0.35",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.016001"
@@ -304,7 +306,7 @@
       "zilla" : {
          "class" : "Dist::Zilla::Dist::Builder",
          "config" : {
-            "is_trial" : "1"
+            "is_trial" : "0"
          },
          "version" : "5.014"
       }
