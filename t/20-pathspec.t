@@ -13,11 +13,14 @@ my $repo = Git::Raw::Repository -> open($path);
 
 my @status = $repo->status();
 
+ok (!eval { Git::Raw::PathSpec -> new });
+ok (!eval { Git::Raw::PathSpec -> new($repo) });
 my $spec = Git::Raw::PathSpec -> new('blah');
 isa_ok $spec, 'Git::Raw::PathSpec';
 
 my $list;
 
+ok (!eval { $spec -> match('') });
 ok (!eval { $list = $spec -> match($repo, {
 	'flags' => {
 		'no_match_error' => 1
@@ -114,9 +117,9 @@ is_deeply [ @entries ], ['test', 'test2', 'test3/under/the/tree/test3'];
 
 $spec = Git::Raw::PathSpec -> new('**/test*');
 $list = $spec -> match($commit -> tree);
-is $list -> count, 1;
+is $list -> count, 3;
 
 @entries = $list -> entries;
-is_deeply [ @entries ], ['test3/under/the/tree/test3'];
+is_deeply [ @entries ], ['test', 'test2', 'test3/under/the/tree/test3'];
 
 done_testing;

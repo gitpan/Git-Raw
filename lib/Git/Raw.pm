@@ -1,5 +1,5 @@
 package Git::Raw;
-$Git::Raw::VERSION = '0.35';
+$Git::Raw::VERSION = '0.36'; # TRIAL
 use strict;
 use warnings;
 
@@ -12,7 +12,10 @@ use Git::Raw::Repository;
 
 =for HTML
 <a href="https://travis-ci.org/ghedo/p5-Git-Raw">
-	<img src="https://travis-ci.org/ghedo/p5-Git-Raw.svg?branch=master" align="right">
+	<img src="https://travis-ci.org/ghedo/p5-Git-Raw.svg?branch=master" alt="Build Status" align="right" />
+</a>
+<a href="https://coveralls.io/r/ghedo/p5-Git-Raw">
+	<img src="https://coveralls.io/repos/ghedo/p5-Git-Raw/badge.png?branch=master" alt="Coverage Status" align="right" />
 </a>
 =cut
 
@@ -22,7 +25,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.35
+version 0.36
 
 =head1 DESCRIPTION
 

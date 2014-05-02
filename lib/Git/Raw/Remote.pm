@@ -1,5 +1,5 @@
 package Git::Raw::Remote;
-$Git::Raw::Remote::VERSION = '0.35';
+$Git::Raw::Remote::VERSION = '0.36'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.35
+version 0.36
 
 =head1 SYNOPSIS
 
@@ -144,11 +144,6 @@ remote, and it must return a L<Git::Raw::Cred> object.
 Textual progress from the remote. Text send over the progress side-band will be
 passed to this function (this is the 'counting objects' output). The callback
 receives a string containing progress information.
-
-=item * "completion"
-
-Completion is called when different parts of the download process are done
-(currently unused).
 
 =item * "transfer_progress"
 

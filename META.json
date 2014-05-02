@@ -40,6 +40,7 @@
          "requires" : {
             "Capture::Tiny" : "0",
             "Cwd" : "0",
+            "File::Basename" : "0",
             "File::Copy" : "0",
             "File::Path" : "2.07",
             "File::Slurp" : "0",
@@ -52,7 +53,7 @@
          }
       }
    },
-   "release_status" : "stable",
+   "release_status" : "testing",
    "resources" : {
       "bugtracker" : {
          "web" : "https://github.com/ghedo/p5-Git-Raw/issues"
@@ -64,7 +65,7 @@
          "web" : "https://github.com/ghedo/p5-Git-Raw"
       }
    },
-   "version" : "0.35",
+   "version" : "0.36",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.016001"
@@ -306,7 +307,7 @@
       "zilla" : {
          "class" : "Dist::Zilla::Dist::Builder",
          "config" : {
-            "is_trial" : "0"
+            "is_trial" : "1"
          },
          "version" : "5.014"
       }

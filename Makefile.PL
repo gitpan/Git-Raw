@@ -164,7 +164,9 @@ if ($Config{gccversion} || $Config{gccversion}) {
 	}
 }
 
-if ($Config{usethreads}) {
+# there are no atomic primitives for the Sun Pro compiler in libgit2, so even if pthreads is available
+# and perl has been built with threads support, libgit2 cannot use threads under said compiler
+if ($Config{usethreads} && !$is_sunpro) {
 	if (check_lib(lib => 'pthread')) {
 		$def .= ' -DGIT_THREADS';
 		$lib .= ' -lpthread';
@@ -174,9 +176,13 @@ if ($Config{usethreads}) {
 		if ($is_windows) {
 			$def .= ' -DGIT_THREADS';
 		} else {
-			print "Threads support disabled\n";
+			print "Threads support disabled (pthreads not found)\n";
 		}
 	}
+} elsif ($is_sunpro) {
+	print "Thread support disabled (SunPro compiler detected)\n"
+} else {
+	print "Thread support disabled (perl wasn't built with thread support)\n"
 }
 
 my @deps = glob 'deps/libgit2/deps/{http-parser,zlib}/*.c';
@@ -257,6 +263,7 @@ my %WriteMakefileArgs = (
   "TEST_REQUIRES" => {
     "Capture::Tiny" => 0,
     "Cwd" => 0,
+    "File::Basename" => 0,
     "File::Copy" => 0,
     "File::Path" => "2.07",
     "File::Slurp" => 0,
@@ -266,7 +273,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.35",
+  "VERSION" => "0.36",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -276,7 +283,7 @@ my %WriteMakefileArgs = (
 $WriteMakefileArgs{DEFINE}  .= $def;
 $WriteMakefileArgs{LIBS}    .= $lib;
 $WriteMakefileArgs{INC}     .= $inc;
-$WriteMakefileArgs{CCFLAGS} .= $ccflags;
+$WriteMakefileArgs{CCFLAGS} .= $Config{ccflags} . ' '. $ccflags;
 $WriteMakefileArgs{OBJECT}  .= ' ' . join ' ', @objs;
 
 unless (eval { ExtUtils::MakeMaker->VERSION(6.56) }) {
