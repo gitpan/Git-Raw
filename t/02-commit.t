@@ -5,6 +5,7 @@ use Test::More;
 use Git::Raw;
 use File::Copy;
 use File::Slurp;
+use File::Spec::Functions;
 use Cwd qw(abs_path);
 use File::Path 2.07 qw(make_path remove_tree);
 use Time::Local;
@@ -19,8 +20,13 @@ write_file($file, 'this is a test');
 is_deeply $repo -> status -> {'test'}, {'flags' => ['worktree_new']};
 
 my $index = $repo -> index;
+is $index -> path, catfile($path, '.git/index');
 ok (!eval { $index -> add($index) });
-$index -> add('test');
+$index -> add_all({
+	'paths' => [
+		'test'
+	]
+});
 $index -> write;
 
 my $tree_id = $index -> write_tree;
@@ -31,7 +37,11 @@ is_deeply $repo -> status -> {'test'}, {'flags' => ['index_new']};
 write_file($file, 'this is a test with more content');
 is_deeply $repo -> status -> {'test'}, {'flags' => ['index_new', 'worktree_modified']};
 
-$index -> add('test');
+$index -> update_all({
+	'paths' => [
+		'test'
+	]
+});
 $index -> write;
 
 is_deeply $repo -> status -> {'test'}, {'flags' => ['index_new']};
@@ -104,7 +114,35 @@ is_deeply $repo -> status -> {'test'}, {'flags' => ['index_modified']};
 $repo -> reset($commit, {'paths' => [undef, 'test']});
 is_deeply $repo -> status -> {'test'}, {'flags' => ['worktree_modified']};
 
-$index -> add('test');
+ok (!eval { $index -> update_all({
+	'paths' => [ 'test' ],
+	'notification' => sub { die "Bad!"; }
+})});
+
+is_deeply $repo -> status -> {'test'}, {'flags' => ['worktree_modified']};
+
+$index -> update_all({
+	'paths' => [ 'test' ],
+	'notification' => sub { return 1; }
+});
+
+is_deeply $repo -> status -> {'test'}, {'flags' => ['worktree_modified']};
+
+$index -> update_all({
+	'paths' => [
+		undef,
+		'test'
+	],
+	'notification' => sub {
+		my ($path, $pathspec) = @_;
+
+		is $path, 'test';
+		is $path, $pathspec;
+
+		return 0;
+	}
+});
+
 $index -> write;
 is_deeply $repo -> status -> {'test'}, {'flags' => ['index_modified']};
 

@@ -1,21 +1,22 @@
 package Git::Raw;
-$Git::Raw::VERSION = '0.36'; # TRIAL
+$Git::Raw::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
 require XSLoader;
 XSLoader::load('Git::Raw', $Git::Raw::VERSION);
 
-use Git::Raw::Filter;
+use Git::Raw::Error;
+use Git::Raw::Error::Category;
 use Git::Raw::Reference;
 use Git::Raw::Repository;
 
 =for HTML
-<a href="https://travis-ci.org/ghedo/p5-Git-Raw">
-	<img src="https://travis-ci.org/ghedo/p5-Git-Raw.svg?branch=master" alt="Build Status" align="right" />
+<a href="https://travis-ci.org/jacquesg/p5-Git-Raw">
+	<img src="https://travis-ci.org/jacquesg/p5-Git-Raw.svg?branch=master" alt="Build Status" align="right" />
 </a>
-<a href="https://coveralls.io/r/ghedo/p5-Git-Raw">
-	<img src="https://coveralls.io/repos/ghedo/p5-Git-Raw/badge.png?branch=master" alt="Coverage Status" align="right" />
+<a href="https://coveralls.io/r/jacquesg/p5-Git-Raw">
+	<img src="https://coveralls.io/repos/jacquesg/p5-Git-Raw/badge.png?branch=master" alt="Coverage Status" align="right" />
 </a>
 =cut
 
@@ -25,7 +26,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 DESCRIPTION
 
@@ -36,6 +37,11 @@ API.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
+
+=head2 features( )
+
+List of (optional) compiled in features. Git::Raw may be built with support
+for threads, HTTPS and SSH.
 
 =head1 AUTHOR
 

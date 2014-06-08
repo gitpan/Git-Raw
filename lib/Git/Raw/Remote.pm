@@ -1,5 +1,5 @@
 package Git::Raw::Remote;
-$Git::Raw::Remote::VERSION = '0.36'; # TRIAL
+$Git::Raw::Remote::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 SYNOPSIS
 
@@ -109,9 +109,9 @@ Retrieve the remote's refspecs. Returns a list of C<Git::Raw::RefSpec> objects.
 
 =head2 ls( )
 
-Retrieve the list of refs at the remote. Returns a hash reference containing
-C<key => value> pairs where the key is the name of the reference, and the value
-is a hash reference containing the following values:
+Retrieve the list of refs at the remote. Returns a hash reference where the key
+is the name of the reference, and the value is a hash reference containing the
+following values:
 
 =over 4
 
@@ -167,7 +167,7 @@ download the data, disconnect and update the remote-tracking branches.
 
 =head2 connect( $direction )
 
-Connect to the remote. The direction can be either C<"fetch"> or C<"push">.
+Connect to the remote. The C<$direction> should either be C<"fetch"> or C<"push">.
 
 =head2 disconnect( )
 

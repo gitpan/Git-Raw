@@ -842,7 +842,7 @@ static int index_entry_reuc_init(git_index_reuc_entry **reuc_out,
 
 static void index_entry_cpy(git_index_entry *tgt, const git_index_entry *src)
 {
-	char *tgt_path = tgt->path;
+	const char *tgt_path = tgt->path;
 	memcpy(tgt, src, sizeof(*tgt));
 	tgt->path = tgt_path; /* reset to existing path data */
 }
@@ -1104,12 +1104,26 @@ int git_index_remove_bypath(git_index *index, const char *path)
 	return 0;
 }
 
+static bool valid_filemode(const int filemode)
+{
+	return (filemode == GIT_FILEMODE_BLOB ||
+		filemode == GIT_FILEMODE_BLOB_EXECUTABLE ||
+		filemode == GIT_FILEMODE_LINK ||
+		filemode == GIT_FILEMODE_COMMIT);
+}
+
+
 int git_index_add(git_index *index, const git_index_entry *source_entry)
 {
 	git_index_entry *entry = NULL;
 	int ret;
 
 	assert(index && source_entry && source_entry->path);
+
+	if (!valid_filemode(source_entry->mode)) {
+		giterr_set(GITERR_INDEX, "invalid filemode");
+		return -1;
+	}
 
 	if ((ret = index_entry_dup(&entry, source_entry)) < 0 ||
 		(ret = index_insert(index, &entry, 1)) < 0)
@@ -2282,9 +2296,7 @@ static int read_tree_cb(
 		entry->mode == old_entry->mode &&
 		git_oid_equal(&entry->id, &old_entry->id))
 	{
-		char *oldpath = entry->path;
-		memcpy(entry, old_entry, sizeof(*entry));
-		entry->path = oldpath;
+		index_entry_cpy(entry, old_entry);
 		entry->flags_extended = 0;
 	}
 

@@ -1,5 +1,5 @@
 package Git::Raw::Diff::Stats;
-$Git::Raw::Diff::Stats::VERSION = '0.36'; # TRIAL
+$Git::Raw::Diff::Stats::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Diff::Stats - Git diff statistics class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 DESCRIPTION
 
@@ -46,15 +46,15 @@ Flags for generating the diff stats buffer. Valid values include:
 
 =item * "full"
 
-Full statistics similar to core git's L<--stat>.
+Full statistics similar to core git's C<--stat>.
 
 =item * "short"
 
-Short statistics similar to core git's L<--shortstat>.
+Short statistics similar to core git's C<--shortstat>.
 
 =item * "number"
 
-Number statistics similar to core git's L<--numstat>.
+Number statistics similar to core git's C<--numstat>.
 
 =item * "summary"
 

@@ -1,5 +1,5 @@
 package Git::Raw::Tag;
-$Git::Raw::Tag::VERSION = '0.36'; # TRIAL
+$Git::Raw::Tag::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 SYNOPSIS
 
@@ -75,7 +75,7 @@ Retrieve the message of the tag.
 
 =head2 tagger( )
 
-Retrieve the C<Git::Raw::Signature> representing the tag's tagger.
+Retrieve the L<Git::Raw::Signature> representing the tag's tagger.
 
 =head2 target( )
 

@@ -4,7 +4,7 @@ use warnings;
 
 # this test was generated with Dist::Zilla::Plugin::Test::Compile 2.039
 
-use Test::More  tests => 34 + ($ENV{AUTHOR_TESTING} ? 1 : 0);
+use Test::More  tests => 36 + ($ENV{AUTHOR_TESTING} ? 1 : 0);
 
 
 
@@ -22,6 +22,8 @@ my @module_files = (
     'Git/Raw/Diff/File.pm',
     'Git/Raw/Diff/Hunk.pm',
     'Git/Raw/Diff/Stats.pm',
+    'Git/Raw/Error.pm',
+    'Git/Raw/Error/Category.pm',
     'Git/Raw/Filter.pm',
     'Git/Raw/Filter/Source.pm',
     'Git/Raw/Graph.pm',

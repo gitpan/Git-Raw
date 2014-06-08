@@ -25,18 +25,17 @@ hunks(self, ...)
 			SV *index = ST(1);
 
 			if (!SvIOK(index) || SvIV(index) < 0)
-				Perl_croak(aTHX_ "Invalid type for 'index'");
+				croak_usage("Invalid type for 'index'");
 
 			start = SvUV(index);
 			if (start >= num_hunks)
-				Perl_croak(aTHX_ "index %" PRIuZ " out of range", start);
+				croak_usage("index %" PRIuZ " out of range", start);
 
 			num_hunks = 1;
 		}
 
 		end = start + num_hunks;
 
-		EXTEND(SP, num_hunks);
 		for (; start < end; ++start) {
 			SV *hunk;
 
@@ -49,7 +48,7 @@ hunks(self, ...)
 				(Blame_Hunk) h, SvRV(self)
 			);
 
-			PUSHs(sv_2mortal(hunk));
+			mXPUSHs(hunk);
 		}
 
 		XSRETURN(num_hunks);

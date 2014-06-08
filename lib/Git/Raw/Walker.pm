@@ -1,5 +1,5 @@
 package Git::Raw::Walker;
-$Git::Raw::Walker::VERSION = '0.36'; # TRIAL
+$Git::Raw::Walker::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 SYNOPSIS
 
@@ -68,13 +68,13 @@ starting a revision walk.
 =head2 push_range( $start, $end )
 
 Push and hide the respective endpoints of the given range. C<$start> and C<$end>
-should be L<"commitish">, that is, it should be a C<Git::Raw::Commit> or
-C<Git::Raw::Reference> object, or alternatively a commit id or commit id prefix.
+should be C<"commitish">, that is, it should be a L<Git::Raw::Commit> or
+L<Git::Raw::Reference> object, or alternatively a commit id or commit id prefix.
 
 =head2 push_range( $range )
 
 Push and hide the respective endpoints of the given range. C<$range> should be
-of the form L<"start_commit_id..end_commit_id">.
+of the form C<"start_commit_id..end_commit_id">.
 
 =head2 hide( $commit )
 

@@ -37,14 +37,13 @@ typedef struct {
  * Initializes a `git_cherry_pick_options` with default values. Equivalent to
  * creating an instance with GIT_CHERRY_PICK_OPTIONS_INIT.
  *
- * @param opts the `git_cherry_pick_options` instance to initialize.
- * @param version the version of the struct; you should pass
- *        `GIT_CHERRY_PICK_OPTIONS_VERSION` here.
+ * @param opts the `git_cherry_pick_options` struct to initialize
+ * @param version Version of struct; pass `GIT_CHERRY_PICK_OPTIONS_VERSION`
  * @return Zero on success; -1 on failure.
  */
-GIT_EXTERN(int) git_cherry_pick_init_opts(
-	git_cherry_pick_options* opts,
-	int version);
+GIT_EXTERN(int) git_cherry_pick_init_options(
+	git_cherry_pick_options *opts,
+	unsigned int version);
 
 /**
  * Cherry-picks the given commit against the given "our" commit, producing an
@@ -57,7 +56,7 @@ GIT_EXTERN(int) git_cherry_pick_init_opts(
  * @param cherry_pick_commit the commit to cherry-pick
  * @param our_commit the commit to revert against (eg, HEAD)
  * @param mainline the parent of the revert commit, if it is a merge
- * @param merge_tree_opts the merge tree options (or null for defaults)
+ * @param merge_options the merge options (or null for defaults)
  * @return zero on success, -1 on failure.
  */
 GIT_EXTERN(int) git_cherry_pick_commit(

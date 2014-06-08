@@ -1,5 +1,5 @@
 package Git::Raw::Diff::Hunk;
-$Git::Raw::Diff::Hunk::VERSION = '0.36'; # TRIAL
+$Git::Raw::Diff::Hunk::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Diff::Hunk - Git diff hunk class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 DESCRIPTION
 
@@ -24,19 +24,19 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 =head2 old_start( )
 
-Starting line number in L<"old_file">.
+Starting line number in C<"old_file">.
 
 =head2 old_lines( )
 
-Number of lines in L<"old_file">.
+Number of lines in C<"old_file">.
 
 =head2 new_start( )
 
-Starting line number in L<"new_file">.
+Starting line number in C<"new_file">.
 
 =head2 new_lines( )
 
-Number of lines in L<"new_file">.
+Number of lines in C<"new_file">.
 
 =head2 header( )
 

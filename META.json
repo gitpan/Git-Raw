@@ -17,6 +17,7 @@
       "configure" : {
          "requires" : {
             "Devel::CheckLib" : "0.6",
+            "ExtUtils::Constant" : "0.23",
             "ExtUtils::MakeMaker" : "6.63_03",
             "File::Basename" : "2.74",
             "Getopt::Long" : "2.35"
@@ -31,7 +32,9 @@
       },
       "runtime" : {
          "requires" : {
+            "Carp" : "0",
             "XSLoader" : "0",
+            "overload" : "0",
             "strict" : "0",
             "warnings" : "0"
          }
@@ -45,6 +48,7 @@
             "File::Path" : "2.07",
             "File::Slurp" : "0",
             "File::Spec" : "0",
+            "File::Spec::Functions" : "0",
             "IO::Handle" : "0",
             "IPC::Open3" : "0",
             "Test::More" : "0",
@@ -56,16 +60,16 @@
    "release_status" : "testing",
    "resources" : {
       "bugtracker" : {
-         "web" : "https://github.com/ghedo/p5-Git-Raw/issues"
+         "web" : "https://github.com/jacquesg/p5-Git-Raw/issues"
       },
       "homepage" : "http://metacpan.org/release/Git-Raw/",
       "repository" : {
          "type" : "git",
-         "url" : "git://github.com/ghedo/p5-Git-Raw.git",
-         "web" : "https://github.com/ghedo/p5-Git-Raw"
+         "url" : "git://github.com/jacquesg/p5-Git-Raw.git",
+         "web" : "https://github.com/jacquesg/p5-Git-Raw"
       }
    },
-   "version" : "0.36",
+   "version" : "0.37",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.016001"

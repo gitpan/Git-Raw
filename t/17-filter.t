@@ -32,10 +32,12 @@ my $cleanup = 0;
 my $check = 0;
 my $apply = 0;
 
+ok (!eval { $odb_filter -> register(100) });
+
 $odb_filter -> callbacks({
 	'initialize' => sub {
 		$initialize = 1;
-		0;
+		return Git::Raw::Error -> OK;
 	},
 	'shutdown' => sub {
 		$shutdown = 1;
@@ -52,7 +54,7 @@ $odb_filter -> callbacks({
 		is $source -> file_mode, 0;
 
 		$check = 1;
-		0;
+		return Git::Raw::Error -> OK;
 	},
 	'apply' => sub {
 		my ($source, $from, $to) = @_;
@@ -64,7 +66,7 @@ $odb_filter -> callbacks({
 
 		$$to = (split (/:/, $from))[1];
 		$apply = 1;
-		0;
+		return Git::Raw::Error -> OK;
 	},
 });
 
@@ -98,7 +100,7 @@ $odb_filter = Git::Raw::Filter -> create ("odb", "text");
 
 $odb_filter -> callbacks({
 	'apply' => sub {
-		return -1;
+		return Git::Raw::Error -> ERROR;
 	}
 });
 
@@ -196,11 +198,11 @@ my $passthrough_filter = Git::Raw::Filter -> create ("passthrough", "text");
 $passthrough_filter -> callbacks({
 	'check' => sub {
 		$check = 1;
-		return Git::Raw::Filter->PASSTHROUGH;
+		return Git::Raw::Error -> PASSTHROUGH;
 	},
 	'apply' => sub {
 		$apply = 1;
-		return Git::Raw::Filter->PASSTHROUGH;
+		return Git::Raw::Error -> PASSTHROUGH;
 	},
 });
 

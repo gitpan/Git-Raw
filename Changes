@@ -1,5 +1,33 @@
 Revision history for Git-Raw
 
+0.37      2014-06-08 17:25:17SAST+0200 Africa/Johannesburg (TRIAL RELEASE)
+
+ - Removed Index -> add_conflict() (Incompatible change) (GH#97)
+ - Index -> read() now takes an optional force argument (GH#97)
+ - Added Raw -> features() method. This may be used to query the features
+    built into libgit2 (and thus Git::Raw).
+ - Added Repository methods (GH#97):
+    + Repository -> cherry_pick()
+    + Repository -> revert()
+ - Update libgit2 to df19219 (GH#99,GH#102)
+ - Added Index methods (GH#100):
+    + Index -> capabilities()
+    + Index -> path()
+    + Index -> add_all()
+    + Index -> remove_all()
+ - Improved documentation (GH#101)
+ - Improved the error model (GH#101)
+    All errors are now Git::Raw::Error objects. Extended error information
+	provided by libgit2 may be queried (code/category/message) via the
+	corresponding accessor. All existing code should continue to work as is
+	(via "" and bool overloads).
+ - Added Error methods (GH#101):
+	+ Error -> code()
+	+ Error -> category()
+	+ Error -> message()
+ - Removed constants from Filter (Incompatible change) (GH#101):
+   They are now located in the Error namespace.
+
 0.36      2014-05-02 15:59:18SAST+0200 Africa/Johannesburg (TRIAL RELEASE)
 
  - Repository -> reset() now understands a 'hard' reset (GH #96)

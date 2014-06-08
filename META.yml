@@ -10,6 +10,7 @@ build_requires:
   File::Path: 2.07
   File::Slurp: 0
   File::Spec: 0
+  File::Spec::Functions: 0
   IO::Handle: 0
   IPC::Open3: 0
   Test::More: 0
@@ -17,6 +18,7 @@ build_requires:
   perl: 5.006
 configure_requires:
   Devel::CheckLib: 0.6
+  ExtUtils::Constant: 0.23
   ExtUtils::MakeMaker: 6.63_03
   File::Basename: 2.74
   Getopt::Long: 2.35
@@ -28,14 +30,16 @@ meta-spec:
   version: 1.4
 name: Git-Raw
 requires:
+  Carp: 0
   XSLoader: 0
+  overload: 0
   strict: 0
   warnings: 0
 resources:
-  bugtracker: https://github.com/ghedo/p5-Git-Raw/issues
+  bugtracker: https://github.com/jacquesg/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
-  repository: git://github.com/ghedo/p5-Git-Raw.git
-version: 0.36
+  repository: git://github.com/jacquesg/p5-Git-Raw.git
+version: 0.37
 x_Dist_Zilla:
   perl:
     version: 5.016001

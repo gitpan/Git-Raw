@@ -116,7 +116,7 @@ discover(class, path)
 	PREINIT:
 		int rc;
 
-		Repository repo;
+		Repository repo = NULL;
 
 	CODE:
 		git_buf buf = GIT_BUF_INIT_CONST(NULL, 0);
@@ -128,12 +128,9 @@ discover(class, path)
 			&buf, git_ensure_pv(path, "path"), 1, NULL
 		);
 
-		if (rc != GIT_OK)
-			git_buf_free(&buf);
+		if (rc == GIT_OK)
+			rc = git_repository_open(&repo, (const char*) buf.ptr);
 
-		git_check_error(rc);
-
-		rc = git_repository_open(&repo, (const char*) buf.ptr);
 		git_buf_free(&buf);
 		git_check_error(rc);
 
@@ -314,7 +311,7 @@ reset(self, target, opts)
 			Safefree(paths.strings);
 			git_check_error(rc);
 		} else if ((opt = git_hv_string_entry(opts, "type"))) {
-			git_reset_t reset;
+			git_reset_t reset = GIT_RESET_SOFT;
 			const char *type_str = SvPVbyte_nolen(opt);
 
 			if (strcmp(type_str, "soft") == 0)
@@ -324,7 +321,9 @@ reset(self, target, opts)
 			else if (strcmp(type_str, "hard") == 0)
 				reset = GIT_RESET_HARD;
 			else
-				Perl_croak(aTHX_ "Invalid type");
+				croak_usage("Invalid type '%s'. "
+					"Valid values: 'soft', 'mixed' or 'hard'",
+					type_str);
 
 			rc = git_signature_default(&sig, self);
 			git_check_error(rc);
@@ -390,10 +389,8 @@ status(self, ...)
 			HV *file_status_hv;
 
 			const char *path = NULL;
-			const git_status_entry *entry = NULL;
-
-			if ((entry = git_status_byindex(list, i)) == NULL)
-				continue;
+			const git_status_entry *entry =
+				git_status_byindex(list, i);
 
 			flags = newAV();
 
@@ -591,14 +588,14 @@ merge_base(self, ...)
 
 	CODE:
 		if (items < 3)
-			Perl_croak(aTHX_ "At least 2 arguments needed");
+			croak_usage("At least 2 arguments needed");
 
 		count = items - 1;
 		Renew(oids, count, git_oid);
 		for (i = 0; i < count; ++i) {
 			if (git_sv_to_commitish(self, ST(i + 1), oids + i) == NULL) {
 				Safefree(oids);
-				Perl_croak(aTHX_ "Could not resolve 'object' to a commit id");
+				croak_resolve("Could not resolve 'object' to a commit id");
 			}
 		}
 
@@ -620,6 +617,7 @@ merge_analysis(self, ref)
 		int rc;
 
 		git_merge_head *merge_head;
+		git_merge_preference_t pref;
 		git_merge_analysis_t analysis;
 
 		AV *result;
@@ -627,7 +625,7 @@ merge_analysis(self, ref)
 		rc = git_merge_head_from_ref(&merge_head, self, ref);
 		git_check_error(rc);
 
-		rc = git_merge_analysis(&analysis,
+		rc = git_merge_analysis(&analysis, &pref,
 			self, (const git_merge_head **) &merge_head, 1);
 		git_merge_head_free(merge_head);
 		git_check_error(rc);
@@ -711,7 +709,9 @@ branches(self, ...)
 			else if (strcmp(type_str, "all") == 0)
 				type = GIT_BRANCH_ALL;
 			else
-				Perl_croak(aTHX_ "Unknown branch type '%s'", type_str);
+				croak_usage("Invalid branch type '%s'. ",
+					"Valid values: 'local', 'remote' or 'all'",
+					type_str);
 		}
 
 		repo = GIT_SV_TO_PTR(Repository, self);
@@ -730,10 +730,9 @@ branches(self, ...)
 
 			num_branches++;
 		}
-		git_branch_iterator_free(itr);
 
-		if (rc != GIT_ITEROVER)
-			git_check_error(rc);
+		git_branch_iterator_free(itr);
+		git_check_error(rc);
 
 		XSRETURN(num_branches);
 
@@ -808,10 +807,9 @@ refs(self)
 
 			num_refs++;
 		}
-		git_reference_iterator_free(itr);
 
-		if (rc != GIT_ITEROVER)
-			git_check_error(rc);
+		git_reference_iterator_free(itr);
+		git_check_error(rc);
 
 		XSRETURN(num_refs);
 
@@ -852,7 +850,7 @@ workdir(self, ...)
 	OUTPUT: RETVAL
 
 SV *
-blame (self, file)
+blame(self, file)
 	SV *self
 	const char *file
 
@@ -873,13 +871,93 @@ blame (self, file)
 
 	OUTPUT: RETVAL
 
+void
+cherry_pick(self, commit, ...)
+	SV *self
+	Commit commit
+
+	PROTOTYPE: $$;$;$;$
+	PREINIT:
+		int rc;
+
+		git_cherry_pick_options opts = GIT_CHERRY_PICK_OPTIONS_INIT;
+
+	CODE:
+		if (items >= 3) {
+			HV *hopts = git_ensure_hv(ST(2), "merge_opts");
+			git_hv_to_merge_opts(hopts, &opts.merge_opts);
+		}
+
+		if (items >= 4) {
+			HV *hopts = git_ensure_hv(ST(3), "checkout_opts");
+			git_hv_to_checkout_opts(hopts, &opts.checkout_opts);
+		}
+
+		if (items >= 5) {
+			unsigned int parents = git_commit_parentcount(commit);
+			int mainline = git_ensure_iv(ST(4), "mainline");
+
+			if (mainline < 0 || mainline > (int) git_commit_parentcount(commit) - 1)
+				croak_usage("'mainline' out of range, should be between 0 and %d",
+					(int) parents - 1);
+
+			opts.mainline = (unsigned int) mainline;
+		}
+
+		rc = git_cherry_pick(
+			GIT_SV_TO_PTR(Repository, self),
+			commit,
+			&opts
+		);
+		git_check_error(rc);
+
+void
+revert(self, commit, ...)
+	SV *self
+	Commit commit
+
+	PROTOTYPE: $$;$;$;$
+	PREINIT:
+		int rc;
+
+		git_revert_options opts = GIT_CHERRY_PICK_OPTIONS_INIT;
+
+	CODE:
+		if (items >= 3) {
+			HV *hopts = git_ensure_hv(ST(2), "merge_opts");
+			git_hv_to_merge_opts(hopts, &opts.merge_opts);
+		}
+
+		if (items >= 4) {
+			HV *hopts = git_ensure_hv(ST(3), "checkout_opts");
+			git_hv_to_checkout_opts(hopts, &opts.checkout_opts);
+		}
+
+		if (items >= 5) {
+			unsigned int parents = git_commit_parentcount(commit);
+			int mainline = git_ensure_iv(ST(4), "mainline");
+
+			if (mainline < 0 || mainline > (int) git_commit_parentcount(commit) - 1)
+				croak_usage("'mainline' out of range, should be between 0 and %d",
+					(int) parents - 1);
+
+			opts.mainline = (unsigned int) mainline;
+		}
+
+		rc = git_revert(
+			GIT_SV_TO_PTR(Repository, self),
+			commit,
+			&opts
+		);
+		git_check_error(rc);
+
 SV *
 state(self)
 	Repository self
 
 	PREINIT:
 		int rc;
-		const char *s;
+		const char *s = NULL;
 
 	CODE:
 		rc = git_repository_state(self);
@@ -926,7 +1004,7 @@ state(self)
 				break;
 
 			default:
-				Perl_croak(aTHX_ "Unhandle state: %i", rc);
+				croak_assert("Unknown state: %i", rc);
 		}
 
 		RETVAL = newSVpv(s, 0);
@@ -954,13 +1032,14 @@ message(self)
 		git_buf buf = GIT_BUF_INIT_CONST(NULL, 0);
 
 	CODE:
-		rc = git_repository_message(&buf, self);
-		if (rc != GIT_OK)
-			git_buf_free(&buf);
-		git_check_error(rc);
+		RETVAL = &PL_sv_undef;
 
-		RETVAL = newSVpv(buf.ptr, 0);
+		rc = git_repository_message(&buf, self);
+		if (rc == GIT_OK)
+			RETVAL = newSVpv(buf.ptr, 0);
+
 		git_buf_free(&buf);
+		git_check_error(rc);
 
 	OUTPUT: RETVAL
 

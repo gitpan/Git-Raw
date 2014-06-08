@@ -1,29 +1,6 @@
 MODULE = Git::Raw			PACKAGE = Git::Raw::Filter
 
 SV *
-OK(class)
-	CODE:
-		RETVAL = newSViv(GIT_OK);
-
-	OUTPUT: RETVAL
-
-SV *
-ERROR(class)
-	CODE:
-		RETVAL = newSViv(GIT_ERROR);
-
-	OUTPUT: RETVAL
-
-SV *
-PASSTHROUGH(class)
-	CODE:
-		RETVAL = newSViv(GIT_PASSTHROUGH);
-
-	OUTPUT: RETVAL
-
-
-
-SV *
 create(class, name, attributes)
 	SV *class
 	const char *name
@@ -102,7 +79,7 @@ register(self, priority)
 			!self -> filter.check &&
 			!self -> filter.apply &&
 			!self -> filter.cleanup)
-			Perl_croak(aTHX_ "No callbacks registered for filter '%s'", self -> name);
+			croak_usage("No callbacks registered for filter '%s'", self -> name);
 
 		rc = git_filter_register(
 			self -> name, (git_filter *) self, priority

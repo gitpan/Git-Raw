@@ -1,5 +1,5 @@
 package Git::Raw::Patch;
-$Git::Raw::Patch::VERSION = '0.36'; # TRIAL
+$Git::Raw::Patch::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Patch - Git patch class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 DESCRIPTION
 
@@ -38,11 +38,11 @@ only the hunk at the specified index will be returned.
 =head2 line_stats( )
 
 Get line counts of each type in the patch. Returns a hash with entries
-L<"context">, L<"additions"> and L<"deletions">.
+C<"context">, C<"additions"> and C<"deletions">.
 
 =head2 delta( )
 
-Get the delta associated with the patch. Returns a C<Git::Raw::Diff::Delta>
+Get the delta associated with the patch. Returns a L<Git::Raw::Diff::Delta>
 object.
 
 =head1 AUTHOR

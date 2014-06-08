@@ -2564,8 +2564,42 @@ done:
 	return error;
 }
 
+static int merge_preference(git_merge_preference_t *out, git_repository *repo)
+{
+	git_config *config;
+	const char *value;
+	int bool_value, error = 0;
+
+	*out = GIT_MERGE_PREFERENCE_NONE;
+
+	if ((error = git_repository_config_snapshot(&config, repo)) < 0)
+		goto done;
+
+	if ((error = git_config_get_string(&value, config, "merge.ff")) < 0) {
+		if (error == GIT_ENOTFOUND) {
+			giterr_clear();
+			error = 0;
+		}
+
+		goto done;
+	}
+
+	if (git_config_parse_bool(&bool_value, value) == 0) {
+		if (!bool_value)
+			*out |= GIT_MERGE_PREFERENCE_NO_FASTFORWARD;
+	} else {
+		if (strcasecmp(value, "only") == 0)
+			*out |= GIT_MERGE_PREFERENCE_FASTFORWARD_ONLY;
+	}
+
+done:
+	git_config_free(config);
+	return error;
+}
+
 int git_merge_analysis(
-	git_merge_analysis_t *out,
+	git_merge_analysis_t *analysis_out,
+	git_merge_preference_t *preference_out,
 	git_repository *repo,
 	const git_merge_head **their_heads,
 	size_t their_heads_len)
@@ -2573,18 +2607,21 @@ int git_merge_analysis(
 	git_merge_head *ancestor_head = NULL, *our_head = NULL;
 	int error = 0;
 
-	assert(out && repo && their_heads);
-
-	*out = GIT_MERGE_ANALYSIS_NONE;
-
-	if (git_repository_head_unborn(repo)) {
-		*out = GIT_MERGE_ANALYSIS_FASTFORWARD | GIT_MERGE_ANALYSIS_UNBORN;
-		goto done;
-	}
+	assert(analysis_out && preference_out && repo && their_heads);
 
 	if (their_heads_len != 1) {
 		giterr_set(GITERR_MERGE, "Can only merge a single branch");
 		error = -1;
+		goto done;
+	}
+
+	*analysis_out = GIT_MERGE_ANALYSIS_NONE;
+
+	if ((error = merge_preference(preference_out, repo)) < 0)
+		goto done;
+
+	if (git_repository_head_unborn(repo)) {
+		*analysis_out |= GIT_MERGE_ANALYSIS_FASTFORWARD | GIT_MERGE_ANALYSIS_UNBORN;
 		goto done;
 	}
 
@@ -2593,15 +2630,15 @@ int git_merge_analysis(
 
 	/* We're up-to-date if we're trying to merge our own common ancestor. */
 	if (ancestor_head && git_oid_equal(&ancestor_head->oid, &their_heads[0]->oid))
-		*out = GIT_MERGE_ANALYSIS_UP_TO_DATE;
+		*analysis_out |= GIT_MERGE_ANALYSIS_UP_TO_DATE;
 
 	/* We're fastforwardable if we're our own common ancestor. */
 	else if (ancestor_head && git_oid_equal(&ancestor_head->oid, &our_head->oid))
-		*out = GIT_MERGE_ANALYSIS_FASTFORWARD | GIT_MERGE_ANALYSIS_NORMAL;
+		*analysis_out |= GIT_MERGE_ANALYSIS_FASTFORWARD | GIT_MERGE_ANALYSIS_NORMAL;
 
 	/* Otherwise, just a normal merge is possible. */
 	else
-		*out = GIT_MERGE_ANALYSIS_NORMAL;
+		*analysis_out |= GIT_MERGE_ANALYSIS_NORMAL;
 
 done:
 	git_merge_head_free(ancestor_head);
@@ -2803,38 +2840,24 @@ void git_merge_head_free(git_merge_head *head)
 	git__free(head);
 }
 
-int git_merge_init_options(git_merge_options *opts, int version)
+int git_merge_init_options(git_merge_options *opts, unsigned int version)
 {
-	if (version != GIT_MERGE_OPTIONS_VERSION) {
-		giterr_set(GITERR_INVALID, "Invalid version %d for git_merge_options", version);
-		return -1;
-	} else {
-		git_merge_options default_opts = GIT_MERGE_OPTIONS_INIT;
-		memcpy(opts, &default_opts, sizeof(git_merge_options));
-		return 0;
-	}
+	GIT_INIT_STRUCTURE_FROM_TEMPLATE(
+		opts, version, git_merge_options, GIT_MERGE_OPTIONS_INIT);
+	return 0;
 }
 
-int git_merge_file_init_input(git_merge_file_input *input, int version)
+int git_merge_file_init_input(git_merge_file_input *input, unsigned int version)
 {
-	if (version != GIT_MERGE_FILE_INPUT_VERSION) {
-		giterr_set(GITERR_INVALID, "Invalid version %d for git_merge_file_input", version);
-		return -1;
-	} else {
-		git_merge_file_input i = GIT_MERGE_FILE_INPUT_INIT;
-		memcpy(input, &i, sizeof(i));
-		return 0;
-	}
+	GIT_INIT_STRUCTURE_FROM_TEMPLATE(
+		input, version, git_merge_file_input, GIT_MERGE_FILE_INPUT_INIT);
+	return 0;
 }
 
-int git_merge_file_init_options(git_merge_file_options *opts, int version)
+int git_merge_file_init_options(
+	git_merge_file_options *opts, unsigned int version)
 {
-	if (version != GIT_MERGE_FILE_OPTIONS_VERSION) {
-		giterr_set(GITERR_INVALID, "Invalid version %d for git_merge_file_options", version);
-		return -1;
-	} else {
-		git_merge_file_options o = GIT_MERGE_FILE_OPTIONS_INIT;
-		memcpy(opts, &o, sizeof(o));
-		return 0;
-	}
+	GIT_INIT_STRUCTURE_FROM_TEMPLATE(
+		opts, version, git_merge_file_options, GIT_MERGE_FILE_OPTIONS_INIT);
+	return 0;
 }

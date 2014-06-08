@@ -1,5 +1,5 @@
 package Git::Raw::Tree;
-$Git::Raw::Tree::VERSION = '0.36'; # TRIAL
+$Git::Raw::Tree::VERSION = '0.37'; # TRIAL
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.36
+version 0.37
 
 =head1 DESCRIPTION
 
@@ -46,8 +46,8 @@ Retrieve a L<Git::Raw::Tree::Entry> object by path.
 =head2 merge( $ancestor, $theirs, [\%merge_opts] )
 
 Merge C<$theirs> into this tree. C<$ancestor> and C<$theirs> should be
-C<Git::Raw::Tree> objects.  See C<Git::Raw::Repository-E<gt>merge()> for valid
-C<%merge_opts> values. Returns a C<Git::Raw::Index> object containing the
+L<Git::Raw::Tree> objects.  See C<Git::Raw::Repository-E<gt>merge()> for valid
+C<%merge_opts> values. Returns a L<Git::Raw::Index> object containing the
 merge result.
 
 =head2 diff( [\%opts] )
@@ -129,12 +129,12 @@ Take extra time to find minimal diff.
 =item * "a"
 
 The virtual C<"directory"> to prefix to old file names in hunk headers.
-(Default is L"a".)
+(Default is C<"a">.)
 
 =item * "b"
 
 The virtual C<"directory"> to prefix to new file names in hunk headers.
-(Default is L"b".)
+(Default is C<"b">.)
 
 =back
 

@@ -27,6 +27,7 @@ my $is_solaris = ($^O =~ /(sun|solaris)/i) ? 1 : 0;
 my $is_windows = ($^O =~ /MSWin32/i) ? 1 : 0;
 my $is_linux = ($^O =~ /linux/i) ? 1 : 0;
 my $is_osx = ($^O =~ /darwin/i) ? 1 : 0;
+my $is_gkfreebsd = ($^O =~ /gnukfreebsd/i) ? 1 : 0;
 
 # allow the user to override/specify the locations of OpenSSL and libssh2
 our $opt = {};
@@ -223,7 +224,7 @@ if ($is_windows) {
 }
 
 # real-time library is required for Solaris and Linux
-if ($is_linux || $is_solaris) {
+if ($is_linux || $is_solaris || $is_gkfreebsd) {
 	$lib .= ' -lrt';
 }
 
@@ -249,6 +250,8 @@ sub MY::c_o {
 use strict;
 use warnings;
 use ExtUtils::MakeMaker {{ $eumm_version }};
+use ExtUtils::Constant qw (WriteConstants);
+
 {{ $share_dir_block[0] }}
 my {{ $WriteMakefileArgs }}
 
@@ -274,6 +277,83 @@ unless (eval { ExtUtils::MakeMaker->VERSION(6.56) }) {
 
 delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
 	unless eval { ExtUtils::MakeMaker -> VERSION(6.52) };
+
+my @error_constants = (qw(
+	OK
+	ERROR
+	ENOTFOUND
+	EEXISTS
+	EAMBIGUOUS
+	EBUFS
+	EUSER
+	EBAREREPO
+	EUNBORNBRANCH
+	EUNMERGED
+	ENONFASTFORWARD
+	EINVALIDSPEC
+	EMERGECONFLICT
+	ELOCKED
+	EMODIFIED
+	PASSTHROUGH
+	ITEROVER
+
+	ASSERT
+	USAGE
+	RESOLVE
+));
+
+my @category_constants = (qw(
+	NONE
+	NOMEMORY
+	OS
+	INVALID
+	REFERENCE
+	ZLIB
+	REPOSITORY
+	CONFIG
+	REGEX
+	ODB
+	INDEX
+	OBJECT
+	NET
+	TAG
+	TREE
+	INDEXER
+	SSL
+	SUBMODULE
+	THREAD
+	STASH
+	CHECKOUT
+	FETCHHEAD
+	MERGE
+	SSH
+	FILTER
+	REVERT
+	CALLBACK
+	CHERRYPICK
+
+	INTERNAL
+));
+
+ExtUtils::Constant::WriteConstants(
+	NAME         => 'Git::Raw::Error',
+	NAMES        => [@error_constants],
+	DEFAULT_TYPE => 'IV',
+	C_FILE       => 'const-c-error.inc',
+	XS_FILE      => 'const-xs-error.inc',
+	XS_SUBNAME   => '_constant',
+	C_SUBNAME    => '_error_constant',
+);
+
+ExtUtils::Constant::WriteConstants(
+	NAME         => 'Git::Raw::Error::Category',
+	NAMES        => [@category_constants],
+	DEFAULT_TYPE => 'IV',
+	C_FILE       => 'const-c-category.inc',
+	XS_FILE      => 'const-xs-category.inc',
+	XS_SUBNAME   => '_constant',
+	C_SUBNAME    => '_category_constant',
+);
 
 WriteMakefile(%WriteMakefileArgs);
 exit(0);

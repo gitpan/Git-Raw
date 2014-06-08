@@ -16,6 +16,7 @@ my $is_solaris = ($^O =~ /(sun|solaris)/i) ? 1 : 0;
 my $is_windows = ($^O =~ /MSWin32/i) ? 1 : 0;
 my $is_linux = ($^O =~ /linux/i) ? 1 : 0;
 my $is_osx = ($^O =~ /darwin/i) ? 1 : 0;
+my $is_gkfreebsd = ($^O =~ /gnukfreebsd/i) ? 1 : 0;
 
 # allow the user to override/specify the locations of OpenSSL and libssh2
 our $opt = {};
@@ -212,7 +213,7 @@ if ($is_windows) {
 }
 
 # real-time library is required for Solaris and Linux
-if ($is_linux || $is_solaris) {
+if ($is_linux || $is_solaris || $is_gkfreebsd) {
 	$lib .= ' -lrt';
 }
 
@@ -238,6 +239,8 @@ sub MY::c_o {
 use strict;
 use warnings;
 use ExtUtils::MakeMaker 6.30;
+use ExtUtils::Constant qw (WriteConstants);
+
 
 my %WriteMakefileArgs = (
   "ABSTRACT" => "Perl bindings to the Git linkable library (libgit2)",
@@ -245,6 +248,7 @@ my %WriteMakefileArgs = (
   "BUILD_REQUIRES" => {},
   "CONFIGURE_REQUIRES" => {
     "Devel::CheckLib" => "0.6",
+    "ExtUtils::Constant" => "0.23",
     "ExtUtils::MakeMaker" => "6.63_03",
     "File::Basename" => "2.74",
     "Getopt::Long" => "2.35"
@@ -256,7 +260,9 @@ my %WriteMakefileArgs = (
   "NAME" => "Git::Raw",
   "OBJECT" => "\$(O_FILES)",
   "PREREQ_PM" => {
+    "Carp" => 0,
     "XSLoader" => 0,
+    "overload" => 0,
     "strict" => 0,
     "warnings" => 0
   },
@@ -268,12 +274,13 @@ my %WriteMakefileArgs = (
     "File::Path" => "2.07",
     "File::Slurp" => 0,
     "File::Spec" => 0,
+    "File::Spec::Functions" => 0,
     "IO::Handle" => 0,
     "IPC::Open3" => 0,
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.36",
+  "VERSION" => "0.37",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -302,6 +309,83 @@ unless (eval { ExtUtils::MakeMaker->VERSION(6.56) }) {
 
 delete $WriteMakefileArgs{CONFIGURE_REQUIRES}
 	unless eval { ExtUtils::MakeMaker -> VERSION(6.52) };
+
+my @error_constants = (qw(
+	OK
+	ERROR
+	ENOTFOUND
+	EEXISTS
+	EAMBIGUOUS
+	EBUFS
+	EUSER
+	EBAREREPO
+	EUNBORNBRANCH
+	EUNMERGED
+	ENONFASTFORWARD
+	EINVALIDSPEC
+	EMERGECONFLICT
+	ELOCKED
+	EMODIFIED
+	PASSTHROUGH
+	ITEROVER
+
+	ASSERT
+	USAGE
+	RESOLVE
+));
+
+my @category_constants = (qw(
+	NONE
+	NOMEMORY
+	OS
+	INVALID
+	REFERENCE
+	ZLIB
+	REPOSITORY
+	CONFIG
+	REGEX
+	ODB
+	INDEX
+	OBJECT
+	NET
+	TAG
+	TREE
+	INDEXER
+	SSL
+	SUBMODULE
+	THREAD
+	STASH
+	CHECKOUT
+	FETCHHEAD
+	MERGE
+	SSH
+	FILTER
+	REVERT
+	CALLBACK
+	CHERRYPICK
+
+	INTERNAL
+));
+
+ExtUtils::Constant::WriteConstants(
+	NAME         => 'Git::Raw::Error',
+	NAMES        => [@error_constants],
+	DEFAULT_TYPE => 'IV',
+	C_FILE       => 'const-c-error.inc',
+	XS_FILE      => 'const-xs-error.inc',
+	XS_SUBNAME   => '_constant',
+	C_SUBNAME    => '_error_constant',
+);
+
+ExtUtils::Constant::WriteConstants(
+	NAME         => 'Git::Raw::Error::Category',
+	NAMES        => [@category_constants],
+	DEFAULT_TYPE => 'IV',
+	C_FILE       => 'const-c-category.inc',
+	XS_FILE      => 'const-xs-category.inc',
+	XS_SUBNAME   => '_constant',
+	C_SUBNAME    => '_category_constant',
+);
 
 WriteMakefile(%WriteMakefileArgs);
 exit(0);

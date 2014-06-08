@@ -165,6 +165,7 @@ is scalar(@patches), 2;
 
 foreach my $patch (@patches) {
 	my @hunks = $patch -> hunks;
+	ok (eval { $patch -> hunks(0) });
 	ok (!eval { $patch -> hunks(1) });
 	ok (!eval { $patch -> hunks($diff) });
 	is $patch -> hunk_count, 1;
@@ -355,7 +356,7 @@ index 6afc8a6..6afc8a6 100644
 EOS
 
 is $patches[0] -> buffer, $expected;
-my $delta = $patches[0] -> delta;
+$delta = $patches[0] -> delta;
 isa_ok $delta, 'Git::Raw::Diff::Delta';
 is $delta -> status, 'renamed';
 is $delta -> similarity, 100;

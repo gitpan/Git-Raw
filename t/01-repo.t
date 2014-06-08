@@ -41,6 +41,80 @@ is_deeply $repo -> status, {
 	'untracked' => {'flags' => ['worktree_new']},
 	'subdir/'   => {'flags' => ['ignored']}};
 
+my $index = $repo -> index;
+
+ok (eval { $index -> capabilities });
+
+my $caps_count = $index -> capabilities;
+is $caps_count, 3;
+
+my %caps = $index -> capabilities;
+is scalar (keys %caps), 3;
+
+ok exists $caps{'ignore_case'};
+ok exists $caps{'no_filemode'};
+ok exists $caps{'no_symlinks'};
+
+is $caps{ignore_case}, 1 if ($^O eq 'darwin' || $^O eq 'MSWin32' || $^O eq 'cygwin');
+
+my $triggered_add = 0;
+$index -> add_all({
+	'paths' => [ 'ign*' ],
+	'flags' => {
+		'force'                  => 1,
+		'disable_pathspec_match' => 1
+	},
+	'notification' => sub {
+		$triggered_add = 1;
+		0;
+	}
+});
+is $triggered_add, 0;
+
+$index -> add_all({
+	'paths' => [ 'ign*' ],
+	'flags' => {
+		'force'                  => 1,
+		'disable_pathspec_match' => 1
+	},
+	'notification' => sub {
+		$triggered_add = 1;
+		0;
+	}
+});
+is $triggered_add, 0;
+
+$index -> add_all({
+	'paths' => [ 'ign*' ],
+	'flags' => {
+		'force' => 1
+	},
+	'notification' => sub {
+		my ($path, $spec) = @_;
+
+		is $path, 'ignore';
+		is $spec, 'ign*';
+
+		$triggered_add = 1;
+		0;
+	}
+});
+is $triggered_add, 1;
+
+is_deeply $repo -> status -> {'ignore'}, {'flags' => ['index_new']};
+
+my $triggered_removed = 0;
+$index -> remove_all({
+	'paths' => [ 'ignore' ],
+	'notification' => sub {
+		$triggered_removed = 1;
+		0;
+	}
+});
+
+is $triggered_removed, 1;
+is_deeply $repo -> status -> {'ignore'}, {'flags' => ['ignored']};
+
 $file = $repo -> workdir . 'subdir/' .'untracked';
 write_file($file, 'this file should be untracked');
 is_deeply $repo -> status('subdir/') -> {'subdir/'}, {'flags' => ['worktree_new']};
@@ -57,6 +131,14 @@ my $email = 'git-xs@example.com';
 is undef, $config -> bool('some.bool');
 ok (!eval { $config -> bool('some.bool', 1, 1) });
 ok (!eval { $config -> bool('some.bool', 'zzzz') });
+
+my $error = $@;
+ok ($error);
+isa_ok($error, 'Git::Raw::Error');
+is $error -> code, Git::Raw::Error -> USAGE;
+like $error, qr/Invalid type/;
+is $error -> category, Git::Raw::Error::Category -> INTERNAL;
+
 ok $config -> bool('some.bool', 1);
 ok $config -> bool('some.bool');
 
@@ -99,8 +181,6 @@ $detached_config2 -> add_file('.testconfig', 5);
 
 $detached_config1 -> str('some.str', 'hello');
 is 'hello', $detached_config1 -> str('some.str');
-is undef, $detached_config2 -> str('some.str');
-
 $detached_config2 -> refresh;
 is 'hello', $detached_config2 -> str('some.str');
 

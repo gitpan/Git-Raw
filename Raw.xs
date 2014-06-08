@@ -12,6 +12,66 @@
 #include <git2/sys/filter.h>
 #include <git2/sys/repository.h>
 
+/* internally generated errors */
+#define ASSERT            -10000
+#define USAGE             -10001
+#define RESOLVE           -10002
+
+/* internally generated classes */
+#define INTERNAL          -20000
+
+/* remap libgit2 error enum's to defines */
+#define OK                GIT_OK
+#define ERROR             GIT_ERROR
+#define ENOTFOUND         GIT_ENOTFOUND
+#define EEXISTS           GIT_EEXISTS
+#define EAMBIGUOUS        GIT_EAMBIGUOUS
+#define EBUFS             GIT_EBUFS
+#define EUSER             GIT_EUSER
+#define EBAREREPO         GIT_EBAREREPO
+#define EUNBORNBRANCH     GIT_EUNBORNBRANCH
+#define EUNMERGED         GIT_EUNMERGED
+#define ENONFASTFORWARD   GIT_ENONFASTFORWARD
+#define EINVALIDSPEC      GIT_EINVALIDSPEC
+#define EMERGECONFLICT    GIT_EMERGECONFLICT
+#define ELOCKED           GIT_ELOCKED
+#define EMODIFIED         GIT_EMODIFIED
+#define PASSTHROUGH       GIT_PASSTHROUGH
+#define ITEROVER          GIT_ITEROVER
+
+/* remap libgit2 class enum's to defines */
+#define NONE          GITERR_NONE
+#define NOMEMORY      GITERR_NOMEMORY
+#define OS            GITERR_OS
+#define INVALID       GITERR_INVALID
+#define REFERENCE     GITERR_REFERENCE
+#define ZLIB          GITERR_ZLIB
+#define REPOSITORY    GITERR_REPOSITORY
+#define CONFIG        GITERR_CONFIG
+#define REGEX         GITERR_REGEX
+#define ODB           GITERR_ODB
+#define INDEX         GITERR_INDEX
+#define OBJECT        GITERR_OBJECT
+#define NET           GITERR_NET
+#define TAG           GITERR_TAG
+#define TREE          GITERR_TREE
+#define INDEXER       GITERR_INDEXER
+#define SSL           GITERR_SSL
+#define SUBMODULE     GITERR_SUBMODULE
+#define THREAD        GITERR_THREAD
+#define STASH         GITERR_STASH
+#define CHECKOUT      GITERR_CHECKOUT
+#define FETCHHEAD     GITERR_FETCHHEAD
+#define MERGE         GITERR_MERGE
+#define SSH           GITERR_SSH
+#define FILTER        GITERR_FILTER
+#define REVERT        GITERR_REVERT
+#define CALLBACK      GITERR_CALLBACK
+#define CHERRYPICK    GITERR_CHERRYPICK
+
+#include "const-c-error.inc"
+#include "const-c-category.inc"
+
 #ifdef _MSC_VER
 #pragma warning (disable : 4244 4267 )
 #endif
@@ -63,6 +123,14 @@ typedef git_tree * Tree;
 typedef git_treebuilder * Tree_Builder;
 typedef git_tree_entry * Tree_Entry;
 typedef git_revwalk * Walker;
+
+typedef struct {
+	int code;
+	int category;
+	SV *message;
+} git_raw_error;
+
+typedef git_raw_error * Error;
 
 typedef struct {
 	git_filter filter;
@@ -151,9 +219,9 @@ STATIC void *xs_object_magic_get_struct(pTHX_ SV *sv) {
 		MAGIC *tmp;
 
 		for (tmp = SvMAGIC(sv); tmp;
-		     tmp = tmp -> mg_moremagic) {
+			tmp = tmp -> mg_moremagic) {
 			if ((tmp -> mg_type == PERL_MAGIC_ext) &&
-			    (tmp -> mg_virtual == &null_mg_vtbl))
+				(tmp -> mg_virtual == &null_mg_vtbl))
 				mg = tmp;
 		}
 	}
@@ -178,25 +246,89 @@ STATIC void *xs_object_magic_get_struct(pTHX_ SV *sv) {
 		);						\
 	} STMT_END
 
+STATIC Error create_error_obj(int code, int category, SV *message) {
+	Error e;
+
+	Newxz(e, 1, git_raw_error);
+	e -> code = code;
+	e -> category = category;
+
+	if (message)
+		e -> message = message;
+
+	return e;
+}
+
+STATIC Error create_error_obj_fmt(int code, int category, const char *prefix, const char *pat, va_list *list) {
+	Error e;
+
+	e = create_error_obj(code, category, newSVpv(prefix, 0));
+	sv_vcatpvf(e -> message, pat, list);
+
+	return e;
+}
+
+STATIC void croak_error_obj(Error e) {
+	SV *res = NULL;
+	GIT_NEW_OBJ(res, "Git::Raw::Error", e);
+	croak_sv(res);
+}
+
 STATIC void git_check_error(int err) {
-	const git_error *error;
+	if (err != GIT_OK && err != GIT_ITEROVER) {
+		const git_error *error;
+		Error e;
 
-	if (err == GIT_OK)
-		return;
+		e = create_error_obj(err, NONE, NULL);
 
-	error = giterr_last();
+		if ((error = giterr_last()) != NULL) {
+			e -> category = error -> klass;
+			e -> message = newSVpv(error -> message, 0);
+		} else if (SvTRUE(ERRSV)) {
+			e -> message = newSVpv(SvPVbyte_nolen(ERRSV), 0);
+		} else {
+			e -> message = newSVpv("Unknown error!", 0);
+		}
 
-	if (error)
-		Perl_croak(aTHX_ "%s", error -> message);
+		croak_error_obj(e);
+	}
+}
 
-	if (SvTRUE(ERRSV))
-		Perl_croak (aTHX_ "%s", SvPVbyte_nolen(ERRSV));
+STATIC void croak_assert(const char *pat, ...) {
+	Error e;
+	va_list list;
 
-	Perl_croak(aTHX_ "%s", "Unknown error!");
+	va_start(list, pat);
+	e = create_error_obj_fmt(ASSERT, INTERNAL, "Assertion failed. Please file a bug report: ", pat, &list);
+	va_end(list);
+
+	croak_error_obj(e);
+}
+
+STATIC void croak_usage(const char *pat, ...) {
+	Error e;
+	va_list list;
+
+	va_start(list, pat);
+	e = create_error_obj_fmt(USAGE, INTERNAL, "", pat, &list);
+	va_end(list);
+
+	croak_error_obj(e);
+}
+
+STATIC void croak_resolve(const char *pat, ...) {
+	Error e;
+	va_list list;
+
+	va_start(list, pat);
+	e = create_error_obj_fmt(RESOLVE, INTERNAL, "", pat, &list);
+	va_end(list);
+
+	croak_error_obj(e);
 }
 
 STATIC SV *git_obj_to_sv(git_object *o, SV *repo) {
-	SV *res;
+	SV *res = NULL;
 
 	switch (git_object_type(o)) {
 		case GIT_OBJ_BLOB:
@@ -224,7 +356,7 @@ STATIC SV *git_obj_to_sv(git_object *o, SV *repo) {
 			break;
 
 		default:
-			Perl_croak(aTHX_ "Invalid object type");
+			croak_usage("Invalid object type");
 			break;
 	}
 
@@ -249,7 +381,7 @@ STATIC void *git_sv_to_ptr(const char *type, SV *sv) {
 	if (sv_isobject(sv) && sv_derived_from(sv, SvPV_nolen(full_type)))
 		return INT2PTR(void *, SvIV((SV *) SvRV(sv)));
 
-	Perl_croak(aTHX_ "Argument is not of type %s", SvPV_nolen(full_type));
+	croak_usage("Argument is not of type %s", SvPV_nolen(full_type));
 
 	return NULL;
 }
@@ -288,8 +420,7 @@ STATIC git_oid *git_sv_to_commitish(Repository repo, SV *sv, git_oid *oid) {
 		STRLEN len;
 		const char *commitish_name = NULL;
 
-		/* substr() may return a SVt_PVLV, need to perform some
-		 * force majeur */
+		/* substr() may return a SVt_PVLV, need to perform some force majeur */
 		if (SvPOK(sv)) {
 			commitish_name = SvPVbyte(sv, len);
 		} else if (SvTYPE(sv) == SVt_PVLV) {
@@ -297,8 +428,7 @@ STATIC git_oid *git_sv_to_commitish(Repository repo, SV *sv, git_oid *oid) {
 		}
 
 		if (commitish_name) {
-			/* first try and see if its a commit id, otherwise see if its
-			 * a reference */
+			/* first try and see if its a commit id, or if its a reference */
 			if (git_oid_fromstrn(oid, commitish_name, len) >= 0) {
 				if (len < GIT_OID_MINPREFIXLEN)
 					goto on_error;
@@ -425,7 +555,7 @@ STATIC SV *git_hv_int_entry(HV *hv, const char *name) {
 
 	if ((opt = hv_fetch(hv, name, strlen(name), 0))) {
 		if (!SvIOK(*opt))
-			Perl_croak(aTHX_ "Expected an integer for '%s'", name);
+			croak_usage("Expected an integer for '%s'", name);
 
 		return *opt;
 	}
@@ -438,7 +568,7 @@ STATIC SV *git_hv_string_entry(HV *hv, const char *name) {
 
 	if ((opt = hv_fetch(hv, name, strlen(name), 0))) {
 		if (!SvPOK(*opt))
-			Perl_croak(aTHX_ "Expected a string for '%s'", name);
+			croak_usage("Expected a string for '%s'", name);
 
 		return *opt;
 	}
@@ -448,28 +578,28 @@ STATIC SV *git_hv_string_entry(HV *hv, const char *name) {
 
 STATIC AV *git_ensure_av(SV *sv, const char *identifier) {
 	if (!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVAV)
-		Perl_croak(aTHX_ "Invalid type for '%s', expected a list", identifier);
+		croak_usage("Invalid type for '%s', expected a list", identifier);
 
 	return (AV *) SvRV(sv);
 }
 
 STATIC HV *git_ensure_hv(SV *sv, const char *identifier) {
 	if (!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVHV)
-		Perl_croak(aTHX_ "Invalid type for '%s', expected a hash", identifier);
+		croak_usage("Invalid type for '%s', expected a hash", identifier);
 
 	return (HV *) SvRV(sv);
 }
 
 STATIC SV *git_ensure_cv(SV *sv, const char *identifier) {
 	if (!SvROK(sv) || SvTYPE(SvRV(sv)) != SVt_PVCV)
-		Perl_croak(aTHX_ "Invalid type for '%s', expected a code reference", identifier);
+		croak_usage("Invalid type for '%s', expected a code reference", identifier);
 
 	return sv;
 }
 
 STATIC I32 git_ensure_iv(SV *sv, const char *identifier) {
 	if (!SvIOK(sv))
-		Perl_croak(aTHX_ "Invalid type for '%s', expected an integer", identifier);
+		croak_usage("Invalid type for '%s', expected an integer", identifier);
 
 	return SvIV(sv);
 }
@@ -483,7 +613,7 @@ STATIC const char *git_ensure_pv_with_len(SV *sv, const char *identifier, STRLEN
 	} else if (SvTYPE(sv) == SVt_PVLV) {
 		pv = SvPVbyte_force(sv, real_len);
 	} else
-		Perl_croak(aTHX_ "Invalid type for '%s', expected a string", identifier);
+		croak_usage("Invalid type for '%s', expected a string", identifier);
 
 	if (len)
 		*len = real_len;
@@ -785,7 +915,7 @@ STATIC int git_diff_cb(const git_diff_delta *delta, const git_diff_hunk *hunk,
 			break;
 
 		default:
-			Perl_croak(aTHX_ "Unexpected diff usage");
+			croak_assert("Unexpected diff origin: %d", line -> origin);
 			break;
 	}
 
@@ -1103,7 +1233,7 @@ STATIC int git_update_tips_cbb(const char *name, const git_oid *a,
 STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 		const char *usr_from_url, unsigned int allow, void *cbs) {
 	dSP;
-	int count, rv = 0;
+	int rv = 0;
 	Cred creds;
 
 	ENTER;
@@ -1114,15 +1244,13 @@ STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 	mXPUSHs(newSVpv(usr_from_url, 0));
 	PUTBACK;
 
-	count = call_sv(((git_raw_remote_callbacks *) cbs) -> credentials, G_EVAL|G_SCALAR);
+	call_sv(((git_raw_remote_callbacks *) cbs) -> credentials, G_EVAL|G_SCALAR);
 
 	SPAGAIN;
 
 	if (SvTRUE(ERRSV)) {
 		rv = -1;
 		(void) POPs;
-	} else if (count == 0) {
-		rv = -1;
 	} else {
 		creds = GIT_SV_TO_PTR(Cred, POPs);
 		*cred = creds -> cred;
@@ -1163,7 +1291,7 @@ STATIC void git_ssh_interactive_cbb(const char *name, int name_len, const char *
 	SPAGAIN;
 
 	if (count != num_prompts)
-		Perl_croak(aTHX_ "Expected %d response(s) got %d", num_prompts, count);
+		croak_usage("Expected %d response(s) got %d", num_prompts, count);
 
 	for (i = 1; i <= count; ++i) {
 		STRLEN len;
@@ -1180,8 +1308,7 @@ STATIC void git_ssh_interactive_cbb(const char *name, int name_len, const char *
 	LEAVE;
 }
 
-STATIC int git_filter_init_cbb(git_filter *filter)
-{
+STATIC int git_filter_init_cbb(git_filter *filter) {
 	dSP;
 
 	int rv = 0;
@@ -1209,8 +1336,7 @@ STATIC int git_filter_init_cbb(git_filter *filter)
 	return rv;
 }
 
-STATIC void git_filter_shutdown_cbb(git_filter *filter)
-{
+STATIC void git_filter_shutdown_cbb(git_filter *filter) {
 	dSP;
 
 	ENTER;
@@ -1228,8 +1354,7 @@ STATIC void git_filter_shutdown_cbb(git_filter *filter)
 }
 
 STATIC int git_filter_check_cbb(git_filter *filter, void **payload,
-	const git_filter_source *src, const char **attr_values)
-{
+	const git_filter_source *src, const char **attr_values) {
 	dSP;
 
 	int rv = 0;
@@ -1264,8 +1389,7 @@ STATIC int git_filter_check_cbb(git_filter *filter, void **payload,
 }
 
 STATIC int git_filter_apply_cbb(git_filter *filter, void **payload,
-	git_buf *to, const git_buf *from, const git_filter_source *src)
-{
+	git_buf *to, const git_buf *from, const git_filter_source *src) {
 	dSP;
 
 	int rv;
@@ -1309,8 +1433,7 @@ STATIC int git_filter_apply_cbb(git_filter *filter, void **payload,
 	return rv;
 }
 
-STATIC void git_filter_cleanup_cbb(git_filter *filter, void *payload)
-{
+STATIC void git_filter_cleanup_cbb(git_filter *filter, void *payload) {
 	dSP;
 
 	ENTER;
@@ -1325,6 +1448,54 @@ STATIC void git_filter_cleanup_cbb(git_filter *filter, void *payload)
 
 	FREETMPS;
 	LEAVE;
+}
+
+STATIC int git_index_matched_path_cbb(const char *path, const char *pathspec, void *payload) {
+	dSP;
+
+	int rv = 0;
+	SV *callback = (SV *) payload;
+
+	if (callback == NULL)
+		return rv;
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(newSVpv(path, 0));
+	mXPUSHs(pathspec ? newSVpv(pathspec, 0) : &PL_sv_undef);
+	PUTBACK;
+
+	call_sv(callback, G_SCALAR|G_EVAL);
+
+	SPAGAIN;
+
+	if (SvTRUE(ERRSV)) {
+		rv = -1;
+		(void) POPs;
+	} else
+		rv = POPi;
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
+}
+
+STATIC void git_list_to_paths(AV *list, git_strarray *paths) {
+	size_t i = 0, count = 0;
+	SV **path;
+
+	while ((path = av_fetch(list, i++, 0))) {
+		if (!path || !SvOK(*path))
+			continue;
+
+		Renew(paths->strings, count + 1, char *);
+		paths->strings[count++] = SvPVbyte_nolen(*path);
+	}
+
+	paths->count = count;
 }
 
 
@@ -1403,7 +1574,7 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 						if (strcmp(f, "all") == 0)
 							checkout_opts -> notify_flags |= GIT_CHECKOUT_NOTIFY_ALL;
 					} else
-						Perl_croak(aTHX_ "Invalid type for 'notify' value");
+						croak_usage("Invalid type for 'notify' value");
 				}
 			}
 		}
@@ -1429,7 +1600,7 @@ STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
 			if (strcmp(value, "find_renames") == 0)
 				merge_options -> flags |= GIT_MERGE_TREE_FIND_RENAMES;
 			else
-				Perl_croak(aTHX_ "Invalid 'flags' value");
+				croak_usage("Invalid 'flags' value");
 		}
 	}
 
@@ -1445,7 +1616,7 @@ STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
 			merge_options -> file_favor =
 				GIT_MERGE_FILE_FAVOR_UNION;
 		else
-			Perl_croak(aTHX_ "Invalid 'favor' value");
+			croak_usage("Invalid 'favor' value");
 	}
 
 	if ((opt = git_hv_int_entry(opts, "rename_threshold")))
@@ -1460,6 +1631,33 @@ MODULE = Git::Raw			PACKAGE = Git::Raw
 BOOT:
 	git_threads_init();
 
+void
+features(class)
+	SV *class
+
+	PREINIT:
+		int ctx = GIMME_V;
+
+	PPCODE:
+		if (ctx != G_VOID) {
+			if (ctx == G_ARRAY) {
+				int features = git_libgit2_features();
+
+				mXPUSHs(newSVpv("threads", 0));
+				mXPUSHs(newSViv((features & GIT_FEATURE_THREADS) ? 1 : 0));
+				mXPUSHs(newSVpv("https", 0));
+				mXPUSHs(newSViv((features & GIT_FEATURE_HTTPS) ? 1 : 0));
+				mXPUSHs(newSVpv("ssh", 0));
+				mXPUSHs(newSViv((features & GIT_FEATURE_SSH) ? 1 : 0));
+
+				XSRETURN(6);
+			} else {
+				mXPUSHs(newSViv(3));
+				XSRETURN(1);
+			}
+		} else
+			XSRETURN_EMPTY;
+
 INCLUDE: xs/Blame.xs
 INCLUDE: xs/Blame/Hunk.xs
 INCLUDE: xs/Blob.xs
@@ -1472,6 +1670,8 @@ INCLUDE: xs/Diff/Delta.xs
 INCLUDE: xs/Diff/File.xs
 INCLUDE: xs/Diff/Hunk.xs
 INCLUDE: xs/Diff/Stats.xs
+INCLUDE: xs/Error.xs
+INCLUDE: xs/Error/Category.xs
 INCLUDE: xs/Filter.xs
 INCLUDE: xs/Filter/Source.xs
 INCLUDE: xs/Graph.xs
