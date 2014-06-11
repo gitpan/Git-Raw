@@ -1,5 +1,5 @@
 package Git::Raw::PathSpec::MatchList;
-$Git::Raw::PathSpec::MatchList::VERSION = '0.37'; # TRIAL
+$Git::Raw::PathSpec::MatchList::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::PathSpec::MatchList - Git pathspec class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 

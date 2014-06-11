@@ -1,5 +1,5 @@
 package Git::Raw::Config;
-$Git::Raw::Config::VERSION = '0.37'; # TRIAL
+$Git::Raw::Config::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Config - Git config class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 
@@ -40,19 +40,19 @@ Add C<$path> to the config object with priority level C<$level>.
 
 Retrieve the value of the C<$name> configuration field of type boolean. If
 C<$value> is passed, the value of the configration will be updated and
-returned. If not C<$name> configuration is found, C<undef> is returned.
+returned. If C<$name> configuration is not found, C<undef> is returned.
 
 =head2 int( $name [, $value ] )
 
 Retrieve the value of the C<$name> configuration field of type integer. If
 C<$value> is passed, the value of the configration will be updated and
-returned. If not C<$name> configuration is found, C<undef> is returned.
+returned. If C<$name> configuration is not found, C<undef> is returned.
 
 =head2 str( $name [, $value ] )
 
 Retrieve the value of the C<$name> configuration field of type string. If
 C<$value> is passed, the value of the configration will be updated and
-returned. If not C<$name> configuration is found, C<undef> is returned.
+returned. If C<$name> configuration is not found, C<undef> is returned.
 
 =head2 foreach( $callback )
 

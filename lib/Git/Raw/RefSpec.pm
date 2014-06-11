@@ -1,5 +1,5 @@
 package Git::Raw::RefSpec;
-$Git::Raw::RefSpec::VERSION = '0.37'; # TRIAL
+$Git::Raw::RefSpec::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::RefSpec - Git refspec class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 
@@ -44,7 +44,7 @@ Get the refspec's string.
 
 =head2 direction( )
 
-Get the refspec's direction. It is either L<"fetch"> or L<"push">.
+Get the refspec's direction. It is either C<"fetch"> or C<"push">.
 
 =head2 transform( $name )
 

@@ -158,9 +158,10 @@ if ($is_gcc) {
 	$ccflags .= ' -erroff=E_EMPTY_DECLARATION -erroff=E_STATEMENT_NOT_REACHED';
 }
 
-# building with a 32-bit perl on a 64-bit OS may require this (supported by cc and gcc-like compilers)
+# building with a 32-bit perl on a 64-bit OS may require this (supported by cc and gcc-like compilers,
+# excluding some ARM toolchains)
 if ($Config{gccversion} || $Config{gccversion}) {
-	if ($Config{ptrsize} == 4) {
+	if ($Config{ptrsize} == 4 && $Config{archname} !~ /^armv/) {
 		$ccflags .= ' -m32';
 	}
 }
@@ -280,7 +281,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.37",
+  "VERSION" => "0.38",
   "test" => {
     "TESTS" => "t/*.t"
   }

@@ -1,5 +1,5 @@
 package Git::Raw::Index::Entry;
-$Git::Raw::Index::Entry::VERSION = '0.37'; # TRIAL
+$Git::Raw::Index::Entry::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index::Entry - Git index entry class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 

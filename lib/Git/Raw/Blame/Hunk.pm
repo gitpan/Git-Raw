@@ -1,5 +1,5 @@
 package Git::Raw::Blame::Hunk;
-$Git::Raw::Blame::Hunk::VERSION = '0.37'; # TRIAL
+$Git::Raw::Blame::Hunk::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Blame::Hunk - Git blame hunk class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 

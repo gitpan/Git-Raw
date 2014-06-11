@@ -1,5 +1,5 @@
 package Git::Raw::Reference;
-$Git::Raw::Reference::VERSION = '0.37'; # TRIAL
+$Git::Raw::Reference::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 
@@ -88,11 +88,11 @@ Check if the reference is remote.
 
 =head2 is_tag( )
 
-Check if the reference lives in the L<"refs/tags"> namespace.
+Check if the reference lives in the C<refsE<sol>tags> namespace.
 
 =head2 is_note( )
 
-Check if the reference lives in the L<"refs/notes"> namespace.
+Check if the reference lives in the C<refsE<sol>notes> namespace.
 
 =head1 AUTHOR
 

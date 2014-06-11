@@ -1,5 +1,5 @@
 package Git::Raw::Tree;
-$Git::Raw::Tree::VERSION = '0.37'; # TRIAL
+$Git::Raw::Tree::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 
@@ -24,7 +24,7 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 =head2 lookup( $repo, $id )
 
-Retrieve the tree corresponding to C$id>. This function is pretty much the same
+Retrieve the tree corresponding to C<$id>. This function is pretty much the same
 as C<$repo-E<gt>lookup($id)> except that it only returns trees.
 
 =head2 id( )

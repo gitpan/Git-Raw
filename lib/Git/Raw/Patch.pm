@@ -1,5 +1,5 @@
 package Git::Raw::Patch;
-$Git::Raw::Patch::VERSION = '0.37'; # TRIAL
+$Git::Raw::Patch::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Patch - Git patch class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 DESCRIPTION
 
@@ -32,7 +32,7 @@ Get the number of hunks in the patch.
 
 =head2 hunks( [$index] )
 
-Returns a list of C<Git::Raw::Diff::Hunk> objects. If C<$index> is specified
+Returns a list of L<Git::Raw::Diff::Hunk> objects. If C<$index> is specified
 only the hunk at the specified index will be returned.
 
 =head2 line_stats( )

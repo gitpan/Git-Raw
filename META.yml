@@ -39,7 +39,7 @@ resources:
   bugtracker: https://github.com/jacquesg/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/jacquesg/p5-Git-Raw.git
-version: 0.37
+version: 0.38
 x_Dist_Zilla:
   perl:
     version: 5.016001
@@ -229,5 +229,5 @@ x_Dist_Zilla:
   zilla:
     class: Dist::Zilla::Dist::Builder
     config:
-      is_trial: 1
+      is_trial: 0
     version: 5.014

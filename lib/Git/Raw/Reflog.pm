@@ -1,5 +1,5 @@
 package Git::Raw::Reflog;
-$Git::Raw::Reflog::VERSION = '0.37'; # TRIAL
+$Git::Raw::Reflog::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Reflog - Git reflog class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 SYNOPSIS
 
@@ -92,7 +92,7 @@ following members:
 
 =item * "committer"
 
-The committer of the entry, a C<Git::Raw::Signature> object.
+The committer of the entry, a L<Git::Raw::Signature> object.
 
 =item * "message"
 
@@ -100,11 +100,11 @@ The message for the entry.
 
 =item * "new_id"
 
-The new L<"OID"> for the entry.
+The new C<OID> for the entry.
 
 =item * "old_id"
 
-The old L<"OID"> for the entry.
+The old C<OID> for the entry.
 
 =back
 

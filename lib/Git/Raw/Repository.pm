@@ -1,5 +1,5 @@
 package Git::Raw::Repository;
-$Git::Raw::Repository::VERSION = '0.37'; # TRIAL
+$Git::Raw::Repository::VERSION = '0.38';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.37
+version 0.38
 
 =head1 SYNOPSIS
 
@@ -304,7 +304,7 @@ reset and the working directory will be replaced with the content of the index).
 =item * "paths"
 
 List of entries in the index to be updated from the target commit tree.  This is
-particularly useful to implement L<"git reset HEAD -- file file"> behaviour.
+particularly useful to implement C<"git reset HEAD -- file file"> behaviour.
 Note, if this parameter is specified, a value of C<"mixed"> will be used for
 C<"type"> (setting C<"type"> to C<"soft"> or C<"hard"> has no effect).
 
@@ -670,7 +670,7 @@ working directory of the repository will be set to the directory.
 
 =head2 blame( $path )
 
-Retrieve blame information for C<$path>. Returns a C<Git::Raw::Blame> object.
+Retrieve blame information for C<$path>. Returns a L<Git::Raw::Blame> object.
 
 =head2 cherry_pick( $commit, [\%merge_opts, \%checkout_opts, $mainline] )
 
