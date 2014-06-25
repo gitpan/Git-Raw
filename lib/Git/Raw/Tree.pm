@@ -1,5 +1,5 @@
 package Git::Raw::Tree;
-$Git::Raw::Tree::VERSION = '0.39';
+$Git::Raw::Tree::VERSION = '0.40';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.39
+version 0.40
 
 =head1 DESCRIPTION
 

@@ -1,5 +1,10 @@
 Revision history for Git-Raw
 
+0.40      2014-06-25 21:05:55SAST+0200 Africa/Johannesburg
+
+ - Tag -> tagger() now returns undef if a tag doesn't have a tagger instead
+    of crashing (GH#103, GH#104)
+
 0.39      2014-06-12 18:06:58SAST+0200 Africa/Johannesburg
 
  - Fixed Windows specific path comparison test case (verified this time)

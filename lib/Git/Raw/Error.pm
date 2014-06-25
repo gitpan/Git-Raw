@@ -1,5 +1,5 @@
 package Git::Raw::Error;
-$Git::Raw::Error::VERSION = '0.39';
+$Git::Raw::Error::VERSION = '0.40';
 use strict;
 use warnings;
 use Carp;
@@ -35,7 +35,7 @@ Git::Raw::Error - Error class
 
 =head1 VERSION
 
-version 0.39
+version 0.40
 
 =head1 DESCRIPTION
 

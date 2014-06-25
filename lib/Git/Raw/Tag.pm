@@ -1,5 +1,5 @@
 package Git::Raw::Tag;
-$Git::Raw::Tag::VERSION = '0.39';
+$Git::Raw::Tag::VERSION = '0.40';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.39
+version 0.40
 
 =head1 SYNOPSIS
 
@@ -75,7 +75,8 @@ Retrieve the message of the tag.
 
 =head2 tagger( )
 
-Retrieve the L<Git::Raw::Signature> representing the tag's tagger.
+Retrieve the L<Git::Raw::Signature> representing the tag's tagger. If there
+is no tagger, C<undef> will be returned.
 
 =head2 target( )
 
@@ -84,6 +85,8 @@ Retrieve the target object of the tag.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 
