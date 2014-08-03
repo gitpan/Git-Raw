@@ -31,7 +31,7 @@ ok !$repo -> is_bare;
 ok !$repo -> is_empty;
 ok !$repo -> is_shallow;
 
-is_deeply $repo -> status -> {'master.txt'}, undef;
+is_deeply $repo -> status({}) -> {'master.txt'}, undef;
 
 my @remotes = $repo -> remotes;
 
@@ -54,8 +54,42 @@ is $head -> author -> name, 'A U Thor';
 $head = undef;
 $ref = undef;
 
+$path = File::Spec->rel2abs('t/test_repo_remote_name_die');
+ok (!eval { $repo = Git::Raw::Repository -> clone($url, $path, {
+	'callbacks' => {
+		'remote_create' => sub {
+			my ($repo, $name, $remote_url) = @_;
+			die "Something goes bad!";
+		}
+	}
+})});
+
+$path = File::Spec->rel2abs('t/test_repo_remote_name_undef');
+ok (!eval { $repo = Git::Raw::Repository -> clone($url, $path, {
+	'callbacks' => {
+		'remote_create' => sub {
+			my ($repo, $name, $remote_url) = @_;
+			undef;
+		}
+	}
+})});
+
+my $triggered_remote_create = 0;
 $path = File::Spec->rel2abs('t/test_repo_remote_name');
-$repo = Git::Raw::Repository -> clone($url, $path, {'remote_name' => 'github' });
+$repo = Git::Raw::Repository -> clone($url, $path, {
+	'callbacks' => {
+		'remote_create' => sub {
+			my ($repo, $name, $remote_url) = @_;
+			$triggered_remote_create = 1;
+			isa_ok $repo, 'Git::Raw::Repository';
+			is $name, 'origin';
+			is $remote_url, $url;
+			return Git::Raw::Remote -> create($repo, 'github', $remote_url);
+		}
+	}
+});
+
+is $triggered_remote_create, 1;
 
 @remotes = $repo -> remotes;
 
@@ -92,8 +126,12 @@ $repo = Git::Raw::Repository -> clone($url, $path, {
 						push @$states, 'pack';
 						$state = 'count';
 					}
+				} elsif ($description =~ /Counting objects/) {
+					$state = 'count';
 				}
-			} elsif ($state eq 'count') {
+			}
+
+			if ($state eq 'count') {
 				if ($description =~ /Counting objects/) {
 					if ($description =~ /done/) {
 						push @$states, 'count';
@@ -106,6 +144,9 @@ $repo = Git::Raw::Repository -> clone($url, $path, {
 						push @$states, 'compress';
 						$state = 'total';
 					}
+				} elsif ($description =~ /Total/) {
+					push @$states, 'total';
+					$state = 'total';
 				}
 			} elsif ($state eq 'total') {
 				if ($description =~ /Total/) {
@@ -150,6 +191,8 @@ rmtree abs_path('t/test_repo_clone');
 rmtree abs_path('t/test_repo_clone_bare');
 rmtree abs_path('t/test_repo_clone_callbacks');
 rmtree abs_path('t/test_repo_disable_checkout');
+rmtree abs_path('t/test_repo_remote_name_die');
+rmtree abs_path('t/test_repo_remote_name_undef');
 rmtree abs_path('t/test_repo_remote_name');
 
 if ($^O eq 'MSWin32') {
@@ -251,7 +294,6 @@ ok ! -e $path;
 
 my ($credentials_fired, $update_tips_fired) = (0, 0);
 $repo = Git::Raw::Repository -> clone($remote_url, $path, {
-	'ignore_cert_errors' => 1,
 	'checkout_branch' => 'master',
 	'callbacks' => {
 		'credentials' => sub {

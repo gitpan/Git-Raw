@@ -1,5 +1,5 @@
 package Git::Raw::Diff::Delta;
-$Git::Raw::Diff::Delta::VERSION = '0.40';
+$Git::Raw::Diff::Delta::VERSION = '0.41';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Diff::Delta - Git diff delta class
 
 =head1 VERSION
 
-version 0.40
+version 0.41
 
 =head1 DESCRIPTION
 
@@ -63,6 +63,10 @@ The entry is an untracked item in the working directory.
 =item * "type_change"
 
 The type of the entry changed between the old and new versions.
+
+=item * "unreadable"
+
+The entry is unreadable.
 
 =back
 

@@ -1,5 +1,5 @@
 package Git::Raw::Diff::File;
-$Git::Raw::Diff::File::VERSION = '0.40';
+$Git::Raw::Diff::File::VERSION = '0.41';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Diff::File - Git diff file class
 
 =head1 VERSION
 
-version 0.40
+version 0.41
 
 =head1 DESCRIPTION
 
@@ -57,7 +57,7 @@ Retrieve the diff file mode. Returns one of the following:
 
 =over 4
 
-=item * "new"
+=item * "unreadable"
 
 =item * "tree"
 

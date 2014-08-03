@@ -8,6 +8,10 @@
 
 #include "ppport.h"
 
+#ifdef GIT_SSH
+#include <libssh2.h>
+#endif
+
 #include <git2.h>
 #include <git2/sys/filter.h>
 #include <git2/sys/repository.h>
@@ -122,7 +126,6 @@ typedef git_pathspec_match_list * PathSpec_MatchList;
 typedef git_reference * Reference;
 typedef git_reflog * Reflog;
 typedef git_refspec * RefSpec;
-typedef git_repository * Repository;
 typedef git_signature * Signature;
 typedef git_tag * Tag;
 typedef git_tree * Tree;
@@ -151,12 +154,17 @@ typedef git_filter_source * Filter_Source;
 typedef struct {
 	git_remote *remote;
 	git_raw_remote_callbacks callbacks;
+	int owned;
 } git_raw_remote;
 
 typedef git_raw_remote * Remote;
 
-/* This will get fixed upstream */
-typedef int (*git_push_status_cb)(const char *ref, const char *msg, void *data);
+typedef struct {
+	git_repository *repository;
+	int owned;
+} git_raw_repository;
+
+typedef git_raw_repository * Repository;
 
 typedef struct {
 	git_push *push;
@@ -404,7 +412,7 @@ STATIC SV *git_oid_to_sv(const git_oid *oid) {
 	return newSVpv(out, 0);
 }
 
-STATIC git_oid *git_sv_to_commitish(Repository repo, SV *sv, git_oid *oid) {
+STATIC git_oid *git_sv_to_commitish(git_repository *repo, SV *sv, git_oid *oid) {
 	git_oid *result = NULL;
 	git_reference *ref = NULL;
 	git_object *obj = NULL;
@@ -816,6 +824,29 @@ STATIC unsigned git_hv_to_diff_find_flag(HV *flags) {
 	return out;
 }
 
+STATIC unsigned git_hv_to_status_flag(HV *flags) {
+	unsigned out = 0;
+
+	git_flag_opt(flags, "include_untracked", GIT_STATUS_OPT_INCLUDE_UNTRACKED, &out);
+	git_flag_opt(flags, "include_ignored", GIT_STATUS_OPT_INCLUDE_IGNORED, &out);
+	git_flag_opt(flags, "include_unmodified", GIT_STATUS_OPT_INCLUDE_UNMODIFIED, &out);
+	git_flag_opt(flags, "exclude_submodules", GIT_STATUS_OPT_EXCLUDE_SUBMODULES, &out);
+	git_flag_opt(flags, "recurse_untracked_dirs", GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS, &out);
+	git_flag_opt(flags, "disable_pathspec_match", GIT_STATUS_OPT_DISABLE_PATHSPEC_MATCH, &out);
+	git_flag_opt(flags, "recurse_ignored_dirs", GIT_STATUS_OPT_RECURSE_IGNORED_DIRS, &out);
+	git_flag_opt(flags, "renames_head_to_index", GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX, &out);
+	git_flag_opt(flags, "renames_index_to_workdir", GIT_STATUS_OPT_RENAMES_INDEX_TO_WORKDIR, &out);
+	git_flag_opt(flags, "sort_case_sensitively", GIT_STATUS_OPT_SORT_CASE_SENSITIVELY, &out);
+	git_flag_opt(flags, "sort_case_insensitively", GIT_STATUS_OPT_SORT_CASE_INSENSITIVELY, &out);
+	git_flag_opt(flags, "renames_from_rewrites", GIT_STATUS_OPT_RENAMES_FROM_REWRITES, &out);
+	git_flag_opt(flags, "no_refresh", GIT_STATUS_OPT_NO_REFRESH, &out);
+	git_flag_opt(flags, "update_index", GIT_STATUS_OPT_UPDATE_INDEX, &out);
+	git_flag_opt(flags, "include_unreadable", GIT_STATUS_OPT_INCLUDE_UNREADABLE, &out);
+	git_flag_opt(flags, "include_unreadable_as_untracked", GIT_STATUS_OPT_INCLUDE_UNREADABLE_AS_UNTRACKED, &out);
+
+	return out;
+}
+
 STATIC unsigned git_hv_to_checkout_strategy(HV *strategy) {
 	unsigned out = 0;
 
@@ -1001,7 +1032,7 @@ STATIC int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	SV *cb_arg = NULL;
 	git_foreach_payload *pl = payload;
 
-	int rc = git_object_lookup(&tag, pl -> repo_ptr, oid, GIT_OBJ_ANY);
+	int rc = git_object_lookup(&tag, pl -> repo_ptr -> repository, oid, GIT_OBJ_ANY);
 	git_check_error(rc);
 
 	if (git_object_type(tag) != GIT_OBJ_TAG) {
@@ -1232,6 +1263,60 @@ STATIC int git_update_tips_cbb(const char *name, const git_oid *a,
 	LEAVE;
 
 	return 0;
+}
+
+STATIC int git_remote_create_cbb(git_remote **out, git_repository *r,
+	const char *name, const char *url, void *cb) {
+	dSP;
+	int rv = 0;
+	SV *repo_sv = NULL;
+	Repository repo = NULL;
+
+	Newxz(repo, 1, git_raw_repository);
+	repo -> repository = r;
+	repo -> owned = 0;
+
+	GIT_NEW_OBJ(repo_sv,
+		"Git::Raw::Repository",
+		(void * ) repo
+	);
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(repo_sv);
+	mXPUSHs(newSVpv(name, 0));
+	mXPUSHs(newSVpv(url, 0));
+	PUTBACK;
+
+	call_sv((SV *) cb, G_EVAL|G_SCALAR);
+
+	SPAGAIN;
+
+	if (SvTRUE(ERRSV)) {
+		rv = -1;
+		(void) POPs;
+
+		*out = NULL;
+	} else {
+		SV *r = POPs;
+		if (SvOK(r)) {
+			Remote remote = GIT_SV_TO_PTR(Remote, r);
+			*out = remote -> remote;
+
+			/* The remote created in the callback is owned by libgit2 */
+			remote -> owned = 0;
+		} else {
+			*out = NULL;
+			rv = -1;
+		}
+	}
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
 }
 
 STATIC int git_credentials_cbb(git_cred **cred, const char *url,

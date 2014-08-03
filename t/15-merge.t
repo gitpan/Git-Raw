@@ -87,12 +87,12 @@ $repo -> merge($branch1, {
 );
 
 is $repo -> index -> has_conflicts, 0;
-is_deeply $repo -> status -> {'test1'}, {'flags' => ['index_modified']};
+is_deeply $repo -> status({}) -> {'test1'}, {'flags' => ['index_modified']};
 
 $master -> target($commit1);
 $master = Git::Raw::Branch -> lookup ($repo, 'master', 1);
 
-is_deeply $repo -> status -> {'test1'}, undef;
+is_deeply $repo -> status({}) -> {'test1'}, undef;
 
 $repo -> checkout($repo -> head($branch2), {
 	'checkout_strategy' => {
@@ -149,9 +149,12 @@ $index -> remove_conflict('test1');
 is $index -> has_conflicts, 0;
 
 $index -> conflict_cleanup;
+$repo -> state_cleanup;
 write_file($file1, 'this is file1 on branch1');
 $index -> add('test1');
+$index -> write();
 
+is $index -> has_conflicts, 0;
 $repo -> merge($branch2);
 is $index -> has_conflicts, 1;
 

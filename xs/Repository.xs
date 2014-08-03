@@ -8,13 +8,18 @@ init(class, path, is_bare)
 
 	PREINIT:
 		int rc;
-		Repository repo;
+		git_repository *r = NULL;
+		Repository repo = NULL;
 
 	CODE:
 		rc = git_repository_init(
-			&repo, git_ensure_pv(path, "path"), is_bare
+			&r, git_ensure_pv(path, "path"), is_bare
 		);
 		git_check_error(rc);
+
+		Newxz(repo, 1, git_raw_repository);
+		repo -> repository = r;
+		repo -> owned = 1;
 
 		RETVAL = repo;
 
@@ -32,8 +37,10 @@ clone(class, url, path, opts)
 
 		SV *opt;
 		HV *callbacks;
-		Repository repo;
+		git_repository *r = NULL;
+		Repository repo = NULL;
 
+		SV *remote_cb = NULL;
 		git_raw_remote_callbacks cbs = {0, 0, 0, 0};
 		git_clone_options clone_opts = GIT_CLONE_OPTIONS_INIT;
 
@@ -43,12 +50,6 @@ clone(class, url, path, opts)
 		if ((opt = git_hv_int_entry(opts, "bare")) && SvIV(opt))
 			clone_opts.bare = 1;
 
-		if ((opt = git_hv_int_entry(opts, "ignore_cert_errors")) && SvIV(opt))
-			clone_opts.ignore_cert_errors = 1;
-
-		if ((opt = git_hv_string_entry(opts, "remote_name")))
-			clone_opts.remote_name = git_ensure_pv(opt, "remote_name");
-
 		if ((opt = git_hv_string_entry(opts, "checkout_branch")))
 			clone_opts.checkout_branch = git_ensure_pv(opt, "checkout_branch");
 
@@ -57,6 +58,13 @@ clone(class, url, path, opts)
 
 		/* Callbacks */
 		if ((callbacks = git_hv_hash_entry(opts, "callbacks"))) {
+			/* Clone callbacks */
+			if ((remote_cb = get_callback_option(callbacks, "remote_create"))) {
+				clone_opts.remote_cb = git_remote_create_cbb;
+				clone_opts.remote_cb_payload = remote_cb;
+			}
+
+			/* Remote callbacks */
 			if ((cbs.credentials =
 				get_callback_option(callbacks, "credentials")))
 				clone_opts.remote_callbacks.credentials =
@@ -79,13 +87,17 @@ clone(class, url, path, opts)
 		}
 
 		rc = git_clone(
-			&repo, git_ensure_pv(url, "url"), git_ensure_pv(path, "path"),
+			&r, git_ensure_pv(url, "url"), git_ensure_pv(path, "path"),
 			&clone_opts
 		);
 
 		git_clean_remote_callbacks(&cbs);
-
+		SvREFCNT_dec(remote_cb);
 		git_check_error(rc);
+
+		Newxz(repo, 1, git_raw_repository);
+		repo -> repository = r;
+		repo -> owned = 1;
 
 		RETVAL = repo;
 
@@ -98,11 +110,16 @@ open(class, path)
 
 	PREINIT:
 		int rc;
-		Repository repo;
+		git_repository *r = NULL;
+		Repository repo = NULL;
 
 	CODE:
-		rc = git_repository_open(&repo, git_ensure_pv(path, "path"));
+		rc = git_repository_open(&r, git_ensure_pv(path, "path"));
 		git_check_error(rc);
+
+		Newxz(repo, 1, git_raw_repository);
+		repo -> repository = r;
+		repo -> owned = 1;
 
 		RETVAL = repo;
 
@@ -116,6 +133,7 @@ discover(class, path)
 	PREINIT:
 		int rc;
 
+		git_repository *r = NULL;
 		Repository repo = NULL;
 
 	CODE:
@@ -129,10 +147,14 @@ discover(class, path)
 		);
 
 		if (rc == GIT_OK)
-			rc = git_repository_open(&repo, (const char*) buf.ptr);
+			rc = git_repository_open(&r, (const char*) buf.ptr);
 
 		git_buf_free(&buf);
 		git_check_error(rc);
+
+		Newxz(repo, 1, git_raw_repository);
+		repo -> repository = r;
+		repo -> owned = 1;
 
 		RETVAL = repo;
 
@@ -144,11 +166,16 @@ new(class)
 
 	PREINIT:
 		int rc;
-		Repository repo;
+		git_repository *r = NULL;
+		Repository repo = NULL;
 
 	CODE:
-		rc = git_repository_new(&repo);
+		rc = git_repository_new(&r);
 		git_check_error(rc);
+
+		Newxz(repo, 1, git_raw_repository);
+		repo -> repository = r;
+		repo -> owned = 1;
 
 		RETVAL = repo;
 
@@ -163,7 +190,7 @@ config(self)
 		Config cfg;
 
 	CODE:
-		rc = git_repository_config(&cfg, self);
+		rc = git_repository_config(&cfg, self -> repository);
 		git_check_error(rc);
 
 		RETVAL = cfg;
@@ -178,8 +205,11 @@ index(self)
 		int rc;
 		Index index;
 
+		Repository repo = NULL;
+
 	CODE:
-		rc = git_repository_index(&index, GIT_SV_TO_PTR(Repository, self));
+		repo = GIT_SV_TO_PTR(Repository, self);
+		rc = git_repository_index(&index, repo -> repository);
 		git_check_error(rc);
 
 		GIT_NEW_OBJ_WITH_MAGIC(
@@ -207,18 +237,18 @@ head(self, ...)
 		if (items == 2) {
 			Reference new_head = GIT_SV_TO_PTR(Reference, ST(1));
 
-			rc = git_signature_default(&sig, repo);
+			rc = git_signature_default(&sig, repo -> repository);
 			git_check_error(rc);
 
 			rc = git_repository_set_head(
-				repo, git_reference_name(new_head),
+				repo -> repository, git_reference_name(new_head),
 				sig, NULL
 			);
 			git_signature_free(sig);
 			git_check_error(rc);
 		}
 
-		rc = git_repository_head(&head, repo);
+		rc = git_repository_head(&head, repo -> repository);
 		git_check_error(rc);
 
 		GIT_NEW_OBJ_WITH_MAGIC(
@@ -241,14 +271,17 @@ lookup(self, id)
 		STRLEN len;
 		const char *id_str;
 
+		Repository repo = NULL;
+
 	CODE:
 		id_str = git_ensure_pv_with_len(id, "id", &len);
 
 		rc = git_oid_fromstrn(&oid, id_str, len);
 		git_check_error(rc);
 
+		repo = GIT_SV_TO_PTR(Repository, self);
 		rc = git_object_lookup_prefix(
-			&obj, GIT_SV_TO_PTR(Repository, self), &oid, len, GIT_OBJ_ANY
+			&obj, repo -> repository, &oid, len, GIT_OBJ_ANY
 		);
 		git_check_error(rc);
 
@@ -271,7 +304,7 @@ checkout(self, target, opts)
 		git_hv_to_checkout_opts(opts, &checkout_opts);
 
 		rc = git_checkout_tree(
-			self, git_sv_to_obj(target), &checkout_opts
+			self -> repository, git_sv_to_obj(target), &checkout_opts
 		);
 
 		Safefree(checkout_opts.paths.strings);
@@ -307,7 +340,7 @@ reset(self, target, opts)
 
 			paths.count = count;
 
-			rc = git_reset_default(self, git_sv_to_obj(target), &paths);
+			rc = git_reset_default(self -> repository, git_sv_to_obj(target), &paths);
 			Safefree(paths.strings);
 			git_check_error(rc);
 		} else if ((opt = git_hv_string_entry(opts, "type"))) {
@@ -325,60 +358,62 @@ reset(self, target, opts)
 					"Valid values: 'soft', 'mixed' or 'hard'",
 					type_str);
 
-			rc = git_signature_default(&sig, self);
+			rc = git_signature_default(&sig, self -> repository);
 			git_check_error(rc);
 
-			rc = git_reset(self, git_sv_to_obj(target), reset, sig, NULL);
+			rc = git_reset(self -> repository, git_sv_to_obj(target), reset, sig, NULL);
 			git_signature_free(sig);
 			git_check_error(rc);
 		}
 
 HV *
-status(self, ...)
+status(self, opts, ...)
 	Repository self
+	HV *opts
 
-	PROTOTYPE: $;@
+	PROTOTYPE: $$;@
 
 	PREINIT:
 		int rc, i, count;
 
-		HV *status_hv;
+		SV *opt;
+		HV *status_hv, *hopt;
 
 		git_status_list *list;
-		git_status_options opt = GIT_STATUS_OPTIONS_INIT;
+		git_status_options status_opts = GIT_STATUS_OPTIONS_INIT;
 
 	CODE:
-		opt.flags |= GIT_STATUS_OPT_DEFAULTS |
-			GIT_STATUS_OPT_RENAMES_HEAD_TO_INDEX |
-			GIT_STATUS_OPT_RENAMES_FROM_REWRITES;
+		if ((hopt = git_hv_hash_entry(opts, "flags")))
+			status_opts.flags = git_hv_to_status_flag(hopt);
 
-		/*
-		 * Core git does not recurse untracked dirs, it merely informs
-		 * the user that the directory is untracked.
-		 */
-		opt.flags &= ~GIT_STATUS_OPT_RECURSE_UNTRACKED_DIRS;
+		if ((opt = git_hv_string_entry(opts, "show"))) {
+			const char *show_str = SvPVbyte_nolen(opt);
 
-		/*
-		 * GIT_STATUS_OPT_RENAMES_INDEX_TO_WORKDIR seems to be broken
-		 * if files are renamed in both the index and in the working
-		 * tree. Core git does not tell you if the file was renamed in
-		 * the worktree anyway.
-		 */
-		if (items > 1) {
-			opt.flags |= GIT_STATUS_OPT_DISABLE_PATHSPEC_MATCH;
+			if (strcmp(show_str, "index_and_worktree") == 0)
+				status_opts.show = GIT_STATUS_SHOW_INDEX_AND_WORKDIR;
+			else if (strcmp(show_str, "index") == 0)
+				status_opts.show = GIT_STATUS_SHOW_INDEX_ONLY;
+			else if (strcmp(show_str, "worktree") == 0)
+				status_opts.show = GIT_STATUS_SHOW_WORKDIR_ONLY;
+			else
+				croak_usage("Invalid show value '%s'. "
+					"Valid values: 'index_and_worktree', 'index' or 'worktree'",
+					show_str);
+		}
 
-			Newx(opt.pathspec.strings, items - 1, char *);
+		if (items > 2) {
+			Newx(status_opts.pathspec.strings, items - 2, char *);
 
-			for (i = 1; i < items; i++) {
-				size_t index = (size_t) i - 1;
-				opt.pathspec.strings[index] =
+			for (i = 2; i < items; i++) {
+				size_t index = (size_t) i - 2;
+				status_opts.pathspec.strings[index] =
 					SvPVbyte_nolen(ST(i));
-				opt.pathspec.count = index;
+				status_opts.pathspec.count = index;
 			}
 		}
 
-		rc = git_status_list_new(&list, self, &opt);
-		Safefree(opt.pathspec.strings);
+		rc = git_status_list_new(&list, self -> repository, &status_opts);
+		Safefree(status_opts.pathspec.strings);
 		git_check_error(rc);
 
 		count = (int) git_status_list_entrycount(list);
@@ -417,6 +452,9 @@ status(self, ...)
 
 			if (entry -> status & GIT_STATUS_WT_RENAMED)
 				av_push(flags, newSVpv("worktree_renamed", 0));
+
+			if (entry -> status & GIT_STATUS_WT_UNREADABLE)
+				av_push(flags, newSVpv("worktree_unreadable", 0));
 
 			if (entry -> status & GIT_STATUS_IGNORED)
 				av_push(flags, newSVpv("ignored", 0));
@@ -467,7 +505,7 @@ path_is_ignored(self, path)
 		int rc, ignore;
 
 	CODE:
-		rc = git_ignore_path_is_ignored(&ignore, self, path);
+		rc = git_ignore_path_is_ignored(&ignore, self -> repository, path);
 		git_check_error(rc);
 
 		RETVAL = newSViv(ignore);
@@ -483,7 +521,7 @@ ignore(self, rules)
 		int rc;
 
 	CODE:
-		rc = git_ignore_add_rule(self, git_ensure_pv(rules, "rules"));
+		rc = git_ignore_add_rule(self -> repository, git_ensure_pv(rules, "rules"));
 		git_check_error(rc);
 
 Diff
@@ -504,7 +542,7 @@ diff(self, ...)
 		git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
 
 	CODE:
-		rc = git_repository_index(&index, self);
+		rc = git_repository_index(&index, self -> repository);
 		git_check_error(rc);
 
 		if (items == 2) {
@@ -559,11 +597,11 @@ diff(self, ...)
 
 		if (tree) {
 			rc = git_diff_tree_to_index(
-				&diff, self, tree, index, &diff_opts
+				&diff, self -> repository, tree, index, &diff_opts
 			);
 		} else {
 			rc = git_diff_index_to_workdir(
-				&diff, self, index, &diff_opts
+				&diff, self -> repository, index, &diff_opts
 			);
 		}
 
@@ -593,14 +631,14 @@ merge_base(self, ...)
 		count = items - 1;
 		Renew(oids, count, git_oid);
 		for (i = 0; i < count; ++i) {
-			if (git_sv_to_commitish(self, ST(i + 1), oids + i) == NULL) {
+			if (git_sv_to_commitish(self -> repository, ST(i + 1), oids + i) == NULL) {
 				Safefree(oids);
 				croak_resolve("Could not resolve 'object' to a commit id");
 			}
 		}
 
 		rc = git_merge_base_many(
-			&merge_base, self, (size_t) count, oids);
+			&merge_base, self -> repository, (size_t) count, oids);
 		Safefree(oids);
 		git_check_error(rc);
 
@@ -622,11 +660,11 @@ merge_analysis(self, ref)
 
 		AV *result;
 	CODE:
-		rc = git_merge_head_from_ref(&merge_head, self, ref);
+		rc = git_merge_head_from_ref(&merge_head, self -> repository, ref);
 		git_check_error(rc);
 
 		rc = git_merge_analysis(&analysis, &pref,
-			self, (const git_merge_head **) &merge_head, 1);
+			self -> repository, (const git_merge_head **) &merge_head, 1);
 		git_merge_head_free(merge_head);
 		git_check_error(rc);
 
@@ -659,7 +697,7 @@ merge(self, ref, ...)
 		git_checkout_options checkout_opts = GIT_CHECKOUT_OPTIONS_INIT;
 
 	CODE:
-		rc = git_merge_head_from_ref(&merge_head, self, ref);
+		rc = git_merge_head_from_ref(&merge_head, self -> repository, ref);
 		git_check_error(rc);
 
 		if (items >= 3) {
@@ -673,7 +711,7 @@ merge(self, ref, ...)
 		}
 
 		rc = git_merge(
-			self, (const git_merge_head **) &merge_head,
+			self -> repository, (const git_merge_head **) &merge_head,
 			1, &merge_opts, &checkout_opts
 		);
 		Safefree(checkout_opts.paths.strings);
@@ -716,7 +754,7 @@ branches(self, ...)
 
 		repo = GIT_SV_TO_PTR(Repository, self);
 
-		rc = git_branch_iterator_new(&itr, repo, type);
+		rc = git_branch_iterator_new(&itr, repo -> repository, type);
 		git_check_error(rc);
 
 		while ((rc = git_branch_next(&branch, &type, itr)) == 0) {
@@ -752,7 +790,7 @@ remotes(self)
 	PPCODE:
 		repo = GIT_SV_TO_PTR(Repository, self);
 
-		rc = git_remote_list(&remotes, repo);
+		rc = git_remote_list(&remotes, repo -> repository);
 		git_check_error(rc);
 
 		for (i = 0; i < remotes.count; i++) {
@@ -760,10 +798,10 @@ remotes(self)
 			git_remote *r = NULL;
 			Remote remote = NULL;
 
-			rc = git_remote_load(&r, repo, remotes.strings[i]);
+			rc = git_remote_load(&r, repo -> repository, remotes.strings[i]);
 			git_check_error(rc);
 
-			Newx(remote, 1, git_raw_remote);
+			Newxz(remote, 1, git_raw_remote);
 			git_init_remote_callbacks(&remote -> callbacks);
 			remote -> remote = r;
 
@@ -792,8 +830,11 @@ refs(self)
 
 		git_reference_iterator *itr;
 
+		Repository repo = NULL;
+
 	PPCODE:
-		rc = git_reference_iterator_new(&itr, GIT_SV_TO_PTR(Repository, self));
+		repo = GIT_SV_TO_PTR(Repository, self);
+		rc = git_reference_iterator_new(&itr, repo -> repository);
 		git_check_error(rc);
 
 		while ((rc = git_reference_next(&ref, itr)) == 0) {
@@ -821,7 +862,7 @@ path(self)
 		const char *path;
 
 	CODE:
-		path = git_repository_path(self);
+		path = git_repository_path(self -> repository);
 		RETVAL = newSVpv(path, 0);
 
 	OUTPUT: RETVAL
@@ -840,11 +881,11 @@ workdir(self, ...)
 		if (items == 2) {
 			const char *new_dir = git_ensure_pv(ST(1), "new_dir");
 
-			rc = git_repository_set_workdir(self, new_dir, 1);
+			rc = git_repository_set_workdir(self -> repository, new_dir, 1);
 			git_check_error(rc);
 		}
 
-		path = git_repository_workdir(self);
+		path = git_repository_workdir(self -> repository);
 		RETVAL = newSVpv(path, 0);
 
 	OUTPUT: RETVAL
@@ -858,11 +899,13 @@ blame(self, file)
 		int rc;
 		Blame blame;
 
+		Repository repo = NULL;
 		git_blame_options options = GIT_BLAME_OPTIONS_INIT;
 
 	CODE:
+		repo = GIT_SV_TO_PTR(Repository, self);
 		rc = git_blame_file(
-			&blame, GIT_SV_TO_PTR(Repository, self), file, &options);
+			&blame, repo -> repository, file, &options);
 		git_check_error(rc);
 
 		GIT_NEW_OBJ_WITH_MAGIC(
@@ -880,7 +923,8 @@ cherry_pick(self, commit, ...)
 	PREINIT:
 		int rc;
 
-		git_cherry_pick_options opts = GIT_CHERRY_PICK_OPTIONS_INIT;
+		Repository repo = NULL;
+		git_cherrypick_options opts = GIT_CHERRYPICK_OPTIONS_INIT;
 
 	CODE:
 		if (items >= 3) {
@@ -904,8 +948,9 @@ cherry_pick(self, commit, ...)
 			opts.mainline = (unsigned int) mainline;
 		}
 
-		rc = git_cherry_pick(
-			GIT_SV_TO_PTR(Repository, self),
+		repo = GIT_SV_TO_PTR(Repository, self);
+		rc = git_cherrypick(
+			repo -> repository,
 			commit,
 			&opts
 		);
@@ -920,7 +965,8 @@ revert(self, commit, ...)
 	PREINIT:
 		int rc;
 
-		git_revert_options opts = GIT_CHERRY_PICK_OPTIONS_INIT;
+		Repository repo = NULL;
+		git_revert_options opts = GIT_REVERT_OPTIONS_INIT;
 
 	CODE:
 		if (items >= 3) {
@@ -944,8 +990,9 @@ revert(self, commit, ...)
 			opts.mainline = (unsigned int) mainline;
 		}
 
+		repo = GIT_SV_TO_PTR(Repository, self);
 		rc = git_revert(
-			GIT_SV_TO_PTR(Repository, self),
+			repo -> repository,
 			commit,
 			&opts
 		);
@@ -960,7 +1007,7 @@ state(self)
 		const char *s = NULL;
 
 	CODE:
-		rc = git_repository_state(self);
+		rc = git_repository_state(self -> repository);
 
 		switch (rc) {
 			case GIT_REPOSITORY_STATE_NONE:
@@ -975,7 +1022,7 @@ state(self)
 				s = "revert";
 				break;
 
-			case GIT_REPOSITORY_STATE_CHERRY_PICK:
+			case GIT_REPOSITORY_STATE_CHERRYPICK:
 				s = "cherry_pick";
 				break;
 
@@ -1019,7 +1066,7 @@ state_cleanup(self)
 		int rc;
 
 	CODE:
-		rc = git_repository_state_cleanup(self);
+		rc = git_repository_state_cleanup(self -> repository);
 		git_check_error(rc);
 
 SV *
@@ -1034,7 +1081,7 @@ message(self)
 	CODE:
 		RETVAL = &PL_sv_undef;
 
-		rc = git_repository_message(&buf, self);
+		rc = git_repository_message(&buf, self -> repository);
 		if (rc == GIT_OK)
 			RETVAL = newSVpv(buf.ptr, 0);
 
@@ -1048,7 +1095,7 @@ is_bare(self)
 	Repository self
 
 	CODE:
-		RETVAL = newSViv(git_repository_is_bare(self));
+		RETVAL = newSViv(git_repository_is_bare(self -> repository));
 
 	OUTPUT: RETVAL
 
@@ -1057,7 +1104,7 @@ is_empty(self)
 	Repository self
 
 	CODE:
-		RETVAL = newSViv(git_repository_is_empty(self));
+		RETVAL = newSViv(git_repository_is_empty(self -> repository));
 
 	OUTPUT: RETVAL
 
@@ -1066,7 +1113,7 @@ is_shallow(self)
 	Repository self
 
 	CODE:
-		RETVAL = newSViv(git_repository_is_shallow(self));
+		RETVAL = newSViv(git_repository_is_shallow(self -> repository));
 
 	OUTPUT: RETVAL
 
@@ -1075,7 +1122,7 @@ is_head_detached(self)
 	Repository self
 
 	CODE:
-		RETVAL = newSViv(git_repository_head_detached(self));
+		RETVAL = newSViv(git_repository_head_detached(self -> repository));
 
 	OUTPUT: RETVAL
 
@@ -1084,4 +1131,6 @@ DESTROY(self)
 	Repository self
 
 	CODE:
-		git_repository_free(self);
+		if (self -> owned)
+			git_repository_free(self -> repository);
+		Safefree(self);

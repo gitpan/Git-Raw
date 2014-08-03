@@ -12,17 +12,20 @@ create(class, repo, name, url)
 
 		git_remote *r = NULL;
 		Remote remote = NULL;
+		Repository repo_ptr = NULL;
 
 	CODE:
+		repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 		rc = git_remote_create(
-			&r, GIT_SV_TO_PTR(Repository, repo),
+			&r, repo_ptr -> repository,
 			git_ensure_pv(name, "name"), git_ensure_pv(url, "url")
 		);
 		git_check_error(rc);
 
-		Newx(remote, 1, git_raw_remote);
+		Newxz(remote, 1, git_raw_remote);
 		git_init_remote_callbacks(&remote -> callbacks);
 		remote -> remote = r;
+		remote -> owned = 1;
 
 		GIT_NEW_OBJ_WITH_MAGIC(
 			RETVAL, SvPVbyte_nolen(class), remote, SvRV(repo)
@@ -42,6 +45,7 @@ create_anonymous(class, repo, url, fetch)
 
 		git_remote *r = NULL;
 		Remote remote = NULL;
+		Repository repo_ptr = NULL;
 
 		const char *f = NULL;
 
@@ -49,8 +53,9 @@ create_anonymous(class, repo, url, fetch)
 		if (SvOK(fetch))
 			f = git_ensure_pv(fetch, "fetch");
 
+		repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 		rc = git_remote_create_anonymous(
-			&r, GIT_SV_TO_PTR(Repository, repo),
+			&r, repo_ptr -> repository,
 			git_ensure_pv(url, "url"), f
 		);
 		git_check_error(rc);
@@ -76,11 +81,12 @@ load(class, repo, name)
 
 		git_remote *r = NULL;
 		Remote remote = NULL;
+		Repository repo_ptr = NULL;
 
 	CODE:
-
+		repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 		rc = git_remote_load(
-			&r, GIT_SV_TO_PTR(Repository, repo),
+			&r, repo_ptr -> repository,
 			git_ensure_pv(name, "name"));
 		git_check_error(rc);
 
@@ -98,18 +104,31 @@ SV *
 name(self, ...)
 	Remote self
 
-	PROTOTYPE: $;$
+	PROTOTYPE: $;$$
 
 	PREINIT:
 		int rc;
 		const char *name;
 
+		git_strarray problems = {NULL, 0};
+
 	CODE:
-		if (items == 2) {
+		if (items > 1) {
+			AV *p = NULL;
 			name = git_ensure_pv(ST(1), "name");
 
-			rc = git_remote_rename(self -> remote, name, NULL, NULL);
+			if (items > 2)
+				p = git_ensure_av(ST(2), "problems");
+
+			rc = git_remote_rename(&problems, self -> remote, name);
 			git_check_error(rc);
+
+			if (p != NULL && problems.count > 0) {
+				size_t i;
+				for (i = 0; i < problems.count; ++i)
+					av_push(p, newSVpv(problems.strings[i], 0));
+			}
+			git_strarray_free(&problems);
 		}
 
 		RETVAL = newSVpv(git_remote_name(self -> remote), 0);
@@ -470,7 +489,8 @@ DESTROY(self)
 	CODE:
 		remote = GIT_SV_TO_PTR(Remote, self);
 
-		git_remote_free(remote -> remote);
 		git_clean_remote_callbacks(&remote -> callbacks);
+		if (remote -> owned)
+			git_remote_free(remote -> remote);
 		SvREFCNT_dec(GIT_SV_TO_MAGIC(self));
 		Safefree(remote);
