@@ -1,5 +1,5 @@
 package Git::Raw::Tree;
-$Git::Raw::Tree::VERSION = '0.41';
+$Git::Raw::Tree::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 DESCRIPTION
 
@@ -25,7 +25,12 @@ B<WARNING>: The API of this module is unstable and may change without warning
 =head2 lookup( $repo, $id )
 
 Retrieve the tree corresponding to C<$id>. This function is pretty much the same
-as C<$repo-E<gt>lookup($id)> except that it only returns trees.
+as C<$repo-E<gt>lookup($id)> except that it only returns trees. If the tree
+doesn't exist, this function wil return C<undef>.
+
+=head2 owner( )
+
+Retrieve the L<Git::Raw::Repository> owning the tree.
 
 =head2 id( )
 
@@ -37,11 +42,13 @@ Retrieve a list of L<Git::Raw::Tree::Entry> objects.
 
 =head2 entry_byname( $name )
 
-Retrieve a L<Git::Raw::Tree::Entry> object by name.
+Retrieve a L<Git::Raw::Tree::Entry> object by name. If the entry cannot be found,
+this function will return C<undef>.
 
 =head2 entry_bypath( $path )
 
-Retrieve a L<Git::Raw::Tree::Entry> object by path.
+Retrieve a L<Git::Raw::Tree::Entry> object by path. If the entry cannot be found,
+this function will return C<undef>.
 
 =head2 merge( $ancestor, $theirs, [\%merge_opts] )
 
@@ -171,6 +178,8 @@ Returns false.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

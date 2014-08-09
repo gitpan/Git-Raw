@@ -1,5 +1,5 @@
 package Git::Raw::Reflog;
-$Git::Raw::Reflog::VERSION = '0.41';
+$Git::Raw::Reflog::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Reflog - Git reflog class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 SYNOPSIS
 
@@ -27,7 +27,7 @@ version 0.41
     # print out reflog information
     my @entries = $reflog -> entries;
     foreach my $entry (@entries) {
-        my $committer = $entry -> committer;
+        my $committer = $entry -> {'committer'};
         print "Committer:", "\n";
         print "\t", "Name:   ", $committer -> name, "\n";
         print "\t", "E-Mail  ", $committer -> email, "\n";
@@ -35,9 +35,9 @@ version 0.41
         print "\t", "Offset: ", $committer -> offset, "\n";
         print "\n";
 
-        print "Message: ", $entry -> message, "\n";
-        print "Old id:  ", $entry -> old_id, "\n";
-        print "New id:  ", $entry -> new_id, "\n";
+        print "Message: ", $entry -> {'message'}, "\n";
+        print "Old id:  ", $entry -> {'old_id'}, "\n";
+        print "New id:  ", $entry -> {'new_id'}, "\n";
     }
 
     # add a new entry to the reflog
@@ -83,9 +83,13 @@ Remove entry C<$index> from the reflog.
 
 Write the reflog back to disk.
 
-=head2 entries( )
+=head2 entry_count( )
 
-Retrieve a list of reflog entries. Each entry is a hash with the
+Retrieve the number of entries in the reflog.
+
+=head2 entries( [$index, $count] )
+
+Retrieve a list of reflog entries.Each entry is a hash with the
 following members:
 
 =over 4
@@ -111,6 +115,8 @@ The old C<OID> for the entry.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

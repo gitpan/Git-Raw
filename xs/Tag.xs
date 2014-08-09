@@ -64,11 +64,33 @@ lookup(class, repo, id)
 
 		repo_ptr = GIT_SV_TO_PTR(Repository, repo);
 		rc = git_tag_lookup_prefix(&tag, repo_ptr -> repository, &oid, len);
-		git_check_error(rc);
 
-		GIT_NEW_OBJ_WITH_MAGIC(
-			RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo)
-		);
+		if (rc == GIT_ENOTFOUND) {
+			RETVAL = &PL_sv_undef;
+		} else {
+			git_check_error(rc);
+
+			GIT_NEW_OBJ_WITH_MAGIC(
+				RETVAL, SvPVbyte_nolen(class), tag, SvRV(repo)
+			);
+		}
+
+	OUTPUT: RETVAL
+
+SV *
+owner(self)
+	SV *self
+
+	PREINIT:
+		SV *repo;
+
+	CODE:
+		repo = GIT_SV_TO_MAGIC(self);
+
+		if (!repo)
+			croak_assert("No owner attached");
+
+		RETVAL = newRV_inc(repo);
 
 	OUTPUT: RETVAL
 

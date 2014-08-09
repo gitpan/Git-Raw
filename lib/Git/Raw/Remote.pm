@@ -1,5 +1,5 @@
 package Git::Raw::Remote;
-$Git::Raw::Remote::VERSION = '0.41';
+$Git::Raw::Remote::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 SYNOPSIS
 
@@ -25,9 +25,9 @@ version 0.41
 
     # set the acquire credentials callback
     $remote -> callbacks({
-      'credentials' => sub { Git::Raw::Cred -> userpass($usr, $pwd) }
+      'credentials' => sub { Git::Raw::Cred -> userpass($usr, $pwd) },
       'update_tips' => sub {
-        my ($ref, $a, $b) = @_);
+        my ($ref, $a, $b) = @_;
         print "Updated $ref: $a -> $b", "\n";
       }
     });
@@ -67,6 +67,10 @@ Create a remote in memory (anonymous).
 =head2 load( $repo, $name )
 
 Load an existing remote.
+
+=head2 owner( )
+
+Retrieve the L<Git::Raw::Repository> owning the remote.
 
 =head2 name( [ $name, \@problems ] )
 
@@ -122,11 +126,11 @@ Whether the reference exists locally.
 
 =item * "id"
 
-The object ID of the reference.
+The OID of the reference.
 
 =item * "lid"
 
-The local object ID of the reference (optional).
+The local OID of the reference (optional).
 
 =back
 
@@ -202,6 +206,8 @@ library.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

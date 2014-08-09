@@ -1,5 +1,5 @@
 package Git::Raw::Push;
-$Git::Raw::Push::VERSION = '0.41';
+$Git::Raw::Push::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Push - Git push class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 SYNOPSIS
 
@@ -51,9 +51,9 @@ version 0.41
       }
     });
 
-    # actually perform the push
+    # perform the actual push
     $push -> finish;
-    if ($push -> update_ok) {
+    if ($push -> unpack_ok) {
       print "References updated successfully", "\n";
     } else {
       print STDERR "Not all references updated", "\n";
@@ -115,7 +115,7 @@ C<msg> is defined, the reference mentioned in C<ref> has not been updated.
 
 =head2 finish( )
 
-Actually push.
+Perform the actual push.
 
 =head2 unpack_ok( )
 
@@ -128,6 +128,8 @@ Update the tips to the new status.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

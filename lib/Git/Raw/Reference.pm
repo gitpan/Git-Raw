@@ -1,5 +1,5 @@
 package Git::Raw::Reference;
-$Git::Raw::Reference::VERSION = '0.41';
+$Git::Raw::Reference::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Reference - Git reference class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 DESCRIPTION
 
@@ -65,9 +65,14 @@ This function returns either an object (L<Git::Raw::Blob>, L<Git::Raw::Commit>,
 L<Git::Raw::Tag> or L<Git::Raw::Tree>) for direct references, or another
 reference for symbolic references.
 
+=head2 peel( $type )
+
+Recursively peel the reference until an object of the specified C<$type> is
+found. Valid values for C<$type> include: C<"commit">, C<"tree"> or C<"tag">.
+
 =head2 reflog( )
 
-Retrieve the L<Git::Raw::Reflog> of the reference. Shortcur for
+Retrieve the L<Git::Raw::Reflog> of the reference. Shortcut for
 C<Git::Raw::Reflog-E<gt>open()>.
 
 =cut
@@ -97,6 +102,8 @@ Check if the reference lives in the C<refsE<sol>notes> namespace.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

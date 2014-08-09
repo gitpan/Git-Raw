@@ -1,5 +1,5 @@
 package Git::Raw::Tag;
-$Git::Raw::Tag::VERSION = '0.41';
+$Git::Raw::Tag::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 SYNOPSIS
 
@@ -50,7 +50,12 @@ L<Git::Raw::Signature> representing the tagger and a target object.
 =head2 lookup( $repo, $id )
 
 Retrieve the tag corresponding to C<$id>. This function is pretty much the same
-as C<$repo-E<gt>lookup($id)> except that it only returns tags.
+as C<$repo-E<gt>lookup($id)> except that it only returns tags. If the tag
+doesn't exist, this function wil return C<undef>.
+
+=head2 owner( )
+
+Retrieve the L<Git::Raw::Repository> owning the tag.
 
 =head2 foreach( $repo, $callback )
 

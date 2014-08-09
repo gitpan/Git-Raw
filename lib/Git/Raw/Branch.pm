@@ -1,5 +1,5 @@
 package Git::Raw::Branch;
-$Git::Raw::Branch::VERSION = '0.41';
+$Git::Raw::Branch::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Branch - Git branch class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 SYNOPSIS
 
@@ -56,12 +56,14 @@ return C<undef>.
 =head2 upstream_name( )
 
 Return the name of the reference supporting the remote tracking branch, given
-the the local branch.
+the the local branch. If there is no associated remote tracking branch, this
+function will return C<undef>.
 
 =head2 remote_name( )
 
 Return the name of remote that the remote tracking branch belongs to, given
-the local branch.
+the local branch. If there is no associated remote tracking branch, this
+function will return C<undef>.
 
 =head2 is_head( )
 
@@ -70,6 +72,8 @@ Check if the current local branch is pointed at by HEAD.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

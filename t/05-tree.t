@@ -22,6 +22,13 @@ $tree = $head -> tree;
 ok $tree -> is_tree;
 ok !$tree -> is_blob;
 
+my $repo2 = $tree -> owner;
+isa_ok $repo2, 'Git::Raw::Repository';
+is $repo2 -> path, $repo -> path;
+
+my $bad_tree = Git::Raw::Tree -> lookup($repo, '123456789987654321');
+is $bad_tree, undef;
+
 my $lookup_tree = Git::Raw::Tree -> lookup($repo, $tree -> id);
 isa_ok $lookup_tree, 'Git::Raw::Tree';
 $lookup_tree = Git::Raw::Tree -> lookup($repo, substr($tree -> id, 0, 7));
@@ -47,6 +54,11 @@ is $obj0 -> is_blob, 1;
 is $obj0 -> content, 'this is a test';
 is $obj0 -> size, '14';
 
+my $repo3 = $obj0 -> owner;
+isa_ok $repo3, 'Git::Raw::Repository';
+is $repo3 -> path, $repo -> path;
+is $repo2 -> path, $repo2 -> path;
+
 my $blob_obj0 = Git::Raw::Blob -> lookup($repo, $obj0 -> id);
 isa_ok $blob_obj0, 'Git::Raw::Blob';
 is $blob_obj0 -> is_blob, 1;
@@ -65,11 +77,15 @@ isa_ok $obj2, 'Git::Raw::Tree';
 
 is $entries -> [3], undef;
 
-ok (!eval { $tree -> entry_byname('unknownfile') });
-my $entry = $tree -> entry_byname('test3');
+my $non_existent_entry = $tree -> entry_byname('unknownfile');
+is $non_existent_entry, undef;
 
+my $entry = $tree -> entry_byname('test3');
 isa_ok $entry, 'Git::Raw::Tree::Entry';
 isa_ok $entry -> object, 'Git::Raw::Tree';
+
+$non_existent_entry = $tree -> entry_bypath('test3/under/the/tree/nonexistent');
+is $non_existent_entry, undef;
 
 $entry = $tree -> entry_bypath('test3/under/the/tree/test3');
 

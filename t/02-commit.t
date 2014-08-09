@@ -42,6 +42,9 @@ $index -> write;
 my $tree_id = $index -> write_tree;
 my $tree    = $repo -> lookup($tree_id);
 
+my $non_existent = $repo -> lookup('123456789987654321');
+is $non_existent, undef;
+
 is_deeply $repo -> status({}) -> {'test'}, {'flags' => ['index_new']};
 
 write_file($file, 'this is a test with more content');
@@ -99,6 +102,10 @@ is $commit -> committer -> offset, $off;
 
 is $commit -> time, $time;
 is $commit -> offset, $off;
+
+my $repo2 = $commit -> owner;
+isa_ok $repo2, 'Git::Raw::Repository';
+is $repo2 -> path, $repo -> path;
 
 write_file($file, 'this is a test....');
 is_deeply $repo -> status({}) -> {'test'}, {'flags' => ['worktree_modified'] };
@@ -281,6 +288,8 @@ my $commit4 = $repo -> commit(
 
 is $repo -> head -> target -> id, $commit3 -> id, q{Make sure that undef reference doesn't update HEAD};
 
+$non_existent = Git::Raw::Commit -> lookup($repo, '123456789987654321');
+is $non_existent, undef;
 $commit4 = Git::Raw::Commit -> lookup($repo, $commit4 -> id);
 
 is $commit4 -> message, "fourth commit\n";

@@ -1,5 +1,5 @@
 package Git::Raw::Commit;
-$Git::Raw::Commit::VERSION = '0.41';
+$Git::Raw::Commit::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 SYNOPSIS
 
@@ -64,7 +64,12 @@ provided, "HEAD" is updated.
 =head2 lookup( $repo, $id )
 
 Retrieve the commit corresponding to C<$id>. This function is pretty much the
-same as C<$repo-E<gt>lookup($id)> except that it only returns commits.
+same as C<$repo-E<gt>lookup($id)> except that it only returns commits. If the
+commit doesn't exist, this function wil return C<undef>.
+
+=head2 owner( )
+
+Retrieve the L<Git::Raw::Repository> owning the commit.
 
 =head2 id( )
 

@@ -1,5 +1,5 @@
 package Git::Raw::Index;
-$Git::Raw::Index::VERSION = '0.41';
+$Git::Raw::Index::VERSION = '0.42';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.41
+version 0.42
 
 =head1 DESCRIPTION
 
@@ -21,6 +21,10 @@ B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
 
 =head1 METHODS
+
+=head2 owner( )
+
+Retrieve the L<Git::Raw::Repository> owning the index.
 
 =head2 add( $entry )
 

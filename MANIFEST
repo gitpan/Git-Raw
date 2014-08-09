@@ -388,6 +388,7 @@ lib/Git/Raw/Tree.pm
 lib/Git/Raw/Tree/Builder.pm
 lib/Git/Raw/Tree/Entry.pm
 lib/Git/Raw/Walker.pm
+libssh2-compat.h
 ppport.h
 t/00-compile.t
 t/01-repo.t
