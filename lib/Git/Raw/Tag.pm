@@ -1,5 +1,5 @@
 package Git::Raw::Tag;
-$Git::Raw::Tag::VERSION = '0.42';
+$Git::Raw::Tag::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tag - Git tag class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 SYNOPSIS
 
@@ -35,7 +35,7 @@ version 0.42
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Tag> represents an annotated Git tag.
+A L<Git::Raw::Tag> represents an annotated Git tag.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

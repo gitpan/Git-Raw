@@ -379,6 +379,7 @@ lib/Git/Raw/Push.pm
 lib/Git/Raw/RefSpec.pm
 lib/Git/Raw/Reference.pm
 lib/Git/Raw/Reflog.pm
+lib/Git/Raw/Reflog/Entry.pm
 lib/Git/Raw/Remote.pm
 lib/Git/Raw/Repository.pm
 lib/Git/Raw/Signature.pm
@@ -445,6 +446,7 @@ xs/Push.xs
 xs/RefSpec.xs
 xs/Reference.xs
 xs/Reflog.xs
+xs/Reflog/Entry.xs
 xs/Remote.xs
 xs/Repository.xs
 xs/Signature.xs

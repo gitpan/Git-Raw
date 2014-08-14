@@ -1,5 +1,5 @@
-package Git::Raw::Diff::Hunk;
-$Git::Raw::Diff::Hunk::VERSION = '0.43';
+package Git::Raw::Reflog::Entry;
+$Git::Raw::Reflog::Entry::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -7,7 +7,7 @@ use Git::Raw;
 
 =head1 NAME
 
-Git::Raw::Diff::Hunk - Git diff hunk class
+Git::Raw::Reflog::Entry - Git reflog entry class
 
 =head1 VERSION
 
@@ -15,42 +15,36 @@ version 0.43
 
 =head1 DESCRIPTION
 
-A L<Git::Raw::Diff::Hunk> represents a hunk in a patch.
+A L<Git::Raw::Index::Entry> represents an entry in a Git reflog.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
 
 =head1 METHODS
 
-=head2 old_start( )
+=head2 new_id( )
 
-Starting line number in C<"old_file">.
+Retrieve the new id for the entry.
 
-=head2 old_lines( )
+=head2 old_id( )
 
-Number of lines in C<"old_file">.
+Retrieve the old id for the entry.
 
-=head2 new_start( )
+=head2 committer( )
 
-Starting line number in C<"new_file">.
+The committer of the entry, a L<Git::Raw::Signature> object.
 
-=head2 new_lines( )
+=head2 message( )
 
-Number of lines in C<"new_file">.
-
-=head2 header( )
-
-Header text.
+The message for the entry.
 
 =head1 AUTHOR
-
-Alessandro Ghedini <alexbio@cpan.org>
 
 Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 
-Copyright 2014 Alessandro Ghedini.
+Copyright 2014 Jacques Germishuys.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of either: the GNU General Public License as published
@@ -60,4 +54,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::Diff::Hunk
+1; # End of Git::Raw::Reflog::Entry

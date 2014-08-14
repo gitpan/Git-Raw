@@ -1,5 +1,5 @@
 package Git::Raw::Signature;
-$Git::Raw::Signature::VERSION = '0.42';
+$Git::Raw::Signature::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Signature - Git signature class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Signature> represents the signature of an action.
+A L<Git::Raw::Signature> represents the signature of an action.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

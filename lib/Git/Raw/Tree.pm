@@ -1,5 +1,5 @@
 package Git::Raw::Tree;
-$Git::Raw::Tree::VERSION = '0.42';
+$Git::Raw::Tree::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Tree> represents a Git tree.
+A L<Git::Raw::Tree> represents a Git tree.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

@@ -1,5 +1,5 @@
 package Git::Raw::Patch;
-$Git::Raw::Patch::VERSION = '0.42';
+$Git::Raw::Patch::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Patch - Git patch class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Patch> represents all the text diffs for a delta.
+A L<Git::Raw::Patch> represents all the text diffs for a delta.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

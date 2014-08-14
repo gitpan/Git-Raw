@@ -126,6 +126,29 @@ is $github -> is_connected, 0;
 my $ref = Git::Raw::Reference -> lookup('refs/remotes/github/master', $repo);
 is $ref -> type, 'direct';
 
+my $dwim = Git::Raw::Reference -> lookup('github/master', $repo);
+isa_ok $dwim, 'Git::Raw::Reference';
+is $dwim -> name, $ref -> name;
+
+my $non_existent_ref = Git::Raw::Reference -> lookup('github/non-existent', $repo);
+is $non_existent_ref, undef;
+
+my $master = Git::Raw::Branch -> lookup ($repo, 'master', 1);
+ok ($master);
+my $upstream = $master -> upstream;
+is $upstream, undef;
+
+$upstream = $master -> upstream($ref);
+isa_ok $upstream, 'Git::Raw::Reference';
+is $upstream -> name, $ref -> name;
+
+$upstream = $master -> upstream(undef);
+is $upstream, undef;
+
+$upstream = $master -> upstream($ref -> shorthand);
+isa_ok $upstream, 'Git::Raw::Reference';
+is $upstream -> name, $ref -> name;
+
 my $head = $ref -> target;
 isa_ok $head, 'Git::Raw::Commit';
 
@@ -135,9 +158,9 @@ my $reflog = $ref -> reflog;
 my @entries = $reflog -> entries;
 is scalar(@entries), 1;
 
-ok !defined($entries[0] -> {'message'});
-is $entries[0] -> {'old_id'}, '0000000000000000000000000000000000000000';
-is $entries[0] -> {'new_id'}, $ref -> target -> id;
+is $entries[0] -> message, undef;
+is $entries[0] -> old_id, '0000000000000000000000000000000000000000';
+is $entries[0] -> new_id, $ref -> target -> id;
 
 $repo = Git::Raw::Repository -> new();
 $github = Git::Raw::Remote -> create_anonymous($repo, $url, undef);

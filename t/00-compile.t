@@ -4,7 +4,7 @@ use warnings;
 
 # this test was generated with Dist::Zilla::Plugin::Test::Compile 2.043
 
-use Test::More  tests => 36 + ($ENV{AUTHOR_TESTING} ? 1 : 0);
+use Test::More  tests => 37 + ($ENV{AUTHOR_TESTING} ? 1 : 0);
 
 
 
@@ -36,6 +36,7 @@ my @module_files = (
     'Git/Raw/RefSpec.pm',
     'Git/Raw/Reference.pm',
     'Git/Raw/Reflog.pm',
+    'Git/Raw/Reflog/Entry.pm',
     'Git/Raw/Remote.pm',
     'Git/Raw/Repository.pm',
     'Git/Raw/Signature.pm',

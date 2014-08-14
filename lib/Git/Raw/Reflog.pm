@@ -1,5 +1,5 @@
 package Git::Raw::Reflog;
-$Git::Raw::Reflog::VERSION = '0.42';
+$Git::Raw::Reflog::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Reflog - Git reflog class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 SYNOPSIS
 
@@ -27,7 +27,7 @@ version 0.42
     # print out reflog information
     my @entries = $reflog -> entries;
     foreach my $entry (@entries) {
-        my $committer = $entry -> {'committer'};
+        my $committer = $entry -> committer;
         print "Committer:", "\n";
         print "\t", "Name:   ", $committer -> name, "\n";
         print "\t", "E-Mail  ", $committer -> email, "\n";
@@ -35,9 +35,9 @@ version 0.42
         print "\t", "Offset: ", $committer -> offset, "\n";
         print "\n";
 
-        print "Message: ", $entry -> {'message'}, "\n";
-        print "Old id:  ", $entry -> {'old_id'}, "\n";
-        print "New id:  ", $entry -> {'new_id'}, "\n";
+        print "Message: ", $entry -> message, "\n";
+        print "Old id:  ", $entry -> old_id, "\n";
+        print "New id:  ", $entry -> new_id, "\n";
     }
 
     # add a new entry to the reflog
@@ -89,28 +89,7 @@ Retrieve the number of entries in the reflog.
 
 =head2 entries( [$index, $count] )
 
-Retrieve a list of reflog entries.Each entry is a hash with the
-following members:
-
-=over 4
-
-=item * "committer"
-
-The committer of the entry, a L<Git::Raw::Signature> object.
-
-=item * "message"
-
-The message for the entry.
-
-=item * "new_id"
-
-The new C<OID> for the entry.
-
-=item * "old_id"
-
-The old C<OID> for the entry.
-
-=back
+Retrieve a list of L<Git::Raw::Reflog::Entry> objects.
 
 =head1 AUTHOR
 

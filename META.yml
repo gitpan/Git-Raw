@@ -39,7 +39,7 @@ resources:
   bugtracker: https://github.com/jacquesg/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/jacquesg/p5-Git-Raw.git
-version: '0.42'
+version: '0.43'
 x_Dist_Zilla:
   perl:
     version: '5.018002'
@@ -181,7 +181,7 @@ x_Dist_Zilla:
         Dist::Zilla::Plugin::Git::Tag:
           branch: ~
           signed: 0
-          tag: v0.42
+          tag: v0.43
           tag_format: v%v
           tag_message: '%N %v'
           time_zone: local

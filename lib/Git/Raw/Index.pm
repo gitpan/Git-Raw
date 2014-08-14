@@ -1,5 +1,5 @@
 package Git::Raw::Index;
-$Git::Raw::Index::VERSION = '0.42';
+$Git::Raw::Index::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Index> represents an index in a Git repository.
+A L<Git::Raw::Index> represents an index in a Git repository.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
@@ -69,6 +69,11 @@ and matching C<$pathspec>. This callback should return C<0> if the file should
 be added to the index, C<E<gt>0> if it should be skipped or C<E<lt>0> to abort.
 
 =back
+
+=head2 find( $path )
+
+Find the first L<Git::Raw::Index::Entry> which point to given C<$path>. If an
+entry cannot be found, this function will return C<undef>.
 
 =head2 remove( $path )
 

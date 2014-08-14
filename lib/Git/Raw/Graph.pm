@@ -1,5 +1,5 @@
 package Git::Raw::Graph;
-$Git::Raw::Graph::VERSION = '0.42';
+$Git::Raw::Graph::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Graph - Git graph class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 SYNOPSIS
 
@@ -20,17 +20,17 @@ version 0.42
     # open the Git repository at $path
     my $repo = Git::Raw::Repository -> open($path);
 
-	my $commit1 = Git::Raw::Commit -> lookup($repo,
-		'4a202b346bb0fb0db7eff3cffeb3c70babbd2045');
+    my $commit1 = Git::Raw::Commit -> lookup($repo,
+      '4a202b346bb0fb0db7eff3cffeb3c70babbd2045');
 
-	my $commit2 = Git::Raw::Commit -> lookup($repo,
-		'5b5b025afb0b4c913b4c338a42934a3863bf3644');
+    my $commit2 = Git::Raw::Commit -> lookup($repo,
+      '5b5b025afb0b4c913b4c338a42934a3863bf3644');
 
     if (Git::Raw::Graph -> is_descendant_of($repo, $commit1, $commit2)) {
-		print $commit1 -> id, ' is a descendant of ', $commit2 -> id, "\n";
-	} else {
-		print $commit1 -> id, ' is a not descendant of ', $commit2 -> id, "\n";
-	}
+      print $commit1 -> id, ' is a descendant of ', $commit2 -> id, "\n";
+    } else {
+      print $commit1 -> id, ' is a not descendant of ', $commit2 -> id, "\n";
+    }
 
 =head1 DESCRIPTION
 

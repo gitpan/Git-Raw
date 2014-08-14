@@ -1,5 +1,5 @@
 package Git::Raw::Diff::Delta;
-$Git::Raw::Diff::Delta::VERSION = '0.42';
+$Git::Raw::Diff::Delta::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Diff::Delta - Git diff delta class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Diff::Delta> represents a delta in the diff between two entities.
+A L<Git::Raw::Diff::Delta> represents a delta in the diff between two entities.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

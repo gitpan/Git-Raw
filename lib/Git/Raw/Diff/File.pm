@@ -1,5 +1,5 @@
 package Git::Raw::Diff::File;
-$Git::Raw::Diff::File::VERSION = '0.42';
+$Git::Raw::Diff::File::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Diff::File - Git diff file class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Diff::File> represents one side of a diff delta.
+A L<Git::Raw::Diff::File> represents one side of a diff delta.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

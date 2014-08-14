@@ -160,7 +160,8 @@ if ($is_gcc) {
 		$ccflags .= ' -m32';
 	}
 } elsif ($is_sunpro) {
-	# probably the SunPro compiler
+	# probably the SunPro compiler, (try to) enable C99 support
+	$ccflags .= ' -xc99=all,no_lib';
 	$def .= ' -D_STDC_C99';
 
 	$ccflags .= ' -errtags=yes -erroff=E_EMPTY_TRANSLATION_UNIT -erroff=E_ZERO_OR_NEGATIVE_SUBSCRIPT';
@@ -282,7 +283,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.42",
+  "VERSION" => "0.43",
   "test" => {
     "TESTS" => "t/*.t"
   }

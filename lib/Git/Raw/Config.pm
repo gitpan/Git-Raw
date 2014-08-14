@@ -1,5 +1,5 @@
 package Git::Raw::Config;
-$Git::Raw::Config::VERSION = '0.42';
+$Git::Raw::Config::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Config - Git config class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Config> represents a Git configuration file.
+A L<Git::Raw::Config> represents a Git configuration file.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

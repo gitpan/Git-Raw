@@ -1,5 +1,5 @@
 package Git::Raw::Cred;
-$Git::Raw::Cred::VERSION = '0.42';
+$Git::Raw::Cred::VERSION = '0.43';
 use strict;
 use warnings;
 
@@ -9,11 +9,11 @@ Git::Raw::Cred - Git credentials class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Cred> object is used to store credentials.
+A L<Git::Raw::Cred> object is used to store credentials.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

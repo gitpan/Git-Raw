@@ -1,5 +1,5 @@
 package Git::Raw::Error::Category;
-$Git::Raw::Error::Category::VERSION = '0.42';
+$Git::Raw::Error::Category::VERSION = '0.43';
 use strict;
 use warnings;
 use Carp;
@@ -29,11 +29,11 @@ Git::Raw::Error::Category - Error category class
 
 =head1 VERSION
 
-version 0.42
+version 0.43
 
 =head1 DESCRIPTION
 
-A C<Git::Raw::Error::Category> represents an error category or classification.
+A L<Git::Raw::Error::Category> represents an error category or classification.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
