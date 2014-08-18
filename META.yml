@@ -8,7 +8,7 @@ build_requires:
   File::Basename: '0'
   File::Copy: '0'
   File::Path: '2.07'
-  File::Slurp: '0'
+  File::Slurp::Tiny: '0.001'
   File::Spec: '0'
   File::Spec::Functions: '0'
   IO::Handle: '0'
@@ -39,7 +39,7 @@ resources:
   bugtracker: https://github.com/jacquesg/p5-Git-Raw/issues
   homepage: http://metacpan.org/release/Git-Raw/
   repository: git://github.com/jacquesg/p5-Git-Raw.git
-version: '0.43'
+version: '0.44'
 x_Dist_Zilla:
   perl:
     version: '5.018002'
@@ -181,7 +181,7 @@ x_Dist_Zilla:
         Dist::Zilla::Plugin::Git::Tag:
           branch: ~
           signed: 0
-          tag: v0.43
+          tag: v0.44
           tag_format: v%v
           tag_message: '%N %v'
           time_zone: local
@@ -219,6 +219,14 @@ x_Dist_Zilla:
           phase: configure
           type: requires
       name: ConfigureRequires
+      version: '5.019'
+    -
+      class: Dist::Zilla::Plugin::Prereqs
+      config:
+        Dist::Zilla::Plugin::Prereqs:
+          phase: test
+          type: requires
+      name: TestRequires
       version: '5.019'
     -
       class: inc::MakeMaker

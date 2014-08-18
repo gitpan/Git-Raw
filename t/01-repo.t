@@ -4,7 +4,7 @@ use Test::More;
 
 use Git::Raw;
 use File::Spec;
-use File::Slurp;
+use File::Slurp::Tiny qw(write_file);
 use File::Path qw(make_path);
 use Cwd qw(abs_path);
 
@@ -165,6 +165,9 @@ is $config -> str('user.email', $email), $email;
 
 is $config -> str('user.name'), $name;
 is $config -> str('user.email'), $email;
+
+eval { $config -> foreach(sub { 1; }) };
+ok (!$@);
 
 $config -> foreach(sub {
 	my ($entry_name, $entry_value, $entry_level) = @_;

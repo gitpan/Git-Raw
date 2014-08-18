@@ -1,5 +1,5 @@
 package Git::Raw::Diff;
-$Git::Raw::Diff::VERSION = '0.43';
+$Git::Raw::Diff::VERSION = '0.44';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Diff - Git diff class
 
 =head1 VERSION
 
-version 0.43
+version 0.44
 
 =head1 DESCRIPTION
 
@@ -125,7 +125,7 @@ Maximum similarity sources to examine for a file (default 200).
 
 =head2 patches( )
 
-Return a list of C<Git::Raw::Patch> objects for the diff.
+Return a list of L<Git::Raw::Patch> objects for the diff.
 
 =head2 print( $format, $callback )
 
@@ -164,7 +164,8 @@ Like C<git diff --name-status>.
 
 =head2 stats( )
 
-Accumlated diff statistics for all patches in the diff.
+Accumlated diff statistics for all patches in the diff. Returns a
+L<Git::Raw::Diff::Stats> object.
 
 =head1 AUTHOR
 

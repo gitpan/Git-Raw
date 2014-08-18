@@ -3,13 +3,13 @@
 use Test::More;
 
 use Git::Raw;
-use File::Slurp;
+use File::Slurp::Tiny qw(write_file read_file);
 use Cwd qw(abs_path);
 
 my $path = abs_path('t/test_repo');
 my $repo = Git::Raw::Repository -> open($path);
 
-my $fst = $repo -> head -> target -> parents -> [0];
+my $fst = ($repo -> head -> target -> parents())[0];
 is $fst -> message, "second commit\n";
 
 $repo -> checkout($fst, {

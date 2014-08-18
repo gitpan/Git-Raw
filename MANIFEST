@@ -103,6 +103,7 @@ deps/libgit2/include/git2/sys/refdb_backend.h
 deps/libgit2/include/git2/sys/reflog.h
 deps/libgit2/include/git2/sys/refs.h
 deps/libgit2/include/git2/sys/repository.h
+deps/libgit2/include/git2/sys/transport.h
 deps/libgit2/include/git2/tag.h
 deps/libgit2/include/git2/threads.h
 deps/libgit2/include/git2/trace.h
@@ -287,6 +288,10 @@ deps/libgit2/src/thread-utils.h
 deps/libgit2/src/trace.c
 deps/libgit2/src/trace.h
 deps/libgit2/src/transport.c
+deps/libgit2/src/transports/auth.c
+deps/libgit2/src/transports/auth.h
+deps/libgit2/src/transports/auth_negotiate.c
+deps/libgit2/src/transports/auth_negotiate.h
 deps/libgit2/src/transports/cred.c
 deps/libgit2/src/transports/cred_helpers.c
 deps/libgit2/src/transports/git.c

@@ -1,5 +1,5 @@
 package Git::Raw::Reflog::Entry;
-$Git::Raw::Reflog::Entry::VERSION = '0.43';
+$Git::Raw::Reflog::Entry::VERSION = '0.44';
 use strict;
 use warnings;
 
@@ -11,11 +11,11 @@ Git::Raw::Reflog::Entry - Git reflog entry class
 
 =head1 VERSION
 
-version 0.43
+version 0.44
 
 =head1 DESCRIPTION
 
-A L<Git::Raw::Index::Entry> represents an entry in a Git reflog.
+A L<Git::Raw::Reflog::Entry> represents an entry in a Git reflog.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).

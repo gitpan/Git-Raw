@@ -1,5 +1,5 @@
 package Git::Raw::Stash;
-$Git::Raw::Stash::VERSION = '0.43';
+$Git::Raw::Stash::VERSION = '0.44';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Stash - Git stash class
 
 =head1 VERSION
 
-version 0.43
+version 0.44
 
 =head1 DESCRIPTION
 
@@ -25,7 +25,8 @@ B<WARNING>: The API of this module is unstable and may change without warning
 =head2 save( $repo, $stasher, $msg [, \@opts] )
 
 Save the local modifications to a new stash. Non-default options may be
-specified by providing the optional C<@opts> argument.
+specified by providing the optional C<@opts> argument. If files were stashed,
+this function will return a true value, otherwise C<undef>.
 
 Valid fields for the C<@opts> array are:
 

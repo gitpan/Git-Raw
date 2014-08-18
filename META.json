@@ -46,7 +46,7 @@
             "File::Basename" : "0",
             "File::Copy" : "0",
             "File::Path" : "2.07",
-            "File::Slurp" : "0",
+            "File::Slurp::Tiny" : "0.001",
             "File::Spec" : "0",
             "File::Spec::Functions" : "0",
             "IO::Handle" : "0",
@@ -69,7 +69,7 @@
          "web" : "https://github.com/jacquesg/p5-Git-Raw"
       }
    },
-   "version" : "0.43",
+   "version" : "0.44",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.018002"
@@ -250,7 +250,7 @@
                "Dist::Zilla::Plugin::Git::Tag" : {
                   "branch" : null,
                   "signed" : 0,
-                  "tag" : "v0.43",
+                  "tag" : "v0.44",
                   "tag_format" : "v%v",
                   "tag_message" : "%N %v",
                   "time_zone" : "local"
@@ -302,6 +302,17 @@
                }
             },
             "name" : "ConfigureRequires",
+            "version" : "5.019"
+         },
+         {
+            "class" : "Dist::Zilla::Plugin::Prereqs",
+            "config" : {
+               "Dist::Zilla::Plugin::Prereqs" : {
+                  "phase" : "test",
+                  "type" : "requires"
+               }
+            },
+            "name" : "TestRequires",
             "version" : "5.019"
          },
          {

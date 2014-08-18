@@ -4,7 +4,7 @@ use Test::More;
 
 use Git::Raw;
 use File::Copy;
-use File::Slurp;
+use File::Slurp::Tiny qw(write_file);
 use File::Spec::Functions qw(catfile canonpath);
 use Cwd qw(abs_path);
 use File::Path 2.07 qw(make_path remove_tree);
@@ -233,9 +233,13 @@ is $head -> committer -> offset, $off;
 is $head -> time, $time;
 is $head -> offset, $off;
 
-my $parents = $head -> parents;
+$head -> parents; # void context
+my $parent_count = $head -> parents;
+is $parent_count, 1;
+my @parents = $head -> parents;
+is scalar(@parents), 1;
 
-is $parents -> [0] -> message, "initial commit\n";
+is $parents [0] -> message, "initial commit\n";
 
 make_path($repo -> workdir . 'test3/under/the/tree');
 $file  = $repo -> workdir . 'test3/under/the/tree/test3';

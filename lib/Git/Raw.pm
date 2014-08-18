@@ -1,5 +1,5 @@
 package Git::Raw;
-$Git::Raw::VERSION = '0.43';
+$Git::Raw::VERSION = '0.44';
 use strict;
 use warnings;
 
@@ -26,7 +26,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.43
+version 0.44
 
 =head1 DESCRIPTION
 
@@ -37,6 +37,8 @@ API.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
+
+=head1 METHODS
 
 =head2 features( )
 

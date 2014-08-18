@@ -3,7 +3,7 @@
 use Test::More;
 
 use Git::Raw;
-use File::Slurp;
+use File::Slurp::Tiny qw(write_file);
 use Cwd qw(abs_path);
 
 my $path = abs_path('t/test_repo');
@@ -20,7 +20,10 @@ my $email  = $config -> str('user.email');
 
 my $me = Git::Raw::Signature -> now($name, $email);
 
-$repo -> stash($me, 'some stash');
+ok ($repo -> stash($me, 'some stash'));
+
+eval { Git::Raw::Stash -> foreach($repo, sub { 1; }) };
+ok (!$@);
 
 Git::Raw::Stash -> foreach($repo, sub {
 	my ($i, $msg, $oid) = @_;
@@ -30,6 +33,8 @@ Git::Raw::Stash -> foreach($repo, sub {
 
 	0;
 });
+
+is $repo -> stash($me, 'some stash'), undef;
 
 Git::Raw::Stash -> drop($repo, 0);
 

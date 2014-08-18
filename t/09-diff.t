@@ -4,7 +4,7 @@ use Test::More;
 
 use Git::Raw;
 use File::Copy;
-use File::Slurp;
+use File::Slurp::Tiny qw(write_file);
 use Cwd qw(abs_path);
 use Capture::Tiny 'capture_stdout';
 
@@ -160,6 +160,9 @@ $output = capture_stdout { $diff -> print("patch_header", $printer) };
 is $output, $expected;
 
 is $diff -> delta_count, 2;
+$diff -> patches; # void context
+my $patch_count = $diff -> patches;
+is $patch_count, 2;
 my @patches = $diff -> patches;
 is scalar(@patches), 2;
 
@@ -231,7 +234,7 @@ is_deeply $patches[1] -> line_stats, {
 };
 
 my $tree2 = $repo -> head -> target -> tree;
-my $tree1 = $repo -> head -> target -> parents -> [0] -> tree;
+my $tree1 = ($repo -> head -> target -> parents())[0] -> tree;
 
 $diff = $tree1 -> diff({
 	'tree' => $tree2,

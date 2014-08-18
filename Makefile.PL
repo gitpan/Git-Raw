@@ -275,7 +275,7 @@ my %WriteMakefileArgs = (
     "File::Basename" => 0,
     "File::Copy" => 0,
     "File::Path" => "2.07",
-    "File::Slurp" => 0,
+    "File::Slurp::Tiny" => "0.001",
     "File::Spec" => 0,
     "File::Spec::Functions" => 0,
     "IO::Handle" => 0,
@@ -283,7 +283,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.43",
+  "VERSION" => "0.44",
   "test" => {
     "TESTS" => "t/*.t"
   }
