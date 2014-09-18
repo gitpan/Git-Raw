@@ -147,7 +147,7 @@ $index -> write;
 
 my $me = Git::Raw::Signature -> default($repo);
 my $commit = $repo -> commit("commit on file_on_ssh_branch\n", $me, $me, [$branch -> target],
-	$repo -> lookup($index -> write_tree));
+	$index -> write_tree);
 
 is scalar(@remotes), 1;
 $remote = shift @remotes;
@@ -168,7 +168,8 @@ $remote -> callbacks({
 		my ($ref, $a, $b) = @_;
 
 		is $ref, 'refs/remotes/origin/ssh_branch';
-		is $a, '0' x 40;
+		ok !defined($a);
+		ok defined($b);
 		isnt $a, $b;
 		$update_tips_fired = 1;
 	}

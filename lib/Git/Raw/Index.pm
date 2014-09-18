@@ -1,5 +1,5 @@
 package Git::Raw::Index;
-$Git::Raw::Index::VERSION = '0.44';
+$Git::Raw::Index::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index - Git index class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 DESCRIPTION
 
@@ -107,7 +107,8 @@ Replace the index contente with C<$tree>.
 =head2 write_tree( [$repo] )
 
 Create a new tree from the index and write it to disk. C<$repo> optionally
-indicates which L<Git::Raw::Repository> the tree should be written to.
+indicates which L<Git::Raw::Repository> the tree should be written to. Returns
+a L<Git::Raw::Tree> object.
 
 =head2 checkout( [\%checkout_opts] )
 
@@ -134,7 +135,7 @@ Remove all conflicts in the index (entries with a stage greater than 0).
 =head2 conflicts( )
 
 Retrieve index entries that represent a conflict. Returns a list of
-L<Git::Raw::Index::Entry> objects.
+L<Git::Raw::Index::Conflict> objects.
 
 =head2 update_all( \%opts )
 

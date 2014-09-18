@@ -275,18 +275,42 @@ is substr($delta -> new_file -> id, 0, 7), 'c7eaef2';
 
 $index -> add('diff');
 $index -> add('diff2');
-my $index_tree1 = $repo -> lookup($index -> write_tree);
+my $index_tree1 = $index -> write_tree;
 
 move($file, $file.'.moved');
 $index -> remove('diff');
 $index -> add('diff.moved');
-my $index_tree2 = $repo -> lookup($index -> write_tree);
+my $index_tree2 = $index -> write_tree;
 
 my $tree_diff = $index_tree1 -> diff({
-	'tree'   => $index_tree2
+	'tree'   => $index_tree2,
+	'flags'  => {
+		'force_binary' => 1,
+		'show_binary'  => 1
+	}
 });
 
 is $tree_diff -> delta_count, 2;
+@patches = $tree_diff -> patches;
+
+$expected =<<'EOS';
+diff --git a/diff b/diff
+deleted file mode 100644
+index 6afc8a62bdc52dcf57a125667c48f16d674cf061..0000000000000000000000000000000000000000
+GIT binary patch
+literal 0
+Hc$@<O00001
+
+literal 16
+Xc$`bgOiNS9P1R9I%1kUt&fo$7F2V&(
+EOS
+
+is $patches[0] -> buffer, $expected;
+
+$tree_diff = $index_tree1 -> diff({
+	'tree'   => $index_tree2,
+});
+
 @patches = $tree_diff -> patches;
 
 $expected = <<'EOS';
@@ -404,7 +428,7 @@ EOS
 
 write_file("$file.moved", $content);
 $index -> add('diff.moved');
-$index_tree1 = $repo -> lookup($index -> write_tree);
+$index_tree1 = $index -> write_tree;
 
 move($file.'.moved', $file);
 $index -> remove('diff.moved');
@@ -419,7 +443,7 @@ EOS
 
 write_file($file, $content);
 $index -> add('diff');
-$index_tree2 = $repo -> lookup($index -> write_tree);
+$index_tree2 = $index -> write_tree;
 
 $tree_diff = $index_tree1 -> diff({
 	'tree'   => $index_tree2,
@@ -480,7 +504,7 @@ EOS
 
 write_file($file, $content);
 $index -> add('diff');
-$index_tree2 = $repo -> lookup($index -> write_tree);
+$index_tree2 = $index -> write_tree;
 
 $tree_diff = $index_tree1 -> diff({
 	'tree'   => $index_tree2,

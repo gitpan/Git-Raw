@@ -1,5 +1,5 @@
 package Git::Raw::Walker;
-$Git::Raw::Walker::VERSION = '0.44';
+$Git::Raw::Walker::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 SYNOPSIS
 
@@ -44,6 +44,35 @@ B<WARNING>: The API of this module is unstable and may change without warning
 =head2 create( $repo )
 
 Create a new revision walker.
+
+=head2 sorting( \@order )
+
+Change the sorting mode when iterating through the repository's contents.
+Values for C<@order> may be one or more of the following:
+
+=over 4
+
+=item * "none"
+
+Sort the repository contents in no particular ordering, that is, sorting is
+arbitrary, implementation-specific and subject to change at any time. (Default)
+
+=item * "topological"
+
+Sort the repository contents in topological order (parents before children).
+This sorting mode may be combined with time sorting.
+
+=item * "time"
+
+Sort the repository contents by commit time. This sorting mode may be combined
+with topological sorting.
+
+=item * "reverse"
+
+Iterate through the repository contents in reverse order. This sorting mode may
+be combined with any of the above.
+
+=back
 
 =head2 push( $commit )
 
@@ -94,7 +123,12 @@ Hide HEAD of the repository and its ancestors from the walker.
 
 =head2 next( )
 
-Retrieve the next commit from the revision walk.
+Retrieve the next commit from the revision walk. Returns a L<Git::Raw::Commit>
+object.
+
+=head2 all( )
+
+Retrieve all commits. Returns a list of L<Git::Raw::Commit> objects.
 
 =head2 reset( )
 

@@ -202,14 +202,15 @@ if ($is_windows || $is_solaris) {
 if ($is_windows) {
 	push @srcs, glob 'deps/libgit2/src/{win32,compat}/*.c';
 
-	$def .= ' -DWIN32 -DGIT_WIN32';
+	$def .= ' -DWIN32 -D_WIN32_WINNT=0x0501 -DGIT_WIN32 -DGIT_WINHTTP';
+	$lib .= ' -lwinhttp -lrpcrt4';
 
 	if ($is_msvc) {
 		# visual studio compiler
 		$def .= ' -D_CRT_SECURE_NO_WARNINGS';
 	} else {
 		# mingw/cygwin
-		$def .= ' -D_WIN32_WINNT=0x0501 -D__USE_MINGW_ANSI_STDIO=1';
+		$def .= ' -D__USE_MINGW_ANSI_STDIO=1';
 	}
 } else {
 	push @srcs, glob 'deps/libgit2/src/unix/*.c'
@@ -283,7 +284,7 @@ my %WriteMakefileArgs = (
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.44",
+  "VERSION" => "0.45",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -329,6 +330,7 @@ my @error_constants = (qw(
 	EMERGECONFLICT
 	ELOCKED
 	EMODIFIED
+	EAUTH
 	PASSTHROUGH
 	ITEROVER
 

@@ -72,6 +72,7 @@ deps/libgit2/include/git2/object.h
 deps/libgit2/include/git2/odb.h
 deps/libgit2/include/git2/odb_backend.h
 deps/libgit2/include/git2/oid.h
+deps/libgit2/include/git2/oidarray.h
 deps/libgit2/include/git2/pack.h
 deps/libgit2/include/git2/patch.h
 deps/libgit2/include/git2/pathspec.h
@@ -227,6 +228,8 @@ deps/libgit2/src/odb_pack.c
 deps/libgit2/src/offmap.h
 deps/libgit2/src/oid.c
 deps/libgit2/src/oid.h
+deps/libgit2/src/oidarray.c
+deps/libgit2/src/oidarray.h
 deps/libgit2/src/oidmap.h
 deps/libgit2/src/pack-objects.c
 deps/libgit2/src/pack-objects.h
@@ -293,6 +296,7 @@ deps/libgit2/src/transports/auth.h
 deps/libgit2/src/transports/auth_negotiate.c
 deps/libgit2/src/transports/auth_negotiate.h
 deps/libgit2/src/transports/cred.c
+deps/libgit2/src/transports/cred.h
 deps/libgit2/src/transports/cred_helpers.c
 deps/libgit2/src/transports/git.c
 deps/libgit2/src/transports/http.c
@@ -376,6 +380,7 @@ lib/Git/Raw/Filter.pm
 lib/Git/Raw/Filter/Source.pm
 lib/Git/Raw/Graph.pm
 lib/Git/Raw/Index.pm
+lib/Git/Raw/Index/Conflict.pm
 lib/Git/Raw/Index/Entry.pm
 lib/Git/Raw/Patch.pm
 lib/Git/Raw/PathSpec.pm
@@ -443,6 +448,7 @@ xs/Filter.xs
 xs/Filter/Source.xs
 xs/Graph.xs
 xs/Index.xs
+xs/Index/Conflict.xs
 xs/Index/Entry.xs
 xs/Patch.xs
 xs/PathSpec.xs

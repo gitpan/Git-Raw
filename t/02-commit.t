@@ -39,8 +39,8 @@ $index -> add_all({
 });
 $index -> write;
 
-my $tree_id = $index -> write_tree;
-my $tree    = $repo -> lookup($tree_id);
+my $tree = $index -> write_tree;
+isa_ok $tree, 'Git::Raw::Tree';
 
 my $non_existent = $repo -> lookup('123456789987654321');
 is $non_existent, undef;
@@ -89,7 +89,15 @@ my $time = time();
 my $off  = 120;
 my $me   = Git::Raw::Signature -> new($name, $email, $time, $off);
 
-my $commit = $repo -> commit("initial commit\n", $me, $me, [], $tree);
+my $commit = Git::Raw::Commit -> create($repo, "initial commit\n", $me, $me, [], $tree);
+
+ok (!eval { $commit -> diff(0)});
+ok (!eval { $commit -> diff(1)});
+
+my $diff = $commit -> diff;
+isa_ok $diff, 'Git::Raw::Diff';
+
+$diff = $commit -> diff(undef, {});
 
 is_deeply $repo -> status({}) -> {'test'}, undef;
 
@@ -188,8 +196,7 @@ write_file($file, 'this is a second test');
 $index -> add('test2');
 $index -> write;
 
-$tree_id = $index -> write_tree;
-$tree    = $repo -> lookup($tree_id);
+$tree = $index -> write_tree;
 
 $time = time();
 $me = Git::Raw::Signature -> default($repo);
@@ -197,16 +204,120 @@ $me = Git::Raw::Signature -> default($repo);
 my @current_time = localtime($time);
 $off = (timegm(@current_time) - timelocal(@current_time))/60;
 
+my $head = $repo -> head -> target;
+isa_ok $head, 'Git::Raw::Commit';
+
 my $commit2 = $repo -> commit(
-	"second commit\n", $me, $me, [$repo -> head -> target], $tree
+	"second commit\n", $me, $me, [$head], $tree
 );
+
+ok (!eval { $commit2 -> diff(1) });
+$diff = $commit2 -> diff;
+isa_ok $diff, 'Git::Raw::Diff';
+my $diff2 = $commit2 -> diff(0);
+isa_ok $diff2, 'Git::Raw::Diff';
+
+my $commit2_id = $commit2 -> id;
+my $patch = "\n".join("\n", grep { $_ !~ /^Date/ } split (/\n/, $commit2 -> as_email))."\n";
+my $expected_patch = qq{
+From $commit2_id Mon Sep 17 00:00:00 2001
+From: Git::Raw author <git-xs\@example.com>
+Subject: [PATCH] second commit
+
+---
+ test2 | 1 +
+ 1 file changed, 1 insertion(+), 0 deletions(-)
+ create mode 100644 test2
+
+diff --git a/test2 b/test2
+new file mode 100644
+index 0000000..7b79d2f
+--- /dev/null
++++ b/test2
+@@ -0,0 +1 @@
++this is a second test
+\\ No newline at end of file
+--
+libgit2 0.21.0
+};
+
+is $patch, $expected_patch;
+
+my $email_opts = {
+	'patch_no'      => 1,
+	'total_patches' => 2,
+};
+
+$patch = "\n".join("\n", grep { $_ !~ /^Date/ } split (/\n/, $commit2 -> as_email($email_opts, {})))."\n";
+$expected_patch = qq{
+From $commit2_id Mon Sep 17 00:00:00 2001
+From: Git::Raw author <git-xs\@example.com>
+Subject: [PATCH 1/2] second commit
+
+---
+ test2 | 1 +
+ 1 file changed, 1 insertion(+), 0 deletions(-)
+ create mode 100644 test2
+
+diff --git a/test2 b/test2
+new file mode 100644
+index 0000000..7b79d2f
+--- /dev/null
++++ b/test2
+@@ -0,0 +1 @@
++this is a second test
+\\ No newline at end of file
+--
+libgit2 0.21.0
+};
+
+is $patch, $expected_patch;
+
+$email_opts->{flags} = {
+	'exclude_subject_patch_marker' => 1
+};
+
+$patch = "\n".join("\n", grep { $_ !~ /^Date/ } split (/\n/, $commit2 -> as_email($email_opts)))."\n";
+$expected_patch = qq{
+From $commit2_id Mon Sep 17 00:00:00 2001
+From: Git::Raw author <git-xs\@example.com>
+Subject: second commit
+
+---
+ test2 | 1 +
+ 1 file changed, 1 insertion(+), 0 deletions(-)
+ create mode 100644 test2
+
+diff --git a/test2 b/test2
+new file mode 100644
+index 0000000..7b79d2f
+--- /dev/null
++++ b/test2
+@@ -0,0 +1 @@
++this is a second test
+\\ No newline at end of file
+--
+libgit2 0.21.0
+};
+
+is $patch, $expected_patch;
+
+
+my $amended = $commit2 -> amend([$head], $tree, undef);
+is $amended -> tree -> id, $commit2 -> tree -> id;
+is $amended -> id, $commit2 -> id;
+
+ok ($amended eq $commit2);
+ok ($amended eq $commit2 -> id);
+ok ($amended -> id eq $commit2);
+ok ($commit2 ne $commit);
+ok ($commit2 ne undef);
+ok ($commit2 ne $repo);
 
 is $commit2 -> ancestor(0) -> id, $commit2 -> id;
 is $commit2 -> ancestor(1) -> id, $commit -> id;
 
-my $head = $repo -> head -> target;
-
-isa_ok $head, 'Git::Raw::Commit';
+$head = $repo -> head -> target;
 
 is (Git::Raw::Graph -> is_descendant_of($repo, $commit2, $commit), 1);
 is (Git::Raw::Graph -> is_descendant_of($repo, $commit2 -> id, $commit -> id), 1);
@@ -248,8 +359,7 @@ write_file($file, 'this is a third test');
 $index -> add('test3/under/the/tree/test3');
 $index -> write;
 
-$tree_id = $index -> write_tree;
-$tree    = $repo -> lookup($tree_id);
+$tree = $index -> write_tree;
 
 $index -> read_tree($tree);
 my @entries = $index -> entries();

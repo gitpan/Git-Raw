@@ -1,5 +1,5 @@
 package Git::Raw;
-$Git::Raw::VERSION = '0.44';
+$Git::Raw::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -8,8 +8,11 @@ XSLoader::load('Git::Raw', $Git::Raw::VERSION);
 
 use Git::Raw::Error;
 use Git::Raw::Error::Category;
+use Git::Raw::Blob;
+use Git::Raw::Commit;
 use Git::Raw::Reference;
 use Git::Raw::Repository;
+use Git::Raw::Tree;
 
 =for HTML
 <a href="https://travis-ci.org/jacquesg/p5-Git-Raw">
@@ -26,7 +29,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 DESCRIPTION
 
@@ -44,6 +47,12 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 List of (optional) compiled in features. Git::Raw may be built with support
 for threads, HTTPS and SSH.
+
+=head2 message_prettify( $msg, [$strip_comments, $comment_char] )
+
+Clean up C<$msg> from excess whitespace and ensure that the last line ends with
+a newline. The default is to strip all comments, starting with a C<#>, unless
+otherwise specified.
 
 =head1 AUTHOR
 

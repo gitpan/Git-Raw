@@ -23,6 +23,40 @@ create(class, repo)
 	OUTPUT: RETVAL
 
 void
+sorting(self, order)
+	Walker self
+	SV *order
+
+	PREINIT:
+		size_t i = 0;
+		AV *order_list;
+
+		SV **entry;
+		unsigned int mode = GIT_SORT_NONE;
+
+	CODE:
+		order_list = git_ensure_av(order, "order");
+		while ((entry = av_fetch(order_list, i++, 0))) {
+			if (SvPOK(*entry)) {
+				const char *mode_str = SvPVbyte_nolen(*entry);
+
+				if (strcmp(mode_str, "none") == 0)
+					mode = GIT_SORT_NONE;
+				else if (strcmp(mode_str, "topological") == 0)
+					mode |= GIT_SORT_TOPOLOGICAL;
+				else if (strcmp(mode_str, "time") == 0)
+					mode |= GIT_SORT_TIME;
+				else if (strcmp(mode_str, "reverse") == 0)
+					mode |= GIT_SORT_REVERSE;
+				else
+					croak_usage("Invalid 'order' value");
+			} else
+				croak_usage("Invalid type for 'order' value");
+		}
+
+		git_revwalk_sorting(self, mode);
+
+void
 push(self, commit)
 	Walker self
 	Commit commit
@@ -188,6 +222,53 @@ next(self)
 		);
 
 	OUTPUT: RETVAL
+
+void
+all(self)
+	SV *self
+
+	PREINIT:
+		int ctx;
+
+	PPCODE:
+		ctx = GIMME_V;
+
+		if (ctx != G_VOID) {
+			int rc;
+			git_oid oid;
+			size_t count = 0;
+			SV *repo = GIT_SV_TO_MAGIC(self);
+			Walker walk = GIT_SV_TO_PTR(Walker, self);
+
+			while ((rc = git_revwalk_next(&oid, walk)) != GIT_ITEROVER) {
+				if (ctx == G_ARRAY) {
+					Commit commit = NULL;
+					SV *tmp;
+
+					rc = git_commit_lookup(&commit, git_revwalk_repository(walk), &oid);
+					git_check_error(rc);
+
+					GIT_NEW_OBJ_WITH_MAGIC(
+						tmp, "Git::Raw::Commit", commit, repo
+					);
+
+					mXPUSHs(tmp);
+				}
+
+				++count;
+			}
+
+			if (rc != GIT_ITEROVER)
+				git_check_error(rc);
+
+			if (ctx == G_ARRAY) {
+				XSRETURN((int) count);
+			} else {
+				mXPUSHs(newSViv((int) count));
+				XSRETURN(1);
+			}
+		} else
+			XSRETURN_EMPTY;
 
 void
 reset(self)

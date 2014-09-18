@@ -6,19 +6,6 @@ use Git::Raw;
 use Cwd qw(abs_path);
 use File::Path qw(make_path rmtree);
 
-is (Git::Raw::Remote -> is_url_valid('/somewhere/on/filesystem'), 0);
-is (Git::Raw::Remote -> is_url_valid('somewhere/on/filesystem'), 0);
-is (Git::Raw::Remote -> is_url_valid('file:///somewhere/on/filesystem'), 1);
-is (Git::Raw::Remote -> is_url_valid('git://somewhere.com/somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('https://somewhere.com/somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('http://somewhere.com/somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('ssh://me@somewhere.com:somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('ssh://me@somewhere.com:/somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('ssh://somewhere.com:somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('ssh://somewhere.com:/somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('me@somewhere.com:somerepo.git'), 1);
-is (Git::Raw::Remote -> is_url_valid('me@somewhere.com:/somerepo.git'), 1);
-
 my $path = abs_path('t/test_repo');
 my $repo = Git::Raw::Repository -> open($path);
 
@@ -108,7 +95,11 @@ SKIP: {
 	is (Git::Raw::Remote -> is_url_supported('me@somewhere.com:/somerepo.git'), 1);
 }
 
+my $non_existent_remote = Git::Raw::Remote -> load($repo, 'nonexistent_remote');
+is $non_existent_remote, undef;
+
 $github = Git::Raw::Remote -> load($repo, 'github');
+isa_ok $github, 'Git::Raw::Remote';
 
 ok (!eval { $github -> default_branch });
 ok (!eval { $github -> connect('invalid_direction') });
@@ -194,7 +185,7 @@ $github -> callbacks({
 	'update_tips' => sub {
 		my ($ref, $a, $b) = @_;
 		ok $ref =~ /^refs\//;
-		ok $a eq '0000000000000000000000000000000000000000';
+		ok (!defined($a));
 		ok length($b) == 40;
 
 		$update_tips = 1;

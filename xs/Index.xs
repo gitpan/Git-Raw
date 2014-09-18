@@ -99,25 +99,45 @@ read_tree(self, tree)
 
 SV *
 write_tree(self, ...)
-	Index self
+	SV *self
 
 	PROTOTYPE: $;$
 	PREINIT:
 		int rc;
 		git_oid oid;
+		Index index;
+
+		SV *repo;
+		Repository repo_ptr;
+		Tree tree;
 
 	CODE:
+		index = GIT_SV_TO_PTR(Index, self);
+
 		if (items == 2) {
-			Repository repo = GIT_SV_TO_PTR(Repository, ST(1));
+			repo = SvRV(ST(1));
+			repo_ptr = INT2PTR(Repository, SvIV((SV *) repo));
+
 			rc = git_index_write_tree_to(
-				&oid, self, repo -> repository
+				&oid, index, repo_ptr -> repository
 			);
 		} else {
-			rc = git_index_write_tree(&oid, self);
+			repo = GIT_SV_TO_MAGIC(self);
+			repo_ptr = INT2PTR(Repository, SvIV((SV *) repo));
+
+			rc = git_index_write_tree(&oid, index);
 		}
 		git_check_error(rc);
 
-		RETVAL = git_oid_to_sv(&oid);
+		rc = git_tree_lookup(&tree, repo_ptr -> repository,
+			&oid
+		);
+		git_check_error(rc);
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Tree",
+			tree, repo
+		);
 
 	OUTPUT: RETVAL
 
@@ -336,44 +356,22 @@ conflicts(self)
 
 		while ((rc = git_index_conflict_next(
 			&ancestor, &ours, &theirs, iter)) == GIT_OK) {
-			HV *entries = newHV();
+			SV *c = NULL;
+			Index_Conflict conflict = NULL;
+			Newxz(conflict, 1, git_raw_index_conflict);
 
-			if (ancestor != NULL) {
-				SV *entry = NULL;
+			conflict -> ancestor = ancestor;
+			conflict -> ours = ours;
+			conflict -> theirs = theirs;
 
-				GIT_NEW_OBJ_WITH_MAGIC(
-					entry, "Git::Raw::Index::Entry",
-					(Index_Entry) ancestor, repo
-				);
-
-				hv_stores(entries, "ancestor", entry);
-			}
-
-			if (ours != NULL) {
-				SV *entry = NULL;
-
-				GIT_NEW_OBJ_WITH_MAGIC(
-					entry, "Git::Raw::Index::Entry",
-					(Index_Entry) ours, repo
-				);
-
-				hv_stores(entries, "ours", entry);
-			}
-
-			if (theirs != NULL) {
-				SV *entry = NULL;
-
-				GIT_NEW_OBJ_WITH_MAGIC(
-					entry, "Git::Raw::Index::Entry",
-					(Index_Entry) theirs, repo
-				);
-
-				hv_stores(entries, "theirs", entry);
-			}
+			GIT_NEW_OBJ_WITH_MAGIC(
+				c, "Git::Raw::Index::Conflict",
+				conflict, repo
+			);
 
 			num_conflicts++;
 
-			mXPUSHs(newRV_noinc((SV *) entries));
+			mXPUSHs(c);
 		}
 
 		git_index_conflict_iterator_free(iter);

@@ -1,5 +1,5 @@
 package Git::Raw::Repository;
-$Git::Raw::Repository::VERSION = '0.44';
+$Git::Raw::Repository::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 SYNOPSIS
 
@@ -587,10 +587,10 @@ Checks the ignore rules to see if they would apply to the given file. This indic
 if the file would be ignored regardless of whether the file is already in the index
 or committed to the repository.
 
-=head2 diff( [\%opts] )
+=head2 diff( [\%diff_opts] )
 
 Compute the L<Git::Raw::Diff> between the repo's default index and another tree.
-Valid fields for the C<%opts> hash are:
+Valid fields for the C<%diff_opts> hash are:
 
 =over 4
 
@@ -686,6 +686,19 @@ Use the C<"patience diff"> algorithm.
 
 Take extra time to find minimal diff.
 
+=item * "show_binary"
+
+Include the necessary deflate / delta information so that C<git apply> can
+apply given diff information to binary files.
+
+=item * "force_text"
+
+Treat all files as text, disabling binary attributes and detection.
+
+=item * "force_binary"
+
+Treat all files as binary, disabling text diffs.
+
 =back
 
 =item * "prefix"
@@ -759,8 +772,8 @@ sub tag { return Git::Raw::Tag -> create(@_) }
 
 =head2 tags( )
 
-Retrieve the list of L<Git::Raw::Tag> objects representing the
-repository's annotated Git tags. Lightweight tags are not returned.
+Retrieve the list of annotated and/or lightweight tag objects. Shortcut for
+C<Git::Raw::Tag-E<gt>foreach()>.
 
 =cut
 
@@ -771,7 +784,7 @@ sub tags {
 
 	Git::Raw::Tag -> foreach($self, sub {
 		push @tags, shift; 0
-	});
+	}, @_);
 
 	return @tags;
 }

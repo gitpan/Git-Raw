@@ -1,5 +1,44 @@
 Revision history for Git-Raw
 
+0.45      2014-09-18 23:29:31+02:00 Africa/Johannesburg
+
+ - Update libgit2 to 73dd663 (GH#126,GH#137)
+ - Added Walker methods (GH#127):
+    + sorting
+ - Added Index::Entry methods (GH#130):
+    + blob
+ - Added Graph methods (GH#131,GH#132):
+    + ahead()
+    + behind()
+    + ahead_behind()
+ - Added Commit methods (GH#134,GH#138):
+    + as_email()
+    + diff()
+ - Added Blob methods:
+    + is_binary()
+ - Added Walker methods (GH#140):
+    + all()
+ - Added methods:
+    + message_prettify()
+ - Removed Remote methods (GH#135) (Incompatible change):
+    + is_url_valid()
+ - Index -> write_tree() now returns a Tree object (GH#128). A stringify
+   overload has been provided for compatibility
+ - Repository -> merge_base() now returns a Commit object (GH#129)
+ - Commit, Tree and Blob now have overloads for equality and stringify (GH#129)
+ - Index -> conflicts() now returns Index::Conflict objects (GH#130)
+   (Incompatible change). The documenation was actually incorrect, a list
+   of hashes was returned whereas the documenation stated a list of
+   Index::Entry objects.
+ - Try to support WinHTTP on Windows
+ - Remote's update tips callback now set $a or $b to undef if the
+   reference was created or removed (Incompatible change) (GH#136)
+ - Added extra diff flags (GH#138)
+ - Remote -> load() used to consider a missing remote as an error.
+   It now returns undef instead of die'ing. (Incompatible change) (GH#139)
+ - Tag -> foreach() now also returns lightweight tags (GH#141,GH#142)
+ - Reference -> is_tag() was broken for lightweight tags (GH#142)
+
 0.44      2014-08-18 10:34:18+02:00 Africa/Johannesburg
 
  - Update libgit2 to fa44a16 (GH#120)

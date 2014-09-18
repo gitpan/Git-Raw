@@ -1,5 +1,5 @@
-package Git::Raw::Reflog::Entry;
-$Git::Raw::Reflog::Entry::VERSION = '0.45';
+package Git::Raw::Index::Conflict;
+$Git::Raw::Index::Conflict::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -7,7 +7,7 @@ use Git::Raw;
 
 =head1 NAME
 
-Git::Raw::Reflog::Entry - Git reflog entry class
+Git::Raw::Index::Conflict - Git index conflict class
 
 =head1 VERSION
 
@@ -15,28 +15,27 @@ version 0.45
 
 =head1 DESCRIPTION
 
-A L<Git::Raw::Reflog::Entry> represents an entry in a Git reflog.
+A L<Git::Raw::Index::Conflict> represents a conflict in a Git repository index.
 
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
 
 =head1 METHODS
 
-=head2 new_id( )
+=head2 ours( )
 
-Retrieve the new id for the entry.
+Retrieve our side of the conflict. Returns a L<Git::Raw::Index::Entry> object,
+or C<undef> if not applicable.
 
-=head2 old_id( )
+=head2 ancestor( )
 
-Retrieve the old id for the entry.
+Retrieve the ancestor side of the conflict. Returns a L<Git::Raw::Index::Entry>
+object, or C<undef> if not applicable.
 
-=head2 committer( )
+=head2 theirs( )
 
-The committer of the entry, a L<Git::Raw::Signature> object.
-
-=head2 message( )
-
-The message for the entry.
+Retrieve their side of the conflict. Returns a L<Git::Raw::Index::Entry> object,
+or C<undef> if not applicable.
 
 =head1 AUTHOR
 
@@ -54,4 +53,4 @@ See http://dev.perl.org/licenses/ for more information.
 
 =cut
 
-1; # End of Git::Raw::Reflog::Entry
+1; # End of Git::Raw::Index::Conflict

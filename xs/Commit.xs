@@ -346,6 +346,133 @@ ancestor(self, gen)
 
 	OUTPUT: RETVAL
 
+SV *
+as_email(commit, ...)
+	Commit commit
+
+	PROTOTYPE: $;$$
+	PREINIT:
+		int rc;
+
+		git_repository *repo;
+		git_buf buf = GIT_BUF_INIT_CONST(NULL, 0);
+		git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
+		git_diff_format_email_flags_t flags = GIT_DIFF_FORMAT_EMAIL_NONE;
+
+		size_t patch_no = 1, total_patches = 1;
+
+	CODE:
+		if (items >= 2) {
+			if (SvOK(ST(1))) {
+				SV *opt;
+				HV *hopt;
+				HV *opts;
+
+				opts = git_ensure_hv(ST(1), "format_opts");
+
+				if ((opt = git_hv_int_entry(opts, "patch_no")))
+					patch_no = (size_t) SvIV(opt);
+
+				if ((opt = git_hv_int_entry(opts, "total_patches")))
+					total_patches = (size_t) SvIV(opt);
+
+				if ((hopt = git_hv_hash_entry(opts, "flags"))) {
+					if ((opt = git_hv_int_entry(hopt, "exclude_subject_patch_marker"))) {
+						if (SvIV(opt))
+							flags |= GIT_DIFF_FORMAT_EMAIL_EXCLUDE_SUBJECT_PATCH_MARKER;
+					}
+				}
+			}
+		}
+
+		if (items >= 3) {
+			HV *opts  = git_ensure_hv(ST(2), "diff_opts");
+			git_hv_to_diff_opts(opts, &diff_opts, NULL);
+		}
+
+		repo = git_commit_owner(commit);
+
+		rc = git_diff_commit_as_email(
+			&buf, repo, commit,
+			patch_no, total_patches,
+			flags,
+			&diff_opts
+		);
+		if (rc != GIT_OK) {
+			git_buf_free(&buf);
+			git_check_error(rc);
+		}
+
+		RETVAL = newSVpv(buf.ptr, buf.size);
+		git_buf_free(&buf);
+
+	OUTPUT: RETVAL
+
+SV *
+diff(self, ...)
+	SV *self
+
+	PROTOTYPE: $;$$
+	PREINIT:
+		int rc;
+		unsigned int parent_count, requested_parent = 0;
+
+		SV *repo;
+		Repository repo_ptr;
+
+		Diff diff;
+		Commit commit, parent = NULL;
+		Tree our_tree = NULL, parent_tree = NULL;
+
+		git_diff_options diff_opts = GIT_DIFF_OPTIONS_INIT;
+
+	CODE:
+		commit = GIT_SV_TO_PTR(Commit, self);
+
+		parent_count = git_commit_parentcount(commit);
+		if (items >= 2) {
+			if (SvOK(ST(1))) {
+				if (parent_count == 0)
+					croak_usage("Commit has no parents");
+
+				requested_parent = git_ensure_iv(ST(1), "parent");
+			}
+		}
+
+		if (items >= 3) {
+			HV *opts  = git_ensure_hv(ST(2), "diff_opts");
+			git_hv_to_diff_opts(opts, &diff_opts, NULL);
+		}
+
+		if (parent_count > 0) {
+			if (requested_parent > (parent_count - 1))
+				croak_usage("Commit parent %u is out of range", requested_parent);
+
+			rc = git_commit_parent(&parent, commit, 0);
+			git_check_error(rc);
+
+			rc = git_commit_tree(&parent_tree, parent);
+			git_check_error(rc);
+		}
+
+		rc = git_commit_tree(&our_tree, commit);
+		git_check_error(rc);
+
+		repo = GIT_SV_TO_MAGIC(self);
+		repo_ptr = INT2PTR(Repository, SvIV((SV *) repo));
+
+		rc = git_diff_tree_to_tree(
+			&diff, repo_ptr -> repository,
+			parent_tree, our_tree, &diff_opts
+		);
+		git_check_error(rc);
+
+		GIT_NEW_OBJ_WITH_MAGIC(
+			RETVAL, "Git::Raw::Diff", diff, repo
+		);
+
+	OUTPUT: RETVAL
+
 void
 DESTROY(self)
 	SV *self

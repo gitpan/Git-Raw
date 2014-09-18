@@ -1,7 +1,11 @@
 package Git::Raw::Commit;
-$Git::Raw::Commit::VERSION = '0.44';
+$Git::Raw::Commit::VERSION = '0.45';
 use strict;
 use warnings;
+use overload
+	'""'       => sub { return $_[0] -> id },
+	'eq'       => \&_cmp,
+	'ne'       => sub { !&_cmp(@_) };
 
 use Git::Raw;
 
@@ -11,7 +15,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 SYNOPSIS
 
@@ -60,6 +64,25 @@ L<Git::Raw::Tree>. If C<$update_ref> is provided and is defined, the reference
 with the corresponding name is automatically updated or created. If
 C<$update_ref> is C<undef>, no reference is updated.  If C<$update_ref> is not
 provided, "HEAD" is updated.
+
+=cut
+
+sub amend {
+	my $baseline = shift;
+	Git::Raw::Commit -> create(
+		$baseline -> owner(),
+		$baseline -> message,
+		$baseline -> author,
+		$baseline -> committer,
+		@_
+	);
+}
+
+=head2 amend( $baseline, [@parents], $tree [, $update_ref ] )
+
+Create a new commit using C<$baseline> as a template for the message, author
+and committer. This method is useful for rewriting a commit, by replacing its
+parents and trees. See C<Git::Raw::Commit-E<gt>create()>
 
 =head2 lookup( $repo, $id )
 
@@ -118,6 +141,47 @@ containing the merge result.
 Retrieve the L<Git::Raw::Commit> object that is the C<$gen>'th generation
 ancestor of this commit, following only the first parents.
 
+=head2 diff( [$parent_no, \%diff_opts] )
+
+Retrieve the diff associated with the commit. If the commit has no parents,
+C<$parent_no> should not specified. Similarly, for merge commits, C<$parent_no>
+should be specified. See C<Git::Raw::Repository-E<gt>diff()> for valid
+C<%diff_opts> values. In this context, specifying a L<Git::Raw::Tree> in
+C<%diff_opts> will have no effect as it will be determined from the commit's
+parent.
+
+=head2 as_email( [\%format_opts, \%diff_opts] )
+
+Retrieve the patch e-mail associated with the commit. See
+C<Git::Raw::Repository-E<gt>diff()> for valid C<%diff_opts> values. In this
+context, specifying a L<Git::Raw::Tree> in C<%diff_opts> will have no effect
+as it will be determined from the commit's parent.  Valid fields for the
+C<%format_opts> hash are:
+
+=over 4
+
+=item * "patch_no"
+
+The patch number for this commit.
+
+=item * "total_patches"
+
+Total number of patches.
+
+=item * "flags"
+
+E-mail generation flags. Valid fields for this hash include:
+
+=over 8
+
+=item * "exclude_subject_patch_marker"
+
+Don't insert C<"[PATCH]"> in the subject header.
+
+=back
+
+=back
+
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
@@ -135,5 +199,26 @@ by the Free Software Foundation; or the Artistic License.
 See http://dev.perl.org/licenses/ for more information.
 
 =cut
+
+sub _cmp {
+	if (defined($_[0]) && defined ($_[1])) {
+		my ($a, $b);
+
+		$a = $_[0] -> id;
+
+		if (ref($_[1])) {
+			if (!$_[1] -> can('id')) {
+				return 0;
+			}
+			$b = $_[1] -> id;
+		} else {
+			$b = "$_[1]";
+		}
+
+		return $a eq $b;
+	}
+
+	return 0;
+}
 
 1; # End of Git::Raw::Commit

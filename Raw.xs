@@ -33,6 +33,10 @@
 #endif
 
 /* remap libgit2 error enum's to defines */
+#ifdef EAUTH
+#undef EAUTH
+#endif
+
 #define OK                GIT_OK
 #define ERROR             GIT_ERROR
 #define ENOTFOUND         GIT_ENOTFOUND
@@ -48,6 +52,7 @@
 #define EMERGECONFLICT    GIT_EMERGECONFLICT
 #define ELOCKED           GIT_ELOCKED
 #define EMODIFIED         GIT_EMODIFIED
+#define EAUTH             GIT_EAUTH
 #define PASSTHROUGH       GIT_PASSTHROUGH
 #define ITEROVER          GIT_ITEROVER
 
@@ -135,6 +140,14 @@ typedef git_tree * Tree;
 typedef git_treebuilder * Tree_Builder;
 typedef git_tree_entry * Tree_Entry;
 typedef git_revwalk * Walker;
+
+typedef struct {
+	const git_index_entry *ours;
+	const git_index_entry *ancestor;
+	const git_index_entry *theirs;
+} git_raw_index_conflict;
+
+typedef git_raw_index_conflict * Index_Conflict;
 
 typedef struct {
 	int code;
@@ -422,7 +435,7 @@ STATIC git_oid *git_sv_to_commitish(git_repository *repo, SV *sv, git_oid *oid) 
 		const char *commitish_name = NULL;
 
 		/* substr() may return a SVt_PVLV, need to perform some force majeur */
-		if (SvPOK(sv)) {
+		if (SvPOK(sv) || SvGAMAGIC(sv)) {
 			commitish_name = SvPVbyte(sv, len);
 		} else if (SvTYPE(sv) == SVt_PVLV) {
 			commitish_name = SvPVbyte_force(sv, len);
@@ -609,11 +622,13 @@ STATIC const char *git_ensure_pv_with_len(SV *sv, const char *identifier, STRLEN
 	const char *pv = NULL;
 	STRLEN real_len;
 
-	if (SvPOK(sv)) {
+	if (SvPOK(sv) || SvGAMAGIC(sv)) {
 		pv = SvPVbyte(sv, real_len);
 	} else if (SvTYPE(sv) == SVt_PVLV) {
 		pv = SvPVbyte_force(sv, real_len);
-	} else
+	}
+
+	if (pv == NULL)
 		croak_usage("Invalid type for '%s', expected a string", identifier);
 
 	if (len)
@@ -744,6 +759,12 @@ STATIC unsigned git_hv_to_diff_flag(HV *flags) {
 	git_flag_opt(flags, "patience", GIT_DIFF_PATIENCE, &out);
 
 	git_flag_opt(flags, "minimal", GIT_DIFF_MINIMAL, &out);
+
+	git_flag_opt(flags, "show_binary", GIT_DIFF_SHOW_BINARY, &out);
+
+	git_flag_opt(flags, "force_text", GIT_DIFF_FORCE_TEXT, &out);
+
+	git_flag_opt(flags, "force_binary", GIT_DIFF_FORCE_BINARY, &out);
 
 	return out;
 }
@@ -958,7 +979,8 @@ typedef struct {
 	Repository repo_ptr;
 	SV *repo;
 	SV *cb;
-	const char *class;
+	int annotated;
+	int lightweight;
 } git_foreach_payload;
 
 STATIC int git_config_foreach_cbb(const git_config_entry *entry, void *payload) {
@@ -1020,29 +1042,49 @@ STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, v
 STATIC int git_tag_foreach_cbb(const char *name, git_oid *oid, void *payload) {
 	dSP;
 	int rv = 0;
+	git_otype type = GIT_OBJ_ANY;
 	git_object *tag;
 
 	SV *cb_arg = NULL;
 	git_foreach_payload *pl = payload;
 
-	int rc = git_object_lookup(&tag, pl -> repo_ptr -> repository, oid, GIT_OBJ_ANY);
+	int rc = git_object_lookup(
+		&tag, pl -> repo_ptr -> repository, oid, type
+	);
 	git_check_error(rc);
 
-	if (git_object_type(tag) != GIT_OBJ_TAG) {
+	type = git_object_type(tag);
+
+	if (type == GIT_OBJ_TAG) {
+		if (pl -> annotated) {
+			GIT_NEW_OBJ_WITH_MAGIC(
+				cb_arg, "Git::Raw::Tag", (void *) tag, SvRV(pl -> repo)
+			);
+		} else
+			return 0;
+	} else if (type == GIT_OBJ_COMMIT) {
 		git_object_free(tag);
 
-		return 0;
-	}
+		if (pl -> lightweight) {
+			Reference ref = NULL;
+			rc = git_reference_lookup(&ref,
+				pl -> repo_ptr -> repository, name
+			);
+			git_check_error(rc);
 
-	GIT_NEW_OBJ_WITH_MAGIC(
-		cb_arg, pl -> class, (void *) tag, SvRV(pl -> repo)
-	);
+			GIT_NEW_OBJ_WITH_MAGIC(
+				cb_arg, "Git::Raw::Reference", (void *) ref, SvRV(pl -> repo)
+			);
+		} else
+			return 0;
+	} else
+		croak_assert("Unexpected tag, object type of %s", git_object_type2string(type));
 
 	ENTER;
 	SAVETMPS;
 
 	PUSHMARK(SP);
-	XPUSHs(cb_arg);
+	mXPUSHs(cb_arg);
 	PUTBACK;
 
 	call_sv(pl -> cb, G_SCALAR);
@@ -1247,8 +1289,8 @@ STATIC int git_update_tips_cbb(const char *name, const git_oid *a,
 
 	PUSHMARK(SP);
 	mXPUSHs(newSVpv(name, 0));
-	XPUSHs(a != NULL ? sv_2mortal(git_oid_to_sv(a)) : &PL_sv_undef);
-	XPUSHs(b != NULL ? sv_2mortal(git_oid_to_sv(b)) : &PL_sv_undef);
+	XPUSHs((a != NULL && !git_oid_iszero(a)) ? sv_2mortal(git_oid_to_sv(a)) : &PL_sv_undef);
+	XPUSHs((b != NULL && !git_oid_iszero(b)) ? sv_2mortal(git_oid_to_sv(b)) : &PL_sv_undef);
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> update_tips, G_DISCARD);
@@ -1666,6 +1708,58 @@ STATIC void git_hv_to_checkout_opts(HV *opts, git_checkout_options *checkout_opt
 	}
 }
 
+STATIC void git_hv_to_diff_opts(HV *opts, git_diff_options *diff_options, git_tree **tree) {
+	SV *opt;
+	HV *hopt;
+	AV *lopt;
+
+	if (tree) {
+		*tree = NULL;
+
+		if ((opt = git_hv_sv_entry(opts, "tree")) && SvOK(opt))
+			*tree = GIT_SV_TO_PTR(Tree, opt);
+	}
+
+	if ((hopt = git_hv_hash_entry(opts, "flags")))
+		diff_options->flags |= git_hv_to_diff_flag(hopt);
+
+	if ((hopt = git_hv_hash_entry(opts, "prefix"))) {
+		SV *ab;
+
+		if ((ab = git_hv_string_entry(hopt, "a")))
+			diff_options->old_prefix = SvPVbyte_nolen(ab);
+
+		if ((ab = git_hv_string_entry(hopt, "b")))
+			diff_options->new_prefix = SvPVbyte_nolen(ab);
+	}
+
+	if ((opt = git_hv_int_entry(opts, "context_lines")))
+		diff_options->context_lines = (uint16_t) SvIV(opt);
+
+	if ((opt = git_hv_int_entry(opts, "interhunk_lines")))
+		diff_options->interhunk_lines = (uint16_t) SvIV(opt);
+
+	if ((lopt = git_hv_list_entry(opts, "paths"))) {
+		SV **path;
+		char **paths = NULL;
+		size_t i = 0, count = 0;
+
+		while ((path = av_fetch(lopt, i++, 0))) {
+			if (!SvOK(*path))
+				continue;
+
+			Renew(paths, count + 1, char *);
+			paths[count++] = SvPVbyte_nolen(*path);
+		}
+
+		if (count > 0) {
+			diff_options->flags |= GIT_DIFF_DISABLE_PATHSPEC_MATCH;
+			diff_options->pathspec.strings = paths;
+			diff_options->pathspec.count   = count;
+		}
+	}
+}
+
 STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
 	AV *lopt;
 	SV *opt;
@@ -1716,6 +1810,48 @@ MODULE = Git::Raw			PACKAGE = Git::Raw
 BOOT:
 	git_threads_init();
 
+SV *
+message_prettify(class, msg, ...)
+	SV *class
+	SV *msg
+
+	PROTOTYPE: $;$$
+	PREINIT:
+		int rc, strip_comments = 1;
+		char comment_char = '#';
+
+		git_buf buf = GIT_BUF_INIT_CONST(NULL, 0);
+		const char *message;
+
+	CODE:
+		message = git_ensure_pv(msg, "msg");
+
+		if (items >= 3)
+			strip_comments = (int) git_ensure_iv(ST(2), "strip_comments");
+		if (items >= 4) {
+			STRLEN len;
+			const char *comment = git_ensure_pv_with_len(ST(3), "comment_char", &len);
+
+			if (len != 1)
+				croak_usage("Expected a single character for 'comment_char'");
+
+			comment_char = comment[0];
+		}
+
+		rc = git_message_prettify(
+			&buf, message, strip_comments, comment_char
+		);
+
+		RETVAL = &PL_sv_undef;
+		if (rc == GIT_OK) {
+			RETVAL = newSVpv(buf.ptr, buf.size);
+			git_buf_free(&buf);
+		}
+
+		git_check_error(rc);
+
+	OUTPUT: RETVAL
+
 void
 features(class)
 	SV *class
@@ -1761,6 +1897,7 @@ INCLUDE: xs/Filter.xs
 INCLUDE: xs/Filter/Source.xs
 INCLUDE: xs/Graph.xs
 INCLUDE: xs/Index.xs
+INCLUDE: xs/Index/Conflict.xs
 INCLUDE: xs/Index/Entry.xs
 INCLUDE: xs/Patch.xs
 INCLUDE: xs/PathSpec.xs

@@ -25,16 +25,13 @@ static git_smart_subtransport_definition ssh_subtransport_definition = { git_sma
 #endif
 
 static transport_definition local_transport_definition = { "file://", git_transport_local, NULL };
-#ifdef GIT_SSH
-static transport_definition ssh_transport_definition = { "ssh://", git_transport_smart, &ssh_subtransport_definition };
-#else
-static transport_definition dummy_transport_definition = { NULL, git_transport_dummy, NULL };
-#endif
 
 static transport_definition transports[] = {
 	{ "git://",   git_transport_smart, &git_subtransport_definition },
 	{ "http://",  git_transport_smart, &http_subtransport_definition },
+#if defined(GIT_SSL) || defined(GIT_WINHTTP)
 	{ "https://", git_transport_smart, &http_subtransport_definition },
+#endif
 	{ "file://",  git_transport_local, NULL },
 #ifdef GIT_SSH
 	{ "ssh://",   git_transport_smart, &ssh_subtransport_definition },
@@ -46,33 +43,36 @@ static git_vector custom_transports = GIT_VECTOR_INIT;
 
 #define GIT_TRANSPORT_COUNT (sizeof(transports)/sizeof(transports[0])) - 1
 
+static transport_definition * transport_find_by_url(const char *url)
+{
+	size_t i = 0;
+	transport_definition *d;
+
+	/* Find a user transport who wants to deal with this URI */
+	git_vector_foreach(&custom_transports, i, d) {
+		if (strncasecmp(url, d->prefix, strlen(d->prefix)) == 0) {
+			return d;
+		}
+	}
+
+	/* Find a system transport for this URI */
+	for (i = 0; i < GIT_TRANSPORT_COUNT; ++i) {
+		d = &transports[i];
+
+		if (strncasecmp(url, d->prefix, strlen(d->prefix)) == 0) {
+			return d;
+		}
+	}
+
+	return NULL;
+}
+
 static int transport_find_fn(
 	git_transport_cb *out,
 	const char *url,
 	void **param)
 {
-	size_t i = 0;
-	transport_definition *d, *definition = NULL;
-
-	/* Find a user transport who wants to deal with this URI */
-	git_vector_foreach(&custom_transports, i, d) {
-		if (strncasecmp(url, d->prefix, strlen(d->prefix)) == 0) {
-			definition = d;
-			break;
-		}
-	}
-
-	/* Find a system transport for this URI */
-	if (!definition) {
-		for (i = 0; i < GIT_TRANSPORT_COUNT; ++i) {
-			d = &transports[i];
-
-			if (strncasecmp(url, d->prefix, strlen(d->prefix)) == 0) {
-				definition = d;
-				break;
-			}
-		}
-	}
+	transport_definition *definition = transport_find_by_url(url);
 
 #ifdef GIT_WIN32
 	/* On Windows, it might not be possible to discern between absolute local
@@ -89,12 +89,10 @@ static int transport_find_fn(
 
 	/* It could be a SSH remote path. Check to see if there's a :
 	 * SSH is an unsupported transport mechanism in this version of libgit2 */
-	if (!definition && strrchr(url, ':'))
-#ifdef GIT_SSH
-		definition = &ssh_transport_definition;
-#else
-		definition = &dummy_transport_definition;
-#endif
+	if (!definition && strrchr(url, ':')) {
+		// re-search transports again with ssh:// as url so that we can find a third party ssh transport
+		definition = transport_find_by_url("ssh://");
+	}
 
 #ifndef GIT_WIN32
 	/* Check to see if the path points to a file on the local file system */
@@ -114,15 +112,6 @@ static int transport_find_fn(
 /**************
  * Public API *
  **************/
-
-int git_transport_dummy(git_transport **transport, git_remote *owner, void *param)
-{
-	GIT_UNUSED(transport);
-	GIT_UNUSED(owner);
-	GIT_UNUSED(param);
-	giterr_set(GITERR_NET, "This transport isn't implemented. Sorry");
-	return -1;
-}
 
 int git_transport_new(git_transport **out, git_remote *owner, const char *url)
 {
@@ -223,24 +212,13 @@ done:
 	return error;
 }
 
-/* from remote.h */
-int git_remote_valid_url(const char *url)
-{
-	git_transport_cb fn;
-	void *param;
-
-	return !transport_find_fn(&fn, url, &param);
-}
-
 int git_remote_supported_url(const char* url)
 {
 	git_transport_cb fn;
 	void *param;
 
-	if (transport_find_fn(&fn, url, &param) < 0)
-		return 0;
-
-	return fn != &git_transport_dummy;
+	/* The only error we expect is ENOTFOUND */
+	return !transport_find_fn(&fn, url, &param);
 }
 
 int git_transport_init(git_transport *opts, unsigned int version)

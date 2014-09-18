@@ -1,5 +1,5 @@
 package Git::Raw::Index::Entry;
-$Git::Raw::Index::Entry::VERSION = '0.44';
+$Git::Raw::Index::Entry::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index::Entry - Git index entry class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 DESCRIPTION
 
@@ -37,6 +37,10 @@ Retrieve the size of the index entry.
 =head2 stage( )
 
 Retrieve the stage number for the index entry.
+
+=head2 blob( )
+
+Retrieve the blob for the the index entry. Returns a L<Git::Raw::Blob> object.
 
 =head1 AUTHOR
 

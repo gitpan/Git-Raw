@@ -1,5 +1,5 @@
 package Git::Raw::Graph;
-$Git::Raw::Graph::VERSION = '0.44';
+$Git::Raw::Graph::VERSION = '0.45';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Graph - Git graph class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 SYNOPSIS
 
@@ -37,6 +37,30 @@ version 0.44
 B<WARNING>: The API of this module is unstable and may change without warning
 (any change will be appropriately documented in the changelog).
 
+=head2 ahead( $repo, $local, $upstream )
+
+Get the commits C<$local> is ahead of C<$upstream>. C<$local> and C<$upstream>
+should be peelable to a L<Git::Raw::Commit> object, that is, it should be a
+L<Git::Raw::Commit> or L<Git::Raw::Reference> object, or alternatively a commit
+id or commit id prefix. This method returns a list of L<Git::Raw::Commit>
+objects, sorted in topological order.
+
+=head2 behind( $repo, $local, $upstream )
+
+Get the commits C<$local> is behind C<$upstream>. C<$local> and C<$upstream>
+should be peelable to a L<Git::Raw::Commit> object, that is, it should be a
+L<Git::Raw::Commit> or L<Git::Raw::Reference> object, or alternatively a commit
+id or commit id prefix. This method returns a list of L<Git::Raw::Commit>
+objects, sorted in topological order.
+
+=head2 ahead_behind( $repo, $local, $upstream )
+
+Get the unique commits between C<$local> and C<$upstream>. C<$local>
+and C<$upstream> should be peelable to a L<Git::Raw::Commit> object, that is,
+it should be a L<Git::Raw::Commit> or L<Git::Raw::Reference> object, or
+alternatively a commit id or commit id prefix. This method returns a hash
+reference with optional members C<"ahead"> and C<"behind">, each an array
+of L<Git::Raw::Commit> objects, sorted in topological order.
 
 =head2 is_descendant_of( $repo, $commitish, $ancestor )
 

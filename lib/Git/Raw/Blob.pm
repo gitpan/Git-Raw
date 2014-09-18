@@ -1,7 +1,11 @@
 package Git::Raw::Blob;
-$Git::Raw::Blob::VERSION = '0.44';
+$Git::Raw::Blob::VERSION = '0.45';
 use strict;
 use warnings;
+use overload
+	'""'       => sub { return $_[0] -> id },
+	'eq'       => \&_cmp,
+	'ne'       => sub { !&_cmp(@_) };
 
 use Git::Raw;
 
@@ -11,7 +15,7 @@ Git::Raw::Blob - Git blob class
 
 =head1 VERSION
 
-version 0.44
+version 0.45
 
 =head1 DESCRIPTION
 
@@ -48,6 +52,10 @@ Retrieve the size of the raw content of a blob.
 
 Return the raw ID (the SHA-1 hash) of the blob.
 
+=head2 is_binary( )
+
+Determine if the blob content is most certainly binary or not.
+
 =head2 is_blob( )
 
 Returns true.
@@ -75,5 +83,26 @@ by the Free Software Foundation; or the Artistic License.
 See http://dev.perl.org/licenses/ for more information.
 
 =cut
+
+sub _cmp {
+	if (defined($_[0]) && defined ($_[1])) {
+		my ($a, $b);
+
+		$a = $_[0] -> id;
+
+		if (ref($_[1])) {
+			if (!$_[1] -> can('id')) {
+				return 0;
+			}
+			$b = $_[1] -> id;
+		} else {
+			$b = "$_[1]";
+		}
+
+		return $a eq $b;
+	}
+
+	return 0;
+}
 
 1; # End of Git::Raw::Blob
