@@ -1,5 +1,5 @@
 package Git::Raw::Repository;
-$Git::Raw::Repository::VERSION = '0.45';
+$Git::Raw::Repository::VERSION = '0.46';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Repository - Git repository class
 
 =head1 VERSION
 
-version 0.45
+version 0.46
 
 =head1 SYNOPSIS
 
@@ -770,10 +770,10 @@ Create a new L<Git::Raw::Tag>. Shortcut for C<Git::Raw::Tag-E<gt>create()>.
 
 sub tag { return Git::Raw::Tag -> create(@_) }
 
-=head2 tags( )
+=head2 tags( [$type] )
 
-Retrieve the list of annotated and/or lightweight tag objects. Shortcut for
-C<Git::Raw::Tag-E<gt>foreach()>.
+Retrieve the list of annotated and/or lightweight tag objects. Possible values
+for C<$type> include C<"all">, C<"annotated"> or C<"lightweight">.
 
 =cut
 
@@ -789,7 +789,7 @@ sub tags {
 	return @tags;
 }
 
-=head2 stash( $stasher, $msg )
+=head2 stash( $repo, $msg )
 
 Save the local modifications to a new stash. Shortcut for C<Git::Raw::Stash-E<gt>save()>.
 

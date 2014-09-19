@@ -1,5 +1,5 @@
 package Git::Raw::Walker;
-$Git::Raw::Walker::VERSION = '0.45';
+$Git::Raw::Walker::VERSION = '0.46';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Walker - Git revwalker class
 
 =head1 VERSION
 
-version 0.45
+version 0.46
 
 =head1 SYNOPSIS
 
@@ -124,7 +124,7 @@ Hide HEAD of the repository and its ancestors from the walker.
 =head2 next( )
 
 Retrieve the next commit from the revision walk. Returns a L<Git::Raw::Commit>
-object.
+object or C<undef> if there are no commits.
 
 =head2 all( )
 

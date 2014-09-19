@@ -1,5 +1,5 @@
 package Git::Raw::Push;
-$Git::Raw::Push::VERSION = '0.45';
+$Git::Raw::Push::VERSION = '0.46';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Push - Git push class
 
 =head1 VERSION
 
-version 0.45
+version 0.46
 
 =head1 SYNOPSIS
 
@@ -95,7 +95,7 @@ Add the C<$spec> refspec to the push object. Note that C<$spec> is a string.
 
 During the upload of new data, this will reguarly be called with the transfer
 progress. The callback receives the following integers:
-C<current>, C<total> and C<bytes>.
+C<$current>, C<$total> and C<$bytes>.
 
 =item * "pack_progress"
 
@@ -103,13 +103,13 @@ During the packing of new data, this will reguarly be called with the progress
 of the pack operation. Be aware that this is called inline with pack
 building operations, so performance may be affected. The callback receives the
 following integers:
-C<stage>, C<current> and C<total>.
+C<$stage>, C<$current> and C<$total>.
 
 =item * "status"
 
 For each of the updated references, this will be called with a status report
-for the reference. The callback receives C<ref> and C<msg> as strings. If
-C<msg> is defined, the reference mentioned in C<ref> has not been updated.
+for the reference. The callback receives C<$ref> and C<$msg> as strings. If
+C<$msg> is defined, the reference mentioned in C<$ref> has not been updated.
 
 =back
 
