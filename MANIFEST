@@ -366,6 +366,9 @@ lib/Git/Raw/Blame.pm
 lib/Git/Raw/Blame/Hunk.pm
 lib/Git/Raw/Blob.pm
 lib/Git/Raw/Branch.pm
+lib/Git/Raw/Cert.pm
+lib/Git/Raw/Cert/HostKey.pm
+lib/Git/Raw/Cert/X509.pm
 lib/Git/Raw/Commit.pm
 lib/Git/Raw/Config.pm
 lib/Git/Raw/Cred.pm
@@ -382,6 +385,8 @@ lib/Git/Raw/Graph.pm
 lib/Git/Raw/Index.pm
 lib/Git/Raw/Index/Conflict.pm
 lib/Git/Raw/Index/Entry.pm
+lib/Git/Raw/Merge/File/Result.pm
+lib/Git/Raw/Note.pm
 lib/Git/Raw/Patch.pm
 lib/Git/Raw/PathSpec.pm
 lib/Git/Raw/PathSpec/MatchList.pm
@@ -425,6 +430,7 @@ t/20-pathspec.t
 t/21-cherrypick.t
 t/22-revert.t
 t/23-diagnostics.t
+t/24-note.t
 t/99-cleanup.t
 t/release-check-manifest.t
 t/release-pod-coverage.t
@@ -434,6 +440,9 @@ xs/Blame.xs
 xs/Blame/Hunk.xs
 xs/Blob.xs
 xs/Branch.xs
+xs/Cert.xs
+xs/Cert/HostKey.xs
+xs/Cert/X509.xs
 xs/Commit.xs
 xs/Config.xs
 xs/Cred.xs
@@ -450,6 +459,8 @@ xs/Graph.xs
 xs/Index.xs
 xs/Index/Conflict.xs
 xs/Index/Entry.xs
+xs/Merge/File/Result.xs
+xs/Note.xs
 xs/Patch.xs
 xs/PathSpec.xs
 xs/PathSpec/MatchList.xs

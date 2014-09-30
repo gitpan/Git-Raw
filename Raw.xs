@@ -53,6 +53,7 @@
 #define ELOCKED           GIT_ELOCKED
 #define EMODIFIED         GIT_EMODIFIED
 #define EAUTH             GIT_EAUTH
+#define ECERTIFICATE      GIT_ECERTIFICATE
 #define PASSTHROUGH       GIT_PASSTHROUGH
 #define ITEROVER          GIT_ITEROVER
 
@@ -96,6 +97,7 @@
 typedef struct {
 	SV *progress;
 	SV *credentials;
+	SV *certificate_check;
 	SV *transfer_progress;
 	SV *update_tips;
 } git_raw_remote_callbacks;
@@ -118,6 +120,9 @@ typedef git_blame * Blame;
 typedef git_blame_hunk * Blame_Hunk;
 typedef git_blob * Blob;
 typedef git_reference * Branch;
+typedef git_cert * Cert;
+typedef git_cert_hostkey * Cert_HostKey;
+typedef git_cert_x509 * Cert_X509;
 typedef git_commit * Commit;
 typedef git_config * Config;
 typedef git_diff * Diff;
@@ -127,6 +132,8 @@ typedef git_diff_hunk * Diff_Hunk;
 typedef git_diff_stats * Diff_Stats;
 typedef git_index * Index;
 typedef git_index_entry * Index_Entry;
+typedef git_merge_file_result * Merge_File_Result;
+typedef git_note * Note;
 typedef git_patch * Patch;
 typedef git_pathspec * PathSpec;
 typedef git_pathspec_match_list * PathSpec_MatchList;
@@ -142,9 +149,9 @@ typedef git_tree_entry * Tree_Entry;
 typedef git_revwalk * Walker;
 
 typedef struct {
-	const git_index_entry *ours;
-	const git_index_entry *ancestor;
-	const git_index_entry *theirs;
+	git_index_entry *ours;
+	git_index_entry *ancestor;
+	git_index_entry *theirs;
 } git_raw_index_conflict;
 
 typedef git_raw_index_conflict * Index_Conflict;
@@ -341,6 +348,49 @@ STATIC void croak_resolve(const char *pat, ...) {
 	croak_error_obj(e);
 }
 
+STATIC git_index_entry *git_index_entry_dup(const git_index_entry *entry,
+	const char *new_path)
+{
+	git_index_entry *new_entry = NULL;
+
+	if (entry) {
+		Newxz(new_entry, 1, git_index_entry);
+		StructCopy(entry, new_entry, git_index_entry);
+
+		if (new_path)
+			new_entry -> path = savepv(new_path);
+		else
+			new_entry -> path = savepv(entry -> path);
+	}
+
+	return new_entry;
+}
+
+STATIC void git_index_entry_free(git_index_entry *entry)
+{
+	if (entry) {
+		Safefree(entry -> path);
+		Safefree(entry);
+	}
+}
+
+STATIC SV *git_index_entry_to_sv(const git_index_entry *index_entry, const char *path, SV *repo) {
+	SV *ie = &PL_sv_undef;
+
+	if (index_entry) {
+		git_index_entry *entry = NULL;
+
+		if ((entry = git_index_entry_dup(index_entry, path))) {
+			GIT_NEW_OBJ_WITH_MAGIC(
+				ie, "Git::Raw::Index::Entry",
+				entry, repo
+			);
+		}
+	}
+
+	return ie;
+}
+
 STATIC SV *git_obj_to_sv(git_object *o, SV *repo) {
 	SV *res = NULL;
 
@@ -478,6 +528,7 @@ on_error:
 
 STATIC void git_init_remote_callbacks(git_raw_remote_callbacks *cbs) {
 	cbs -> credentials = NULL;
+	cbs -> certificate_check = NULL;
 	cbs -> progress = NULL;
 	cbs -> transfer_progress = NULL;
 	cbs -> update_tips = NULL;
@@ -487,6 +538,11 @@ STATIC void git_clean_remote_callbacks(git_raw_remote_callbacks *cbs) {
 	if (cbs -> credentials) {
 		SvREFCNT_dec(cbs -> credentials);
 		cbs -> credentials = NULL;
+	}
+
+	if (cbs -> certificate_check) {
+		SvREFCNT_dec(cbs -> certificate_check);
+		cbs -> certificate_check = NULL;
 	}
 
 	if (cbs -> progress) {
@@ -1011,9 +1067,21 @@ STATIC int git_config_foreach_cbb(const git_config_entry *entry, void *payload) 
 	return rv;
 }
 
-STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *payload) {
+STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, void *p) {
 	dSP;
-	int rv = 0;
+	int rc, rv = 0;
+	Commit c = NULL;
+	SV *commit = NULL;
+	git_foreach_payload *payload = (git_foreach_payload *) p;
+
+	rc = git_commit_lookup(&c,
+		payload -> repo_ptr -> repository, oid
+	);
+	git_check_error(rc);
+
+	GIT_NEW_OBJ_WITH_MAGIC(
+		commit, "Git::Raw::Commit", c, SvRV(payload -> repo)
+	);
 
 	ENTER;
 	SAVETMPS;
@@ -1021,20 +1089,24 @@ STATIC int git_stash_foreach_cb(size_t i, const char *msg, const git_oid *oid, v
 	PUSHMARK(SP);
 	mXPUSHs(newSVuv(i));
 	mXPUSHs(newSVpv(msg, 0));
-	mXPUSHs(git_oid_to_sv((git_oid *) oid));
+	mXPUSHs(commit);
 	PUTBACK;
 
-	call_sv(((git_foreach_payload *) payload) -> cb, G_SCALAR);
+	call_sv(payload -> cb, G_EVAL|G_SCALAR);
 
 	SPAGAIN;
 
-	rv = POPi;
+	if (SvTRUE(ERRSV)) {
+		rv = -1;
+		(void) POPs;
+	} else {
+		rv = POPi;
+		if (rv != 0)
+			rv = GIT_EUSER;
+	}
 
 	FREETMPS;
 	LEAVE;
-
-	if (rv != 0)
-		rv = GIT_EUSER;
 
 	return rv;
 }
@@ -1361,7 +1433,21 @@ STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 		const char *usr_from_url, unsigned int allow, void *cbs) {
 	dSP;
 	int rv = 0;
+	AV *types = newAV();
 	Cred creds;
+
+	if (allow & GIT_CREDTYPE_USERPASS_PLAINTEXT)
+		av_push(types, newSVpv("userpass_plaintext", 0));
+	if (allow & GIT_CREDTYPE_SSH_KEY)
+		av_push(types, newSVpv("ssh_key", 0));
+	if (allow & GIT_CREDTYPE_SSH_CUSTOM)
+		av_push(types, newSVpv("ssh_custom", 0));
+	if (allow & GIT_CREDTYPE_DEFAULT)
+		av_push(types, newSVpv("default", 0));
+	if (allow & GIT_CREDTYPE_SSH_INTERACTIVE)
+		av_push(types, newSVpv("ssh_interactive", 0));
+	if (allow & GIT_CREDTYPE_USERNAME)
+		av_push(types, newSVpv("username", 0));
 
 	ENTER;
 	SAVETMPS;
@@ -1369,6 +1455,7 @@ STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 	PUSHMARK(SP);
 	mXPUSHs(newSVpv(url, 0));
 	mXPUSHs(newSVpv(usr_from_url, 0));
+	mXPUSHs(newRV_noinc((SV *)types));
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> credentials, G_EVAL|G_SCALAR);
@@ -1376,12 +1463,59 @@ STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 	SPAGAIN;
 
 	if (SvTRUE(ERRSV)) {
-		rv = -1;
+		rv = GIT_PASSTHROUGH;
 		(void) POPs;
 	} else {
-		creds = GIT_SV_TO_PTR(Cred, POPs);
-		*cred = creds -> cred;
+		SV *c = POPs;
+		if (SvOK(c)) {
+			creds = GIT_SV_TO_PTR(Cred, c);
+			*cred = creds -> cred;
+		} else
+			rv = GIT_PASSTHROUGH;
 	}
+
+	FREETMPS;
+	LEAVE;
+
+	return rv;
+}
+
+STATIC int git_certificate_check_cbb(git_cert *cert, int valid, void *cbs) {
+	dSP;
+	int rv = 0;
+	SV *obj = NULL;
+
+	if (cert -> cert_type == GIT_CERT_X509) {
+		git_cert_x509 *x509 = (git_cert_x509 *) cert;
+
+		GIT_NEW_OBJ(
+			obj, "Git::Raw::Cert::X509", (void *) x509
+		);
+	} else if (cert -> cert_type == GIT_CERT_HOSTKEY_LIBSSH2) {
+		git_cert_hostkey *ssh = (git_cert_hostkey *) cert;
+
+		GIT_NEW_OBJ(
+			obj, "Git::Raw::Cert::HostKey", (void *) ssh
+		);
+	}
+
+	ENTER;
+	SAVETMPS;
+
+	PUSHMARK(SP);
+	mXPUSHs(obj);
+	mXPUSHs(newSViv(valid));
+	PUTBACK;
+
+	call_sv(((git_raw_remote_callbacks *) cbs) -> certificate_check, G_EVAL|G_SCALAR);
+
+	SPAGAIN;
+
+	if (SvTRUE(ERRSV)) {
+		rv = -1;
+		(void) POPs;
+	} else
+		rv = POPi;
 
 	FREETMPS;
 	LEAVE;
@@ -1426,7 +1560,7 @@ STATIC void git_ssh_interactive_cbb(const char *name, int name_len, const char *
 		const char *response = SvPV(r, len);
 		int index = num_prompts - i;
 
-		New(0, responses[index].text, len, char);
+		Newxz(responses[index].text, len, char);
 		Copy(response, responses[index].text, len, char);
 		responses[index].length = len;
 	}
@@ -1805,6 +1939,49 @@ STATIC void git_hv_to_merge_opts(HV *opts, git_merge_options *merge_options) {
 		merge_options -> target_limit = SvIV(opt);
 }
 
+STATIC unsigned git_hv_to_merge_file_flag(HV *flags) {
+	unsigned out = 0;
+
+	git_flag_opt(flags, "merge", GIT_MERGE_FILE_STYLE_MERGE, &out);
+	git_flag_opt(flags, "diff3", GIT_MERGE_FILE_STYLE_DIFF3, &out);
+	git_flag_opt(flags, "simplify_alnum", GIT_MERGE_FILE_SIMPLIFY_ALNUM, &out);
+
+	return out;
+}
+
+STATIC void git_hv_to_merge_file_opts(HV *opts, git_merge_file_options *merge_options) {
+	AV *lopt;
+	HV *hopt;
+	SV *opt;
+
+	if ((hopt = git_hv_hash_entry(opts, "flags")))
+		merge_options -> flags |= git_hv_to_merge_file_flag(hopt);
+
+	if ((opt = git_hv_string_entry(opts, "favor"))) {
+		const char *favor = SvPVbyte_nolen(opt);
+		if (strcmp(favor, "ours") == 0)
+			merge_options -> favor =
+				GIT_MERGE_FILE_FAVOR_OURS;
+		else if (strcmp(favor, "theirs") == 0)
+			merge_options -> favor =
+				GIT_MERGE_FILE_FAVOR_THEIRS;
+		else if (strcmp(favor, "union") == 0)
+			merge_options -> favor =
+				GIT_MERGE_FILE_FAVOR_UNION;
+		else
+			croak_usage("Invalid 'favor' value");
+	}
+
+	if ((opt = git_hv_string_entry(opts, "ancestor_label")))
+		merge_options -> ancestor_label = SvPVbyte_nolen(opt);
+
+	if ((opt = git_hv_string_entry(opts, "our_label")))
+		merge_options -> our_label = SvPVbyte_nolen(opt);
+
+	if ((opt = git_hv_string_entry(opts, "their_label")))
+		merge_options -> their_label = SvPVbyte_nolen(opt);
+}
+
 MODULE = Git::Raw			PACKAGE = Git::Raw
 
 BOOT:
@@ -1883,6 +2060,9 @@ INCLUDE: xs/Blame.xs
 INCLUDE: xs/Blame/Hunk.xs
 INCLUDE: xs/Blob.xs
 INCLUDE: xs/Branch.xs
+INCLUDE: xs/Cert.xs
+INCLUDE: xs/Cert/HostKey.xs
+INCLUDE: xs/Cert/X509.xs
 INCLUDE: xs/Commit.xs
 INCLUDE: xs/Config.xs
 INCLUDE: xs/Cred.xs
@@ -1899,6 +2079,8 @@ INCLUDE: xs/Graph.xs
 INCLUDE: xs/Index.xs
 INCLUDE: xs/Index/Conflict.xs
 INCLUDE: xs/Index/Entry.xs
+INCLUDE: xs/Merge/File/Result.xs
+INCLUDE: xs/Note.xs
 INCLUDE: xs/Patch.xs
 INCLUDE: xs/PathSpec.xs
 INCLUDE: xs/PathSpec/MatchList.xs

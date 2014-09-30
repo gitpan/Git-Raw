@@ -1,5 +1,5 @@
 package Git::Raw::Commit;
-$Git::Raw::Commit::VERSION = '0.46';
+$Git::Raw::Commit::VERSION = '0.47';
 use strict;
 use warnings;
 use overload
@@ -15,7 +15,7 @@ Git::Raw::Commit - Git commit class
 
 =head1 VERSION
 
-version 0.46
+version 0.47
 
 =head1 SYNOPSIS
 

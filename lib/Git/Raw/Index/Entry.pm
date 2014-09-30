@@ -1,5 +1,5 @@
 package Git::Raw::Index::Entry;
-$Git::Raw::Index::Entry::VERSION = '0.46';
+$Git::Raw::Index::Entry::VERSION = '0.47';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index::Entry - Git index entry class
 
 =head1 VERSION
 
-version 0.46
+version 0.47
 
 =head1 DESCRIPTION
 
@@ -41,6 +41,12 @@ Retrieve the stage number for the index entry.
 =head2 blob( )
 
 Retrieve the blob for the the index entry. Returns a L<Git::Raw::Blob> object.
+
+=head2 clone( $path )
+
+Clone the entry, but use C<$path> as the entry's path. B<WARNING>: Use with
+caution. This is only useful for scenarios where a conflict entry should be
+added to the index where C<$path> should be used.
 
 =head1 AUTHOR
 

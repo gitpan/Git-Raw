@@ -1,5 +1,5 @@
 package Git::Raw::Config;
-$Git::Raw::Config::VERSION = '0.46';
+$Git::Raw::Config::VERSION = '0.47';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Config - Git config class
 
 =head1 VERSION
 
-version 0.46
+version 0.47
 
 =head1 DESCRIPTION
 

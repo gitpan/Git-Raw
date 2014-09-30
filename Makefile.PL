@@ -96,7 +96,7 @@ while (my ($library, $test) = each %library_tests) {
 			my ($link_dir, $link_lib) = (dirname($user_lib), basename($user_lib));
 
 			if (!$is_msvc) {
-				my @tokens = grep { $_ } split(/(lib|.)/, $link_lib);
+				my @tokens = grep { $_ } split(/(lib|\.)/, $link_lib);
 				shift @tokens if ($tokens[0] eq 'lib');
 				$link_lib = shift @tokens;
 			}
@@ -278,12 +278,13 @@ my %WriteMakefileArgs = (
     "File::Slurp::Tiny" => "0.001",
     "File::Spec" => 0,
     "File::Spec::Functions" => 0,
+    "File::Spec::Unix" => 0,
     "IO::Handle" => 0,
     "IPC::Open3" => 0,
     "Test::More" => 0,
     "Time::Local" => 0
   },
-  "VERSION" => "0.46",
+  "VERSION" => "0.47",
   "test" => {
     "TESTS" => "t/*.t"
   }
@@ -330,6 +331,7 @@ my @error_constants = (qw(
 	ELOCKED
 	EMODIFIED
 	EAUTH
+	ECERTIFICATE
 	PASSTHROUGH
 	ITEROVER
 

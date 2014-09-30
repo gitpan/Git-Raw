@@ -1,5 +1,5 @@
 package Git::Raw::Index::Conflict;
-$Git::Raw::Index::Conflict::VERSION = '0.46';
+$Git::Raw::Index::Conflict::VERSION = '0.47';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Index::Conflict - Git index conflict class
 
 =head1 VERSION
 
-version 0.46
+version 0.47
 
 =head1 DESCRIPTION
 

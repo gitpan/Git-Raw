@@ -1,5 +1,5 @@
 package Git::Raw::Stash;
-$Git::Raw::Stash::VERSION = '0.46';
+$Git::Raw::Stash::VERSION = '0.47';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Stash - Git stash class
 
 =head1 VERSION
 
-version 0.46
+version 0.47
 
 =head1 DESCRIPTION
 
@@ -26,7 +26,7 @@ B<WARNING>: The API of this module is unstable and may change without warning
 
 Save the local modifications to a new stash. Non-default options may be
 specified by providing the optional C<@opts> argument. If files were stashed,
-this function will return a true value, otherwise C<undef>.
+this function will return a L<Git::Raw::Commit> object, otherwise C<undef>.
 
 Valid fields for the C<@opts> array are:
 
@@ -52,8 +52,8 @@ directory. The default is to leave ignored files in the working directory.
 =head2 foreach( $repo, $callback )
 
 Run C<$callback> for every stash in the repo. The callback receives three
-arguments: the stash index, the stash message and the stash object id. A
-non-zero return value stops the loop.
+arguments: the stash C<$index>, the stash C<$message> and the stash C<$commit>,
+a L<Git::Raw::Commit> object. A non-zero return value will stop the loop.
 
 =head2 drop( $repo, $index )
 
@@ -62,6 +62,8 @@ Remove a single stash from the stash list.
 =head1 AUTHOR
 
 Alessandro Ghedini <alexbio@cpan.org>
+
+Jacques Germishuys <jacquesg@striata.com>
 
 =head1 LICENSE AND COPYRIGHT
 

@@ -1,5 +1,5 @@
 package Git::Raw::Remote;
-$Git::Raw::Remote::VERSION = '0.46';
+$Git::Raw::Remote::VERSION = '0.47';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.46
+version 0.47
 
 =head1 SYNOPSIS
 
@@ -99,10 +99,6 @@ updated and returned.
 Retrieve the push URL for the remote. If C<$url> is passed, the remote's push
 URL will be updated and returned.
 
-=head2 check_cert( $value )
-
-Set whether to check the server's certificate (applies to HTTPS only).
-
 =head2 add_fetch( $spec )
 
 Add a fetch spec to the remote.
@@ -153,7 +149,46 @@ The local OID of the reference (optional).
 
 The callback to be called any time authentication is required to connect to the
 remote repository. The callback receives a string C<$url> containing the URL of
-the remote, and it must return a L<Git::Raw::Cred> object.
+the remote, the C<$user> extracted from the URL and a list of supported
+authentication C<$types>. The callback should return either a L<Git::Raw::Cred>
+object or alternatively C<undef> to abort the authentication process. B<Note:>
+this callback may be invoked more than once. C<$types> may contain one or more
+of the following:
+
+=over 8
+
+=item * "userpass_plaintext"
+
+Plaintext username and password.
+
+=item * "ssh_key"
+
+A SSH key from disk
+
+=item * "ssh_custom"
+
+A SSH key with a custom signature function.
+
+=item * "ssh_interactive"
+
+Keyboard-interactive based SSH authentication
+
+=item * "username"
+
+Username-only credential information.
+
+=item * "default"
+
+A key for NTLM/Kerberos default credentials.
+
+=back
+
+=item * "certificate_check"
+
+Callback to be invoked if cert verification fails. The callback receives a
+L<Git::Raw::Cert::X509> or L<Git::Raw::Cert::HostKey> object and a truthy
+value C<$is_valid>. This callback should return 1 to allow the connection to
+proceed or 0 to abort. Returning a negative number indicates an error.
 
 =item * "sideband_progress"
 

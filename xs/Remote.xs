@@ -113,10 +113,6 @@ owner(self)
 
 	CODE:
 		repo = GIT_SV_TO_MAGIC(self);
-
-		if (!repo)
-			croak_assert("No owner attached");
-
 		RETVAL = newRV_inc(repo);
 
 	OUTPUT: RETVAL
@@ -202,10 +198,9 @@ url(self, ...)
 			git_check_error(rc);
 		}
 
+		RETVAL = &PL_sv_undef;
 		if ((url = git_remote_url(self -> remote)))
 			RETVAL = newSVpv(url, 0);
-		else
-			RETVAL = &PL_sv_undef;
 
 	OUTPUT: RETVAL
 
@@ -308,14 +303,6 @@ refspec_count(self)
 		RETVAL = newSVuv(git_remote_refspec_count(self -> remote));
 
 	OUTPUT: RETVAL
-
-void
-check_cert(self, value)
-	Remote self
-	SV *value
-
-	CODE:
-		git_remote_check_cert(self -> remote, git_ensure_iv(value, "value"));
 
 void
 fetch(self)
@@ -424,6 +411,10 @@ callbacks(self, callbacks)
 		if ((remote -> callbacks.credentials =
 			get_callback_option(callbacks, "credentials")))
 			rcallbacks.credentials = git_credentials_cbb;
+
+		if ((remote -> callbacks.certificate_check =
+			get_callback_option(callbacks, "certificate_check")))
+			rcallbacks.certificate_check = git_certificate_check_cbb;
 
 		if ((remote -> callbacks.progress =
 			get_callback_option(callbacks, "sideband_progress")))
