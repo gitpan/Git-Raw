@@ -56,6 +56,7 @@ deps/libgit2/include/git2/commit.h
 deps/libgit2/include/git2/common.h
 deps/libgit2/include/git2/config.h
 deps/libgit2/include/git2/cred_helpers.h
+deps/libgit2/include/git2/describe.h
 deps/libgit2/include/git2/diff.h
 deps/libgit2/include/git2/errors.h
 deps/libgit2/include/git2/filter.h
@@ -97,6 +98,7 @@ deps/libgit2/include/git2/sys/commit.h
 deps/libgit2/include/git2/sys/config.h
 deps/libgit2/include/git2/sys/diff.h
 deps/libgit2/include/git2/sys/filter.h
+deps/libgit2/include/git2/sys/hashsig.h
 deps/libgit2/include/git2/sys/index.h
 deps/libgit2/include/git2/sys/mempack.h
 deps/libgit2/include/git2/sys/odb_backend.h
@@ -108,6 +110,7 @@ deps/libgit2/include/git2/sys/transport.h
 deps/libgit2/include/git2/tag.h
 deps/libgit2/include/git2/threads.h
 deps/libgit2/include/git2/trace.h
+deps/libgit2/include/git2/transaction.h
 deps/libgit2/include/git2/transport.h
 deps/libgit2/include/git2/tree.h
 deps/libgit2/include/git2/types.h
@@ -157,6 +160,7 @@ deps/libgit2/src/delta-apply.c
 deps/libgit2/src/delta-apply.h
 deps/libgit2/src/delta.c
 deps/libgit2/src/delta.h
+deps/libgit2/src/describe.c
 deps/libgit2/src/diff.c
 deps/libgit2/src/diff.h
 deps/libgit2/src/diff_driver.c
@@ -194,7 +198,6 @@ deps/libgit2/src/hash/hash_openssl.h
 deps/libgit2/src/hash/hash_win32.c
 deps/libgit2/src/hash/hash_win32.h
 deps/libgit2/src/hashsig.c
-deps/libgit2/src/hashsig.h
 deps/libgit2/src/ident.c
 deps/libgit2/src/ignore.c
 deps/libgit2/src/ignore.h
@@ -290,6 +293,7 @@ deps/libgit2/src/thread-utils.c
 deps/libgit2/src/thread-utils.h
 deps/libgit2/src/trace.c
 deps/libgit2/src/trace.h
+deps/libgit2/src/transaction.c
 deps/libgit2/src/transport.c
 deps/libgit2/src/transports/auth.c
 deps/libgit2/src/transports/auth.h
@@ -380,6 +384,7 @@ lib/Git/Raw/Diff/Stats.pm
 lib/Git/Raw/Error.pm
 lib/Git/Raw/Error/Category.pm
 lib/Git/Raw/Filter.pm
+lib/Git/Raw/Filter/List.pm
 lib/Git/Raw/Filter/Source.pm
 lib/Git/Raw/Graph.pm
 lib/Git/Raw/Index.pm
@@ -454,6 +459,7 @@ xs/Diff/Stats.xs
 xs/Error.xs
 xs/Error/Category.xs
 xs/Filter.xs
+xs/Filter/List.xs
 xs/Filter/Source.xs
 xs/Graph.xs
 xs/Index.xs

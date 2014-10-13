@@ -1,5 +1,5 @@
 package Git::Raw::Cert::X509;
-$Git::Raw::Cert::X509::VERSION = '0.47';
+$Git::Raw::Cert::X509::VERSION = '0.48';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::Cert::X509 - Git X509 certificate class
 
 =head1 VERSION
 
-version 0.47
+version 0.48
 
 =head1 DESCRIPTION
 

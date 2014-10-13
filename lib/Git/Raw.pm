@@ -1,5 +1,5 @@
 package Git::Raw;
-$Git::Raw::VERSION = '0.47';
+$Git::Raw::VERSION = '0.48';
 use strict;
 use warnings;
 
@@ -29,7 +29,7 @@ Git::Raw - Perl bindings to the Git linkable library (libgit2)
 
 =head1 VERSION
 
-version 0.47
+version 0.48
 
 =head1 DESCRIPTION
 

@@ -1,5 +1,5 @@
 package Git::Raw::Remote;
-$Git::Raw::Remote::VERSION = '0.47';
+$Git::Raw::Remote::VERSION = '0.48';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Remote - Git remote class
 
 =head1 VERSION
 
-version 0.47
+version 0.48
 
 =head1 SYNOPSIS
 
@@ -186,9 +186,10 @@ A key for NTLM/Kerberos default credentials.
 =item * "certificate_check"
 
 Callback to be invoked if cert verification fails. The callback receives a
-L<Git::Raw::Cert::X509> or L<Git::Raw::Cert::HostKey> object and a truthy
-value C<$is_valid>. This callback should return 1 to allow the connection to
-proceed or 0 to abort. Returning a negative number indicates an error.
+L<Git::Raw::Cert::X509> or L<Git::Raw::Cert::HostKey> object, a truthy
+value C<$valid> and C<$host>. This callback should return 1 to allow the
+connection to proceed or 0 to abort. Returning a negative number indicates
+an error.
 
 =item * "sideband_progress"
 

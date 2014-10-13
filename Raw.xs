@@ -173,6 +173,7 @@ typedef struct {
 
 typedef git_raw_filter * Filter;
 typedef git_filter_source * Filter_Source;
+typedef git_filter_list * Filter_List;
 
 typedef struct {
 	git_remote *remote;
@@ -1480,7 +1481,7 @@ STATIC int git_credentials_cbb(git_cred **cred, const char *url,
 	return rv;
 }
 
-STATIC int git_certificate_check_cbb(git_cert *cert, int valid, void *cbs) {
+STATIC int git_certificate_check_cbb(git_cert *cert, int valid, const char *host, void *cbs) {
 	dSP;
 	int rv = 0;
 	SV *obj = NULL;
@@ -1505,6 +1506,7 @@ STATIC int git_certificate_check_cbb(git_cert *cert, int valid, void *cbs) {
 	PUSHMARK(SP);
 	mXPUSHs(obj);
 	mXPUSHs(newSViv(valid));
+	mXPUSHs(newSVpv(host, 0));
 	PUTBACK;
 
 	call_sv(((git_raw_remote_callbacks *) cbs) -> certificate_check, G_EVAL|G_SCALAR);
@@ -1585,7 +1587,7 @@ STATIC int git_filter_init_cbb(git_filter *filter) {
 	SPAGAIN;
 
 	if (SvTRUE(ERRSV)) {
-		rv = -1;
+		rv = GIT_EUSER;
 		(void) POPs;
 	} else {
 		rv = POPi;
@@ -1637,7 +1639,7 @@ STATIC int git_filter_check_cbb(git_filter *filter, void **payload,
 	SPAGAIN;
 
 	if (SvTRUE(ERRSV)) {
-		rv = -1;
+		rv = GIT_EUSER;
 		(void) POPs;
 	} else {
 		rv = POPi;
@@ -1675,7 +1677,7 @@ STATIC int git_filter_apply_cbb(git_filter *filter, void **payload,
 	SPAGAIN;
 
 	if (SvTRUE(ERRSV)) {
-		rv = -1;
+		rv = GIT_EUSER;
 		(void) POPs;
 	} else {
 		rv = POPi;
@@ -2074,6 +2076,7 @@ INCLUDE: xs/Diff/Stats.xs
 INCLUDE: xs/Error.xs
 INCLUDE: xs/Error/Category.xs
 INCLUDE: xs/Filter.xs
+INCLUDE: xs/Filter/List.xs
 INCLUDE: xs/Filter/Source.xs
 INCLUDE: xs/Graph.xs
 INCLUDE: xs/Index.xs
