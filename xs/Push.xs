@@ -19,7 +19,7 @@ new(class, remote)
 		rc = git_push_new(&p, r -> remote);
 		git_check_error(rc);
 
-		Newx(push, 1, git_raw_push);
+		Newxz(push, 1, git_raw_push);
 		git_init_push_callbacks(&push -> callbacks);
 		push -> push = p;
 
@@ -41,7 +41,7 @@ add_refspec(self, refspec)
 		rc = git_push_add_refspec(self -> push, SvPVbyte_nolen(refspec));
 		git_check_error(rc);
 
-void
+SV *
 finish(self)
 	Push self
 
@@ -49,16 +49,22 @@ finish(self)
 		int rc;
 
 	CODE:
+		self -> success = 1;
+
 		rc = git_push_finish(self -> push);
 		git_check_error(rc);
 
-		if (self -> callbacks.status != NULL) {
-			rc = git_push_status_foreach(
-				self -> push,
-				git_push_status_cbb,
-				&self -> callbacks);
+		rc = git_push_status_foreach(
+			self -> push,
+			git_push_status_cbb,
+			self);
+
+		if (rc != GIT_EUSER)
 			git_check_error(rc);
-		}
+
+		RETVAL = newSViv(self -> success);
+
+	OUTPUT: RETVAL
 
 SV *
 unpack_ok(self)
@@ -84,6 +90,10 @@ update_tips(self)
 
 	CODE:
 		push = GIT_SV_TO_PTR(Push, self);
+
+		if (!push -> success)
+			croak_usage("Push did not complete successfully");
+
 		remote = GIT_SV_TO_MAGIC(self);
 		remote_ptr = INT2PTR(Remote, SvIV((SV *) remote));
 

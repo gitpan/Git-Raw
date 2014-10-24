@@ -1,5 +1,5 @@
 package Git::Raw::Tree::Entry;
-$Git::Raw::Tree::Entry::VERSION = '0.48';
+$Git::Raw::Tree::Entry::VERSION = '0.49';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Tree::Entry - Git tree entry class
 
 =head1 VERSION
 
-version 0.48
+version 0.49
 
 =head1 DESCRIPTION
 
@@ -35,7 +35,7 @@ Retrieve the filename of the tree entry.
 Retrieve the file mode of the tree entry, as an integer. For example,
 a normal file has mode 0100644 = 33188.
 
-=head2 object( $repo )
+=head2 object( )
 
 Retrieve the object pointed by the tree entry.
 
