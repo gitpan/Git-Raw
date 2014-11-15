@@ -1,11 +1,10 @@
 package Git::Raw::Tree;
-$Git::Raw::Tree::VERSION = '0.49';
+$Git::Raw::Tree::VERSION = '0.50';
 use strict;
 use warnings;
 use overload
 	'""'       => sub { return $_[0] -> id },
-	'eq'       => \&_cmp,
-	'ne'       => sub { !&_cmp(@_) };
+	fallback   => 1;
 
 use Git::Raw;
 
@@ -15,7 +14,7 @@ Git::Raw::Tree - Git tree class
 
 =head1 VERSION
 
-version 0.49
+version 0.50
 
 =head1 DESCRIPTION
 
@@ -91,26 +90,5 @@ by the Free Software Foundation; or the Artistic License.
 See http://dev.perl.org/licenses/ for more information.
 
 =cut
-
-sub _cmp {
-	if (defined($_[0]) && defined ($_[1])) {
-		my ($a, $b);
-
-		$a = $_[0] -> id;
-
-		if (ref($_[1])) {
-			if (!$_[1] -> can('id')) {
-				return 0;
-			}
-			$b = $_[1] -> id;
-		} else {
-			$b = "$_[1]";
-		}
-
-		return $a eq $b;
-	}
-
-	return 0;
-}
 
 1; # End of Git::Raw::Tree

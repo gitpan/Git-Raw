@@ -1,5 +1,5 @@
 package Git::Raw::Config;
-$Git::Raw::Config::VERSION = '0.49';
+$Git::Raw::Config::VERSION = '0.50';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Config - Git config class
 
 =head1 VERSION
 
-version 0.49
+version 0.50
 
 =head1 DESCRIPTION
 
@@ -59,10 +59,6 @@ returned. If C<$name> configuration is not found, C<undef> is returned.
 Run C<$callback> for every config entry. The callback receives the name of the
 config entry, its value and its priority level. A non-zero return value stops
 the loop.
-
-=head2 refresh( )
-
-Reload the config files from disk.
 
 =head2 delete( $name )
 

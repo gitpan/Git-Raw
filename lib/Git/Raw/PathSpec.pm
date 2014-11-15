@@ -1,5 +1,5 @@
 package Git::Raw::PathSpec;
-$Git::Raw::PathSpec::VERSION = '0.49';
+$Git::Raw::PathSpec::VERSION = '0.50';
 use strict;
 use warnings;
 
@@ -9,7 +9,7 @@ Git::Raw::PathSpec - Git pathspec class
 
 =head1 VERSION
 
-version 0.49
+version 0.50
 
 =head1 DESCRIPTION
 

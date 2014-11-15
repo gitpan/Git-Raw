@@ -1,5 +1,5 @@
 package Git::Raw::Filter::Source;
-$Git::Raw::Filter::Source::VERSION = '0.49';
+$Git::Raw::Filter::Source::VERSION = '0.50';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Filter::Source - Git filter source class
 
 =head1 VERSION
 
-version 0.49
+version 0.50
 
 =head1 DESCRIPTION
 

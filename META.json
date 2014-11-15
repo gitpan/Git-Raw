@@ -70,7 +70,7 @@
          "web" : "https://github.com/jacquesg/p5-Git-Raw"
       }
    },
-   "version" : "0.49",
+   "version" : "0.50",
    "x_Dist_Zilla" : {
       "perl" : {
          "version" : "5.018002"
@@ -251,7 +251,7 @@
                "Dist::Zilla::Plugin::Git::Tag" : {
                   "branch" : null,
                   "signed" : 0,
-                  "tag" : "v0.49",
+                  "tag" : "v0.50",
                   "tag_format" : "v%v",
                   "tag_message" : "%N %v",
                   "time_zone" : "local"

@@ -1,5 +1,5 @@
 package Git::Raw::Patch;
-$Git::Raw::Patch::VERSION = '0.49';
+$Git::Raw::Patch::VERSION = '0.50';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Patch - Git patch class
 
 =head1 VERSION
 
-version 0.49
+version 0.50
 
 =head1 DESCRIPTION
 

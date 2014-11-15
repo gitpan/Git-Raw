@@ -13,6 +13,7 @@ deps/libgit2/AUTHORS
 deps/libgit2/CHANGELOG.md
 deps/libgit2/COPYING
 deps/libgit2/README.md
+deps/libgit2/THREADING.md
 deps/libgit2/deps/http-parser/LICENSE-MIT
 deps/libgit2/deps/http-parser/http_parser.c
 deps/libgit2/deps/http-parser/http_parser.h
@@ -44,6 +45,7 @@ deps/libgit2/deps/zlib/zutil.c
 deps/libgit2/deps/zlib/zutil.h
 deps/libgit2/git.git-authors
 deps/libgit2/include/git2.h
+deps/libgit2/include/git2/annotated_commit.h
 deps/libgit2/include/git2/attr.h
 deps/libgit2/include/git2/blame.h
 deps/libgit2/include/git2/blob.h
@@ -60,6 +62,7 @@ deps/libgit2/include/git2/describe.h
 deps/libgit2/include/git2/diff.h
 deps/libgit2/include/git2/errors.h
 deps/libgit2/include/git2/filter.h
+deps/libgit2/include/git2/global.h
 deps/libgit2/include/git2/graph.h
 deps/libgit2/include/git2/ignore.h
 deps/libgit2/include/git2/index.h
@@ -78,6 +81,7 @@ deps/libgit2/include/git2/pack.h
 deps/libgit2/include/git2/patch.h
 deps/libgit2/include/git2/pathspec.h
 deps/libgit2/include/git2/push.h
+deps/libgit2/include/git2/rebase.h
 deps/libgit2/include/git2/refdb.h
 deps/libgit2/include/git2/reflog.h
 deps/libgit2/include/git2/refs.h
@@ -115,6 +119,8 @@ deps/libgit2/include/git2/transport.h
 deps/libgit2/include/git2/tree.h
 deps/libgit2/include/git2/types.h
 deps/libgit2/include/git2/version.h
+deps/libgit2/src/annotated_commit.c
+deps/libgit2/src/annotated_commit.h
 deps/libgit2/src/array.h
 deps/libgit2/src/attr.c
 deps/libgit2/src/attr.h
@@ -192,6 +198,7 @@ deps/libgit2/src/global.h
 deps/libgit2/src/graph.c
 deps/libgit2/src/hash.c
 deps/libgit2/src/hash.h
+deps/libgit2/src/hash/hash_common_crypto.h
 deps/libgit2/src/hash/hash_generic.c
 deps/libgit2/src/hash/hash_generic.h
 deps/libgit2/src/hash/hash_openssl.h
@@ -250,6 +257,7 @@ deps/libgit2/src/pqueue.c
 deps/libgit2/src/pqueue.h
 deps/libgit2/src/push.c
 deps/libgit2/src/push.h
+deps/libgit2/src/rebase.c
 deps/libgit2/src/refdb.c
 deps/libgit2/src/refdb.h
 deps/libgit2/src/refdb_fs.c

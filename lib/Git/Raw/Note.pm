@@ -1,5 +1,5 @@
 package Git::Raw::Note;
-$Git::Raw::Note::VERSION = '0.49';
+$Git::Raw::Note::VERSION = '0.50';
 use strict;
 use warnings;
 
@@ -11,7 +11,7 @@ Git::Raw::Note - Git note class
 
 =head1 VERSION
 
-version 0.49
+version 0.50
 
 =head1 DESCRIPTION
 
@@ -44,6 +44,14 @@ Retrieve the note's id.
 =head2 message( )
 
 Retrieve the note's message.
+
+=head2 author( )
+
+Retrieve the L<Git::Raw::Signature> representing the author of the note.
+
+=head2 committer( )
+
+Retrieve the L<Git::Raw::Signature> representing the committer.
 
 =head2 default_ref( $repo )
 

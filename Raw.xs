@@ -1013,6 +1013,10 @@ STATIC int git_diff_cb(const git_diff_delta *delta, const git_diff_hunk *hunk,
 			XPUSHs(sv_2mortal(newSVpv("hunk", 0)));
 			break;
 
+		case GIT_DIFF_LINE_CONTEXT_EOFNL:
+			XPUSHs(sv_2mortal(newSVpv("noeol", 0)));
+			break;
+
 		case GIT_DIFF_LINE_BINARY:
 			XPUSHs(sv_2mortal(newSVpv("bin", 0)));
 			break;
@@ -1997,7 +2001,7 @@ STATIC void git_hv_to_merge_file_opts(HV *opts, git_merge_file_options *merge_op
 MODULE = Git::Raw			PACKAGE = Git::Raw
 
 BOOT:
-	git_threads_init();
+	git_libgit2_init();
 
 SV *
 message_prettify(class, msg, ...)
